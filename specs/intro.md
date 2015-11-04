@@ -11,12 +11,8 @@
 
 * fuse client
 * exposes the filesystem to local OS
-* uses list of aysfs_stor's to find files & metadata
-
-### ayfs_stor  (ST)
-
-* ledis based stor for files & metata
-
+* uses list of aysfs_stor's to find files 
+* metadata comes from ays
 
 
 # components
@@ -30,81 +26,41 @@
 [main]
 id="aUniqueIdForThisClient"
 
-[[cache.local]]
-#is local ledis instance, working over tcp locally
-#if port not specified or this section not specified do not use
-port=999
-#time in hours before files get expired if not fetched at least once (0 means do not expire)
-expiration = 48
 
-[[cache.grid]]
+[[ays.cache]]
 #cache at gridlevel, can have more than 1, will try all till found what it needs
-#http based with optional login/passwd
-url="http://192.168.2.1:8080"
-login=""
-passwd=""
+mnt="/mnt/gridnode1/"
 
-[[cache.grid]]
-#cache at gridlevel
-#http based with optional login/passwd
-url="http://192.168.2.2:8080"
-login=""
-passwd=""
+[[ays.cache]]
+mnt="http://192.168.1.1:8080"
 
 [[ays.stor]]
-name="jumpscale"
-url="https://files.jumpscale.org:8080/files"
-login=""
-secret=""
-#time in hours before files get expired if not fetched at least once (0 means do not expire)
+#cache at gridlevel, can have more than 1, will try all till found what it needs
+url="http://stor1.aydo.com:8080"
 cache.expiration = 0
 
 [[ays.stor]]
-name="ovc"
-url="https://files.ovc.aydo.com:8080/files"
-login=""
-secret=""
-cache.expiration = 48
-
-[[ays.stor]]
-name="customerx"
-url="https://files.ovc.aydo.com:8080/custx"
-login="custx"
-secret="1234"
-
-[[mount_files]]
-name=mongodb
-path="/opt/jumpscale7/apps/mongodb"
-platform="ubuntu64"
-#always with version & no instance (is for template files)
-ays.id="jumpscale|mongodb(10.1.888)"
-#ays.repoid is normally empty because is template, if not empty then this means ays recipe has been defined on this level
-ays.repoid=""
-stor.name="jumpscale"
-#next is for easy debugging purposes, can write back to developer 
-debug = "kdsdebug"
-debug_filter = [".*\.py",".*\.hrd"]
-#default is empty
-dedupe_domain = ""
-prefetch=1 
-
-[[mount_config]]
-path="/opt/jumpscale7/apps/mongodb/cfg"
-remote="cfg"
-#always with instance !!!
-ays.id="jumpscale|mongodb!main"
-#is unique id to full repo path of this ays repo
-ays.repoid="1SdY294"
-stor.name="customerx"
-dedupe_domain = "" 
+url="ssh://stor2.aydo.com:8080/mnt/1"
+cache.expiration = 0
 
 [[debug]]
-name="kdsdebug"
-#is normal redis (not ledis)
-#use std redis client 
+debug_filter = [".*\.py",".*\.hrd"]
 redis.addr="127.0.0.1"
 redis.port=555
 redis.passwd=""
+
+[[ays]]
+id="jumpscale|mongodb!main"
+prefetch.cache.grid=0
+prefetch.cache.local=0
+cache.grid=1
+cache.local=1
+
+[[ays]]
+id="jumpscale|mysql!main"
+prefetch.cache.grid=0
+prefetch.cache.local=0
+
 ```
 
 ### features
@@ -113,7 +69,7 @@ redis.passwd=""
 - is readonly (exception for debug feature)
 - support easy mechanism for developer to work on files in reality and get feedback to his local machine
 
-### how are files & metadata stored in ledis
+### how are files & metadata stored in boltdb
 
 - metadata
     - hset `md:$ays_id` key:`dirpath` val:`["filename":"$hash,$size",...]`
@@ -144,47 +100,6 @@ redis.passwd=""
 
 ### remarks
 
-
-
-## ays_cache
-
-- http://ledisdb.com/ based
-- use bolt as backend db
-- each aysf client connects to this stor over http(s)
-- is a HTTP(S) server which uses local/remote ledis store as backend
-
-### how
-- when aysfs_client starts it tells about its existence to all known ays_caches (clientid & platform will be remembered on cache)
-- when aysfs_client starts (or reloads config) it will let aysfs_stor know which store's are known
-    - post $stor_url/ays/stor/$name payload is url,login,passwd,expiration 
-        - info from config file in aysfs_client
-        - the longest expiration is used when the storname is already there (so client asking for longest expiration wins)
-    - this is stored in local ledis
-- when aysfs_client starts (or reloads config) it will let aysfs_stor know which mounts are known
-    - post $stor_url/ays/mount/$clientid/$mountname payload is info in the toml file for that mount as dict
-    - this is stored in local ledis    
-- when aysfs_client needs metadata
-    - get  $stor_url/md/$clientid/$mountname/$path?fetch=1
-        - path is subpath of that ays
-        - if fetch=0 then do not try to fetch from stores remotely configured
-        - if fetch = 1 fetch and wait
-        - if fetch = 2 fetch async return ""
-        - if fetch = 3 fetch and wait but do not cache
-    - return "" if not found, so cache does not have the info
-- when aysfs_client needs file
-    - get  $stor_url/$dedupedomain/$hash?fetch=1
-    - hashed files are stored as 
-        - store as messagepack???
-    - each dedupe domain is in separate db file (ledis) ???
-
-
-### config
-
-```python
-[[ledis]]
-port=999
-
-```
 
 # remarks
 - all in golang
