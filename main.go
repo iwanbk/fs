@@ -1,15 +1,18 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
-	"bazil.org/fuse"
+	"net/http"
+	_ "net/http/pprof"
 
+	"github.com/boltdb/bolt"
 	"github.com/naoina/toml"
 )
 
@@ -37,8 +40,16 @@ func loadConfig(path string) *Config {
 }
 
 var cfg *Config
+var enablePprof = flag.Bool("pprof", false, "enable net pprof")
 
 func main() {
+	if *enablePprof {
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+
+		}()
+	}
+
 	log.SetFlags(0)
 	log.SetPrefix(progName + ": ")
 
@@ -49,36 +60,66 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+	mountpoint := flag.Arg(0)
+	if strings.HasSuffix(mountpoint, string(os.PathSeparator)) {
+		mountpoint = mountpoint[:len(mountpoint)-2]
+	}
 
 	cfg = loadConfig(*configPath)
-	if cfg.Main.boltdb == "" {
-		cfg.Main.boltdb = "db.bolt"
+	if cfg.Main.Boltdb == "" {
+		cfg.Main.Boltdb = "db.bolt"
 	}
 
-	// db, err := bolt.Open(cfg.Main.boltdb, 0600, nil)
-	// if err != nil {
-	// 	log.Fatalln("can't open boltdb database at %s: %s\n", cfg.Main.boltdb, err)
-	// }
-	f, err := os.Open("metadata.json")
+	_ = os.Remove(cfg.Main.Boltdb)
+	db, err := bolt.Open(cfg.Main.Boltdb, 0600, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalln("can't open boltdb database at %s: %s\n", cfg.Main.Boltdb, err)
 	}
-	node := map[string]json.RawMessage{}
-	if err := json.NewDecoder(f).Decode(&node); err != nil {
-		log.Fatalln(err)
+
+	caches := []cacher{}
+	for _, c := range cfg.Cache {
+		fmt.Println("add cache", c.Mnt)
+		caches = append(caches, &fsCache{
+			root: c.Mnt,
+			// expiration: c.Expirtation,
+			dedupe: "dedupe",
+		})
+	}
+
+	stores := []cacher{}
+	for _, s := range cfg.Store {
+		fmt.Println("add Store", s.URL)
+		stores = append(stores, &httpCache{
+			addr: s.URL,
+			// expiration: s.Expirtation,
+			dedupe: "dedupe",
+		})
 	}
 
 	filesys := &FS{
-		// db: db,
-		root:     node,
-		binStore: "bin_store",
+		db:       db,
+		metadata: []string{},
+		caches:   caches,
+		stores:   stores,
 	}
 
-	fuse.Debug(func(msg interface{}) {
-		log.SetPrefix("debug ")
-		log.Printf("%+v\n", msg)
-	})
+	for _, ays := range cfg.Ays {
+		log.Println("fetching md for", ays.ID)
+		metadata, err := filesys.GetMetaData("dedupe", ays.ID)
+		if err != nil {
+			log.Fatalln("error during metadata fetching", err)
+		}
 
+		for i, line := range metadata {
+			if strings.HasPrefix(line, mountpoint) {
+				metadata[i] = strings.TrimPrefix(line, mountpoint)
+			}
+		}
+		sort.StringSlice(metadata).Sort()
+		filesys.metadata = append(filesys.metadata, metadata...)
+	}
+
+	log.Println("mounting Fuse File system")
 	if err := mount(filesys, flag.Arg(0)); err != nil {
 		log.Fatal(err)
 	}

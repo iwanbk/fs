@@ -14,12 +14,12 @@ type Config struct {
 }
 
 type Main struct {
-	Id     string
-	boltdb string
+	ID     string
+	Boltdb string
 }
 
 type AYS struct {
-	Id                 string
+	ID                 string
 	PrefetchCacheGrid  bool
 	PrefetchCacheLocal bool
 	CacheLocal         bool
@@ -32,7 +32,7 @@ type Cache struct {
 }
 
 type Store struct {
-	Url         string
+	URL         string
 	Expirtation time.Duration
 }
 
