@@ -1,6 +1,11 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"bazil.org/fuse"
@@ -15,6 +20,60 @@ type FS struct {
 	// binStore string
 	caches []cacher
 	stores []cacher
+}
+
+func newFS(mountpoint string, cfg *Config) *FS {
+
+	_ = os.Remove(cfg.Main.Boltdb)
+	db, err := bolt.Open(cfg.Main.Boltdb, 0600, nil)
+	if err != nil {
+		log.Fatalln("can't open boltdb database at %s: %s\n", cfg.Main.Boltdb, err)
+	}
+
+	caches := []cacher{}
+	for _, c := range cfg.Cache {
+		fmt.Println("add cache", c.Mnt)
+		caches = append(caches, &fsCache{
+			root: c.Mnt,
+			// expiration: c.Expirtation,
+			dedupe: "dedupe",
+		})
+	}
+
+	stores := []cacher{}
+	for _, s := range cfg.Store {
+		fmt.Println("add Store", s.URL)
+		stores = append(stores, &httpCache{
+			addr: s.URL,
+			// expiration: s.Expirtation,
+			dedupe: "dedupe",
+		})
+	}
+
+	filesys := &FS{
+		db:       db,
+		metadata: []string{},
+		caches:   caches,
+		stores:   stores,
+	}
+
+	for _, ays := range cfg.Ays {
+		log.Println("fetching md for", ays.ID)
+		metadata, err := filesys.GetMetaData("dedupe", ays.ID)
+		if err != nil {
+			log.Fatalln("error during metadata fetching", err)
+		}
+
+		for i, line := range metadata {
+			if strings.HasPrefix(line, mountpoint) {
+				metadata[i] = strings.TrimPrefix(line, mountpoint)
+			}
+		}
+		sort.StringSlice(metadata).Sort()
+		filesys.metadata = append(filesys.metadata, metadata...)
+	}
+
+	return filesys
 }
 
 var _ = fs.FS(&FS{})
