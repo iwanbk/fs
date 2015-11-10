@@ -49,6 +49,8 @@ type file struct {
 	info *fileInfo
 	data []byte
 
+	opener int
+
 	mu sync.Mutex
 }
 
@@ -184,10 +186,40 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	// if !f.dir.fs.caches[1].Exists(f.binPath()) {
-	// 	return nil, fuse.ENOENT
-	// }
+	if f.data != nil {
+		return f, nil
+	}
 
+	var err error
+	content := make([]byte, f.info.Size)
+
+	defer func(conten []byte) {
+		f.opener++
+		if err == nil && f.data != nil {
+			go f.store(f.data)
+		}
+	}(content)
+
+	content, err = f.load()
+	if err == nil {
+		f.data = content
+		return f, nil
+	}
+
+	// first try to get from caches
+	content, err = f.loadGridCache(f.binPath())
+	if err == nil {
+		f.data = content
+		return f, nil
+	}
+
+	// if not in caches try to get from stores
+	content, err = f.loadStore(f.binPath())
+	if err != nil {
+		return nil, err
+	}
+
+	f.data = content
 	return f, nil
 }
 
@@ -197,7 +229,8 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.data != nil {
+	f.opener--
+	if f.data != nil && f.opener <= 0 {
 		f.data = nil
 	}
 
