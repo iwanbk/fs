@@ -2,16 +2,19 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/boltdb/bolt"
 )
 
 type cacher interface {
-	GetFileContent(path string) ([]byte, error)
+	GetFileContent(path string) (io.ReadSeeker, error)
 	GetMetaData(dedupe, id string) ([]string, error)
 	Exists(path string) bool
 }
@@ -21,20 +24,14 @@ type fsCache struct {
 	dedupe string
 }
 
-func (f *fsCache) GetFileContent(path string) ([]byte, error) {
+func (f *fsCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	chrootPath := chroot(f.root, filepath.Join(f.dedupe, "files", path))
 	file, err := os.Open(chrootPath)
 	if err != nil {
-		log.Printf("can't open %s: %v\n", chrootPath, err)
-		return nil, err
-	}
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Printf("can't read %s: %v\n", chrootPath, err)
 		return nil, err
 	}
 
-	return content, nil
+	return file, nil
 }
 
 func (f *fsCache) GetMetaData(dedup, id string) ([]string, error) {
@@ -42,7 +39,6 @@ func (f *fsCache) GetMetaData(dedup, id string) ([]string, error) {
 	chrootPath := chroot(f.root, path)
 	file, err := os.Open(chrootPath)
 	if err != nil {
-		log.Printf("can't open %s: %v\n", chrootPath, err)
 		return nil, err
 	}
 	// metadata, err := ioutil.ReadAll(file)
@@ -87,7 +83,7 @@ type httpCache struct {
 	dedupe string
 }
 
-func (f *httpCache) GetFileContent(path string) ([]byte, error) {
+func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	url := fmt.Sprintf("%s/%s/files/%s", f.addr, f.dedupe, path)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -104,8 +100,7 @@ func (f *httpCache) GetFileContent(path string) ([]byte, error) {
 		// log.Printf("can't read response from %s: %v\n", url, err)
 		return nil, err
 	}
-
-	return content, nil
+	return bytes.NewReader(content), nil
 }
 
 func (f *httpCache) GetMetaData(dedupe, id string) ([]string, error) {
@@ -145,5 +140,21 @@ func (f *httpCache) Exists(path string) bool {
 		return false
 	}
 
+	return true
+}
+
+type boltCache struct {
+	db *bolt.DB
+}
+
+func (f *boltCache) GetMetaData(dedupe, id string) ([]string, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (f *boltCache) GetFileContent(path string) (io.ReadSeeker, error) {
+	return lazyLoadFromBolt(f.db, []byte(path))
+}
+
+func (f *boltCache) Exists(path string) bool {
 	return true
 }

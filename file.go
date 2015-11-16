@@ -3,16 +3,15 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"bazil.org/fuse/fuseutil"
-
-	"github.com/boltdb/bolt"
 	"golang.org/x/net/context"
 
 	"bazil.org/fuse"
@@ -45,10 +44,9 @@ func newFileInfo(s string) (*fileInfo, error) {
 }
 
 type file struct {
-	dir  *dir
-	info *fileInfo
-	data []byte
-
+	dir    *dir
+	info   *fileInfo
+	r      io.ReadSeeker
 	opener int
 
 	mu sync.Mutex
@@ -66,8 +64,8 @@ func (f *file) path() string {
 	return filepath.Join(f.dir.Abs(), f.info.Filename)
 }
 
-func getFileContent(caches []cacher, timeout time.Duration, path string) ([]byte, error) {
-	chRes := make(chan []byte)
+func getFileContent(ctx context.Context, path string, caches []cacher, timeout time.Duration) (io.ReadSeeker, error) {
+	chRes := make(chan io.ReadSeeker)
 	chErr := make(chan error)
 	cancels := make(chan struct{}, len(caches))
 	running := 0
@@ -79,11 +77,11 @@ func getFileContent(caches []cacher, timeout time.Duration, path string) ([]byte
 	}()
 
 	for _, cache := range caches {
-		go func(cache cacher, out chan []byte, chErr chan error) {
+		go func(cache cacher, out chan io.ReadSeeker, chErr chan error) {
 			running++
 			defer func() { running-- }()
 
-			content, err := cache.GetFileContent(path)
+			r, err := cache.GetFileContent(path)
 			if err != nil {
 				chErr <- err
 				return
@@ -96,18 +94,19 @@ func getFileContent(caches []cacher, timeout time.Duration, path string) ([]byte
 				return
 			default:
 				// we are the first, send data
-				out <- content
+				out <- r
 			}
 		}(cache, chRes, chErr)
 	}
 
 	for {
 		select {
-		case content := <-chRes:
-			if content == nil {
+
+		case r := <-chRes:
+			if r == nil {
 				return nil, fuse.ENOENT
 			}
-			return content, nil
+			return r, nil
 
 		case <-chErr:
 			if running <= 0 {
@@ -116,68 +115,102 @@ func getFileContent(caches []cacher, timeout time.Duration, path string) ([]byte
 
 		case <-time.After(timeout):
 			return nil, fuse.ENOENT
+
+		case <-ctx.Done():
+			return nil, fuse.EINTR
 		}
 	}
 }
 
-func (f *file) load() ([]byte, error) {
-	content := make([]byte, f.info.Size)
+func (f *file) loadBolt(ctx context.Context, fn func(io.Reader) error) error {
+	chR := make(chan io.Reader)
+	chErr := make(chan error)
 
-	err := f.dir.fs.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("main"))
-		if bucket == nil {
-			return fuse.ENOENT
-		}
-		content = bucket.Get(f.dbKey())
-		if content == nil {
-			return fuse.ENOENT
-		}
-
-		return nil
-	})
-
-	return content, err
-}
-
-func (f *file) loadGridCache(path string) ([]byte, error) {
-	return getFileContent(f.dir.fs.caches, time.Second, path)
-}
-
-func (f *file) loadStore(path string) ([]byte, error) {
-	return getFileContent(f.dir.fs.stores, time.Second*10, path)
-}
-
-func (f *file) store(content []byte) error {
-	err := f.dir.fs.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("main"))
+	go func() {
+		r, err := f.dir.fs.boltdb.GetFileContent(f.binPath())
 		if err != nil {
-			log.Println("error create bucket", err)
-			return err
+			chErr <- err
+		} else {
+			chR <- r
 		}
+	}()
 
-		if err := bucket.Put(f.dbKey(), content); err != nil {
-			log.Println("error during put dir into db", err)
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		log.Printf("error during populating cache for %s :%v\n", f.binPath(), err)
+	select {
+	case r := <-chR:
+		return fn(r)
+	case err := <-chErr:
+		return err
+	case <-ctx.Done():
+		return fuse.EINTR
 	}
-	return err
+}
+
+func (f *file) loadLocalCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	r, err := f.dir.fs.local.GetFileContent(f.binPath())
+	if err != nil {
+		return err
+	}
+	return fn(r)
+}
+
+func (f *file) loadGridCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second)
+	if err != nil {
+		return err
+	}
+	return fn(r)
+}
+
+func (f *file) loadStore(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.stores, time.Second*10)
+	if err != nil {
+		return err
+	}
+	return fn(r)
+}
+
+func (f *file) saveLocal() error {
+	cache := f.dir.fs.local.(*fsCache)
+	path := filepath.Join(cache.root, cache.dedupe, "files", f.binPath())
+	_, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		os.MkdirAll(filepath.Dir(path), 0660)
+
+		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+		defer outFile.Close()
+		if err != nil {
+			log.Printf("error while saving %s into local cache. open error %s\n", f.info.Filename, err)
+			os.Remove(path)
+		}
+
+		// move to begining of the file to be sure to copy all the data
+		_, err = f.r.Seek(0, 0)
+		if err != nil {
+			log.Printf("error while saving %s into local cache. seek error: %s\n", f.info.Filename, err)
+
+		}
+		_, err = io.Copy(outFile, f.r)
+		if err != nil {
+			log.Printf("error while saving %s into local cache. copy error %s\n", f.info.Filename, err)
+			os.Remove(path)
+			return err
+		}
+	}
+	return nil
 }
 
 var _ = fs.Node(&file{})
 
 var _ = fs.Handle(&file{})
 
-func (f *file) Attr(a *fuse.Attr) {
+func (f *file) Attr(ctx context.Context, a *fuse.Attr) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	a.Mode = 0554
 	a.Size = uint64(f.info.Size)
+	return nil
 }
 
 var _ = fs.NodeOpener(&file{})
@@ -186,41 +219,37 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.data != nil {
+	resp.Flags = fuse.OpenKeepCache | fuse.OpenNonSeekable
+
+	if f.opener > 0 {
 		return f, nil
 	}
 
-	var err error
-	content := make([]byte, f.info.Size)
-
-	defer func(conten []byte) {
+	handleOpen := func(r io.ReadSeeker) error {
+		f.r = r
 		f.opener++
-		if err == nil && f.data != nil {
-			go f.store(f.data)
-		}
-	}(content)
+		return nil
+	}
 
-	content, err = f.load()
+	// first try to get from local cache
+	err := f.loadLocalCache(ctx, handleOpen)
 	if err == nil {
-		f.data = content
 		return f, nil
 	}
 
-	// first try to get from caches
-	content, err = f.loadGridCache(f.binPath())
+	// then try to get from grid caches
+	err = f.loadGridCache(ctx, handleOpen)
 	if err == nil {
-		f.data = content
 		return f, nil
 	}
 
 	// if not in caches try to get from stores
-	content, err = f.loadStore(f.binPath())
-	if err != nil {
-		return nil, err
+	err = f.loadStore(ctx, handleOpen)
+	if err == nil {
+		return f, nil
 	}
 
-	f.data = content
-	return f, nil
+	return nil, fuse.ENOENT
 }
 
 var _ = fs.HandleReleaser(&file{})
@@ -230,8 +259,18 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	defer f.mu.Unlock()
 
 	f.opener--
-	if f.data != nil && f.opener <= 0 {
-		f.data = nil
+	if f.opener <= 0 {
+
+		// save file into local cache
+		go func() {
+			if err := f.saveLocal(); err != nil {
+				log.Println("can't save file %s into local cache: %v", f.info.Filename, err)
+			}
+
+			if r, ok := f.r.(io.Closer); ok {
+				r.Close()
+			}
+		}()
 	}
 
 	return nil
@@ -243,36 +282,14 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.data != nil {
-		fuseutil.HandleRead(req, resp, f.data)
-		return nil
-	}
+	f.r.Seek(req.Offset, 0)
+	buff := make([]byte, req.Size)
+	n, err := f.r.Read(buff)
 
-	var err error
-	content := make([]byte, f.info.Size)
+	resp.Data = buff[:n]
 
-	defer func(conten []byte) {
-		if err == nil {
-			f.data = content
-			go f.store(f.data)
-			fuseutil.HandleRead(req, resp, f.data)
-		}
-	}(content)
-
-	content, err = f.load()
-	if err == nil {
-		return nil
-	}
-
-	// first try to get from caches
-	content, err = f.loadGridCache(f.binPath())
-	if err == nil {
-		return nil
-	}
-
-	// if not in caches try to get from stores
-	content, err = f.loadStore(f.binPath())
-	if err != nil {
+	if err != nil && err != io.EOF {
+		log.Println("error read", err)
 		return err
 	}
 

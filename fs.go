@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -17,7 +18,9 @@ type FS struct {
 	db *bolt.DB
 	// root     map[string]json.RawMessage
 	metadata []string
-	// binStore string
+
+	boltdb cacher
+	local  cacher
 	caches []cacher
 	stores []cacher
 }
@@ -28,6 +31,14 @@ func newFS(mountpoint string, cfg *Config) *FS {
 	db, err := bolt.Open(cfg.Main.Boltdb, 0600, nil)
 	if err != nil {
 		log.Fatalln("can't open boltdb database at %s: %s\n", cfg.Main.Boltdb, err)
+	}
+
+	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
+	os.RemoveAll(localRoot)
+	os.MkdirAll(localRoot, 0660)
+	localCache := &fsCache{
+		root:   localRoot,
+		dedupe: "dedupe",
 	}
 
 	caches := []cacher{}
@@ -53,8 +64,11 @@ func newFS(mountpoint string, cfg *Config) *FS {
 	filesys := &FS{
 		db:       db,
 		metadata: []string{},
-		caches:   caches,
-		stores:   stores,
+
+		boltdb: &boltCache{db: db},
+		local:  localCache,
+		caches: caches,
+		stores: stores,
 	}
 
 	for _, ays := range cfg.Ays {
@@ -88,6 +102,12 @@ func (f *FS) Root() (fs.Node, error) {
 }
 
 func (f *FS) GetMetaData(dedupe, id string) ([]string, error) {
+	// try from local
+	// metadata, err := f.local.GetMetaData(dedupe, id)
+	// if err == nil {
+	// 	return metadata, nil
+	// }
+
 	// first try to get from caches
 	metadata, err := getMetaData(f.caches, time.Second, dedupe, id)
 	if err == nil {

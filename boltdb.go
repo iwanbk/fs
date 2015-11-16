@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"io"
 
 	"github.com/boltdb/bolt"
 )
@@ -40,4 +42,26 @@ func loadFromBolt(db *bolt.DB, key []byte) ([]byte, error) {
 
 	err := db.View(get)
 	return result, err
+}
+
+func lazyLoadFromBolt(db *bolt.DB, key []byte) (buff io.ReadSeeker, err error) {
+
+	get := func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte("main"))
+		if bucket == nil {
+			// log.Fatalln(err)
+			return errNotFound
+		}
+
+		b := bucket.Get(key)
+		if b == nil || len(b) == 0 {
+			return errNotFound
+		}
+		buff = bytes.NewReader(b)
+
+		return nil
+	}
+
+	err = db.View(get)
+	return buff, err
 }

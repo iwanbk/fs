@@ -171,8 +171,9 @@ func storeDir(db *bolt.DB, dir *dir) error {
 
 var _ = fs.Node(&dir{})
 
-func (d *dir) Attr(a *fuse.Attr) {
+func (d *dir) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = os.ModeDir | 0555
+	return nil
 }
 
 var _ = fs.HandleReadDirAller(&dir{})
