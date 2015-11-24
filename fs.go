@@ -12,6 +12,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/boltdb/bolt"
+	"github.com/Jumpscale/aysfs/cache"
 )
 
 type FS struct {
@@ -19,10 +20,10 @@ type FS struct {
 	// root     map[string]json.RawMessage
 	metadata []string
 
-	boltdb cacher
-	local  cacher
-	caches []cacher
-	stores []cacher
+	boltdb cache.Cache
+	local  cache.Cache
+	caches []cache.Cache
+	stores []cache.Cache
 }
 
 func newFS(mountpoint string, cfg *Config) *FS {
@@ -36,36 +37,25 @@ func newFS(mountpoint string, cfg *Config) *FS {
 	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
 	os.RemoveAll(localRoot)
 	os.MkdirAll(localRoot, 0660)
-	localCache := &fsCache{
-		root:   localRoot,
-		dedupe: "dedupe",
-	}
+	localCache := cache.NewFSCache(localRoot, "dedupe")
 
-	caches := []cacher{}
+	caches := []cache.Cache{}
 	for _, c := range cfg.Cache {
 		fmt.Println("add cache", c.Mnt)
-		caches = append(caches, &fsCache{
-			root: c.Mnt,
-			// expiration: c.Expirtation,
-			dedupe: "dedupe",
-		})
+		caches = append(caches, cache.NewFSCache(c.Mnt, "dedupe"))
 	}
 
-	stores := []cacher{}
+	stores := []cache.Cache{}
 	for _, s := range cfg.Store {
 		fmt.Println("add Store", s.URL)
-		stores = append(stores, &httpCache{
-			addr: s.URL,
-			// expiration: s.Expirtation,
-			dedupe: "dedupe",
-		})
+		stores = append(stores, cache.NewHTTPCache(s.URL, "dedupe"))
 	}
 
 	filesys := &FS{
 		db:       db,
 		metadata: []string{},
 
-		boltdb: &boltCache{db: db},
+		boltdb: cache.NewBoldCache(db),
 		local:  localCache,
 		caches: caches,
 		stores: stores,
@@ -123,7 +113,7 @@ func (f *FS) GetMetaData(dedupe, id string) ([]string, error) {
 	return metadata, nil
 }
 
-func getMetaData(caches []cacher, timeout time.Duration, dedupe, id string) ([]string, error) {
+func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string) ([]string, error) {
 	chRes := make(chan []string)
 	chErr := make(chan error)
 	cancels := make(chan struct{}, len(caches))
@@ -135,12 +125,12 @@ func getMetaData(caches []cacher, timeout time.Duration, dedupe, id string) ([]s
 		}
 	}()
 
-	for _, cache := range caches {
-		go func(cache cacher, out chan []string, chErr chan error) {
+	for _, c := range caches {
+		go func(c cache.Cache, out chan []string, chErr chan error) {
 			running++
 			defer func() { running-- }()
 
-			content, err := cache.GetMetaData(dedupe, id)
+			content, err := c.GetMetaData(dedupe, id)
 			if err != nil {
 				chErr <- err
 			}
@@ -154,7 +144,7 @@ func getMetaData(caches []cacher, timeout time.Duration, dedupe, id string) ([]s
 				// we are the first, send data
 				out <- content
 			}
-		}(cache, chRes, chErr)
+		}(c, chRes, chErr)
 	}
 
 	for {

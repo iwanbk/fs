@@ -27,3 +27,6 @@ aysfs
 *.json
 *.toml
 *.bolt
+
+.idea
+*.iml

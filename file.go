@@ -16,6 +16,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/cache"
 )
 
 type fileInfo struct {
@@ -64,7 +65,7 @@ func (f *file) path() string {
 	return filepath.Join(f.dir.Abs(), f.info.Filename)
 }
 
-func getFileContent(ctx context.Context, path string, caches []cacher, timeout time.Duration) (io.ReadSeeker, error) {
+func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
 	chRes := make(chan io.ReadSeeker)
 	chErr := make(chan error)
 	cancels := make(chan struct{}, len(caches))
@@ -76,12 +77,12 @@ func getFileContent(ctx context.Context, path string, caches []cacher, timeout t
 		}
 	}()
 
-	for _, cache := range caches {
-		go func(cache cacher, out chan io.ReadSeeker, chErr chan error) {
+	for _, c := range caches {
+		go func(c cache.Cache, out chan io.ReadSeeker, chErr chan error) {
 			running++
 			defer func() { running-- }()
 
-			r, err := cache.GetFileContent(path)
+			r, err := c.GetFileContent(path)
 			if err != nil {
 				chErr <- err
 				return
@@ -96,7 +97,7 @@ func getFileContent(ctx context.Context, path string, caches []cacher, timeout t
 				// we are the first, send data
 				out <- r
 			}
-		}(cache, chRes, chErr)
+		}(c, chRes, chErr)
 	}
 
 	for {
@@ -170,8 +171,7 @@ func (f *file) loadStore(ctx context.Context, fn func(io.ReadSeeker) error) erro
 }
 
 func (f *file) saveLocal() error {
-	cache := f.dir.fs.local.(*fsCache)
-	path := filepath.Join(cache.root, cache.dedupe, "files", f.binPath())
+	path := filepath.Join(f.dir.fs.local.BasePath(), "files", f.binPath())
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {

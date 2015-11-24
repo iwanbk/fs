@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	"github.com/Jumpscale/aysfs/database"
 	"github.com/boltdb/bolt"
 
 	"golang.org/x/net/context"
@@ -142,7 +142,7 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 func (d *dir) loadAll() ([]fuse.Dirent, error) {
 	results := []fuse.Dirent{}
 
-	raw, err := loadFromBolt(d.fs.db, d.dbKey())
+	raw, err := database.LoadFromBolt(d.fs.db, d.dbKey())
 	if err != nil {
 		return nil, err
 	}
@@ -157,16 +157,16 @@ func (d *dir) storeAll(content []fuse.Dirent) error {
 	if err := gob.NewEncoder(&buff).Encode(content); err != nil {
 		return err
 	}
-	return storeInBolt(d.fs.db, []byte(d.dbKey()), buff.Bytes())
+	return database.StoreInBolt(d.fs.db, []byte(d.dbKey()), buff.Bytes())
 }
 
 func storeFile(db *bolt.DB, f *file) error {
 	content := []byte(fmt.Sprintf("%s|%d", f.info.Hash, f.info.Size))
-	return storeInBolt(db, []byte(f.path()), content)
+	return database.StoreInBolt(db, []byte(f.path()), content)
 }
 
 func storeDir(db *bolt.DB, dir *dir) error {
-	return storeInBolt(db, []byte(dir.Abs()), []byte("dir"))
+	return database.StoreInBolt(db, []byte(dir.Abs()), []byte("dir"))
 }
 
 var _ = fs.Node(&dir{})
@@ -190,7 +190,7 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 		return results, nil
 	}
 
-	if err != nil && err != errNotFound {
+	if err != nil && err != database.NotFound {
 		return nil, err
 	}
 

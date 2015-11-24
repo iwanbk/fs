@@ -1,4 +1,4 @@
-package main
+package database
 
 import (
 	"log"
@@ -22,14 +22,14 @@ func TestMain(m *testing.M) {
 }
 func BenchmarkLoadFromBolt(b *testing.B) {
 
-	if err := storeInBolt(db, []byte("test"), []byte("hello world")); err != nil {
+	if err := StoreInBolt(db, []byte("test"), []byte("hello world")); err != nil {
 		b.Fatal(err)
 	}
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			buff, err := loadFromBolt(db, []byte("test"))
+			buff, err := LoadFromBolt(db, []byte("test"))
 			if err != nil {
 				b.Fatal(err)
 			}
