@@ -5,7 +5,7 @@ import (
 	"bazil.org/fuse/fs"
 )
 
-func mount(filesys *FS, mountpoint string) error {
+func mount(filesys fs.FS, mountpoint string) error {
 	c, err := fuse.Mount(mountpoint)
 	if err != nil {
 		return err

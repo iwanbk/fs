@@ -1,10 +1,11 @@
-package main
+package filesystem
 
 import (
 	"encoding/gob"
 	"fmt"
 	"os"
 	"path/filepath"
+	"path"
 	"strings"
 	"github.com/Jumpscale/aysfs/database"
 	"github.com/boltdb/bolt"
@@ -23,6 +24,14 @@ type dir struct {
 	name   string
 }
 
+func (d *dir) String() string {
+	if d.parent == nil {
+		return d.name
+	} else {
+		return path.Join(d.parent.String(), d.name)
+	}
+
+}
 //Abs return the absolute path of the directory pointed by d
 func (d *dir) Abs() string {
 	var path string
@@ -49,6 +58,7 @@ func (d *dir) dbKey() []byte {
 
 func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 	var node fs.Node
+	log.Debug("Directory search entry '%s'", name)
 
 	err := d.fs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte("main"))
@@ -83,6 +93,7 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 
 	// Entry found
 	if err == nil {
+		log.Debug("Entry '%s' found", node)
 		return node, true, nil
 	}
 
@@ -91,8 +102,11 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 		return nil, false, err
 	}
 
+	log.Debug("Entry '%s' found", name)
 	// look into the metadata for the entry
 	for _, line := range d.fs.metadata {
+		log.Debug("Processing metadata line '%s'", line)
+
 		line = filepath.Clean(line)
 		if !strings.HasPrefix(line, d.Abs()) {
 			continue
@@ -179,6 +193,8 @@ func (d *dir) Attr(ctx context.Context, a *fuse.Attr) error {
 var _ = fs.HandleReadDirAller(&dir{})
 
 func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+	log.Debug("Read all directory '%s' entries", d)
+
 	var (
 		results []fuse.Dirent
 		err     error
@@ -264,22 +280,23 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 var _ = fs.NodeStringLookuper(&dir{})
 
 func (d *dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+	log.Debug("Directory '%v' lookup on '%s'", d, name)
 	node, cached, err := d.searchEntry(name)
 	if err != nil {
 		return nil, err
 	}
 
 	if !cached {
-		switch node.(type) {
+		switch n := node.(type) {
 		case *dir:
 			dir := node.(*dir)
 			if err := storeDir(d.fs.db, dir); err != nil {
-				// log.Printf("error while putting dir %v into db\n", name)
+				log.Error("Putting dir '%v' ento db failed: %s", n, err)
 			}
 		case *file:
 			f := node.(*file)
 			if err := storeFile(d.fs.db, f); err != nil {
-				// log.Printf("error while putting dir %v into db\n", name)
+				log.Error("Putting file '%v' into db failed: %s", n, err)
 			}
 		}
 	}

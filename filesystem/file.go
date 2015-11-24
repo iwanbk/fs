@@ -1,10 +1,9 @@
-package main
+package filesystem
 
 import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/cache"
+	"path"
 )
 
 type fileInfo struct {
@@ -51,6 +51,10 @@ type file struct {
 	opener int
 
 	mu sync.Mutex
+}
+
+func (f *file) String() string {
+	return path.Join(f.dir.String(), f.info.Filename)
 }
 
 func (f *file) dbKey() []byte {
@@ -180,19 +184,19 @@ func (f *file) saveLocal() error {
 		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
 		defer outFile.Close()
 		if err != nil {
-			log.Printf("error while saving %s into local cache. open error %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. open error %s\n", f.info.Filename, err)
 			os.Remove(path)
 		}
 
 		// move to begining of the file to be sure to copy all the data
 		_, err = f.r.Seek(0, 0)
 		if err != nil {
-			log.Printf("error while saving %s into local cache. seek error: %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. seek error: %s\n", f.info.Filename, err)
 
 		}
 		_, err = io.Copy(outFile, f.r)
 		if err != nil {
-			log.Printf("error while saving %s into local cache. copy error %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Filename, err)
 			os.Remove(path)
 			return err
 		}
@@ -264,7 +268,7 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 		// save file into local cache
 		go func() {
 			if err := f.saveLocal(); err != nil {
-				log.Println("can't save file %s into local cache: %v", f.info.Filename, err)
+				log.Error("can't save file %s into local cache: %v", f.info.Filename, err)
 			}
 
 			if r, ok := f.r.(io.Closer); ok {
@@ -289,7 +293,7 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	resp.Data = buff[:n]
 
 	if err != nil && err != io.EOF {
-		log.Println("error read", err)
+		log.Error("error read", err)
 		return err
 	}
 

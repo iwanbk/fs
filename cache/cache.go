@@ -3,6 +3,11 @@ package cache
 import (
 	"io"
 	"path/filepath"
+	"github.com/op/go-logging"
+)
+
+var (
+	log = logging.MustGetLogger("cache")
 )
 
 type Cache interface {

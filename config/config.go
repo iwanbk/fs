@@ -1,6 +1,15 @@
-package main
+package config
 
-import "time"
+import (
+	"time"
+	"github.com/naoina/toml"
+	"os"
+	"github.com/op/go-logging"
+)
+
+var (
+	log = logging.MustGetLogger("config")
+)
 
 type Config struct {
 	Main Main
@@ -45,4 +54,17 @@ type Redis struct {
 	Addr     string
 	Port     int
 	Password string
+}
+
+func LoadConfig(path string) *Config {
+	cfg := &Config{}
+	f, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("can't open config file at %s: %s\n", path, err)
+	}
+	err = toml.NewDecoder(f).Decode(cfg)
+	if err != nil {
+		log.Fatalf("can't read config file at %s: %s\n", path, err)
+	}
+	return cfg
 }
