@@ -11,6 +11,7 @@ import (
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/metadata"
+	"sync"
 )
 
 var (
@@ -72,48 +73,43 @@ func (f *FS) GetMetaData(dedupe string, id string) ([]string, error) {
 }
 
 func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string) ([]string, error) {
-	chRes := make(chan []string)
-	cancels := make(chan int, len(caches))
-	running := 0
+	result := make(chan []string)
+	wait := make(chan int)
 
-	defer func() {
-		for _ = range caches {
-			cancels <- 1
-		}
-	}()
-
+	var wg sync.WaitGroup
+	wg.Add(len(caches))
 	for _, c := range caches {
 		go func(c cache.Cache, out chan []string) {
 			log.Debug("Trying cache %v", c)
-			running++
-			defer func() { running-- }()
-
 			content, err := c.GetMetaData(dedupe, id)
-			if err != nil {
-				<-cancels
-				return
+			if err == nil {
+				select {
+				case out <- content:
+				default:
+				}
+			} else {
+				log.Warning("Cache %v does not provide meta data: %s", c, err)
 			}
 
-			select {
-			case <-cancels:
-				//if we can read from cancels, the file has been found
-				//by another goroutine
-				return
-			default:
-				// we are the first, send data
-				log.Debug("Metadata found from cache %v", c)
-				out <- content
-			}
-		}(c, chRes)
+			wg.Done()
+		}(c, result)
 	}
+
+	go func() {
+		wg.Wait()
+		wait <- 1
+	}()
 
 	log.Debug("Waiting for cache response")
 	select {
-	case content := <-chRes:
+	case content := <-result:
 		if content == nil {
 			return nil, fuse.ENOENT
 		}
 		return content, nil
+	case <-wait:
+		//all exited, but no output was provided.
+		return nil, fuse.ENOENT
 	case <-time.After(timeout):
 		return nil, fuse.ENOENT
 	}

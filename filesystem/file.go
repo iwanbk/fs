@@ -47,10 +47,10 @@ func newFileInfo(s string) (*fileInfo, error) {
 type file struct {
 	dir    *dir
 	info   *fileInfo
-	r      io.ReadSeeker
+	reader io.ReadSeeker
 	opener int
 
-	mu sync.Mutex
+	mu     sync.Mutex
 }
 
 func (f *file) String() string {
@@ -70,64 +70,49 @@ func (f *file) path() string {
 }
 
 func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
-	if len(caches) == 0 {
-		return nil, fuse.ENOENT
-	}
+	result := make(chan io.ReadSeeker)
+	wait := make(chan int)
 
-	chRes := make(chan io.ReadSeeker)
-	chErr := make(chan error)
-	cancels := make(chan struct{}, len(caches))
-	running := 0
-
-	defer func() {
-		for _ = range caches {
-			cancels <- struct{}{}
-		}
-	}()
+	var wg sync.WaitGroup
+	wg.Add(len(caches))
 
 	for _, c := range caches {
-		go func(c cache.Cache, out chan io.ReadSeeker, chErr chan error) {
-			running++
-			defer func() { running-- }()
-
+		go func(c cache.Cache, out chan io.ReadSeeker) {
 			r, err := c.GetFileContent(path)
-			if err != nil {
-				chErr <- err
-				return
+			if err == nil {
+				select{
+				case out <- r:
+				default:
+					f, ok := r.(io.ReadCloser)
+					if ok {
+						log.Debug("Closing unused file")
+						f.Close()
+					}
+				}
 			}
-
-			select {
-			case <-cancels:
-				//if we can read from cancels, the file has been found
-				//by another goroutine
-				return
-			default:
-				// we are the first, send data
-				out <- r
-			}
-		}(c, chRes, chErr)
+			wg.Done()
+		}(c, result)
 	}
 
-	for {
-		select {
+	go func() {
+		wg.Wait()
+		wait <- 1
+	}()
 
-		case r := <-chRes:
-			if r == nil {
-				return nil, fuse.ENOENT
-			}
-			return r, nil
-
-		case <-chErr:
-			if running <= 0 {
-				return nil, fuse.ENOENT
-			}
-
-		case <-time.After(timeout):
+	select {
+	case r := <-result:
+		if r == nil {
 			return nil, fuse.ENOENT
-
-		case <-ctx.Done():
-			return nil, fuse.EINTR
 		}
+		return r, nil
+	case <-wait:
+		//all exited with no response.
+		return nil, fuse.ENOENT
+	case <-time.After(timeout):
+		return nil, fuse.ENOENT
+
+	case <-ctx.Done():
+		return nil, fuse.EINTR
 	}
 }
 
@@ -155,12 +140,11 @@ func (f *file) saveLocal() error {
 		}
 
 		// move to begining of the file to be sure to copy all the data
-		_, err = f.r.Seek(0, 0)
+		_, err = f.reader.Seek(0, 0)
 		if err != nil {
 			log.Error("error while saving %s into local cache. seek error: %s\n", f.info.Filename, err)
-
 		}
-		_, err = io.Copy(outFile, f.r)
+		_, err = io.Copy(outFile, f.reader)
 		if err != nil {
 			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Filename, err)
 			os.Remove(path)
@@ -197,7 +181,7 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	}
 
 	handleOpen := func(r io.ReadSeeker) error {
-		f.r = r
+		f.reader = r
 		f.opener++
 		return nil
 	}
@@ -227,7 +211,7 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 				log.Error("can't save file %s into local cache: %v", f.info.Filename, err)
 			}
 
-			if r, ok := f.r.(io.Closer); ok {
+			if r, ok := f.reader.(io.Closer); ok {
 				r.Close()
 			}
 		}()
@@ -243,9 +227,9 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.r.Seek(req.Offset, 0)
+	f.reader.Seek(req.Offset, 0)
 	buff := make([]byte, req.Size)
-	n, err := f.r.Read(buff)
+	n, err := f.reader.Read(buff)
 
 	resp.Data = buff[:n]
 
