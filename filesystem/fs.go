@@ -24,7 +24,6 @@ type FS struct {
 	// root     map[string]json.RawMessage
 	metadata metadata.Metadata
 
-	boltdb cache.Cache
 	local  cache.Cache
 	caches []cache.Cache
 	stores []cache.Cache
@@ -54,31 +53,27 @@ func NewFS(mountpoint string, cfg *config.Config) *FS {
 		fmt.Println("add Store", s.URL)
 		stores = append(stores, cache.NewHTTPCache(s.URL, "dedupe"))
 	}
+	meta, _ := metadata.NewMetadata(mountpoint, nil)
+
 	filesys := &FS{
 		db:       db,
-		boltdb: cache.NewBoldCache(db),
+		metadata: meta,
 		local:  localCache,
 		caches: caches,
 		stores: stores,
 	}
 
-	allMetadata := make([]string, 0)
 	for _, ays := range cfg.Ays {
 		partialMetadata, err := filesys.GetMetaData("dedupe", ays.ID)
 		if err != nil {
 			log.Fatal("error during metadata fetching", err)
 		}
 
-		allMetadata = append(allMetadata, partialMetadata...)
+		for _, line := range partialMetadata {
+			meta.Index(line)
+		}
 	}
 
-	meta, err := metadata.NewMetadata(mountpoint, allMetadata)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Debug("%v", meta)
-	filesys.metadata = meta
 	return filesys
 }
 

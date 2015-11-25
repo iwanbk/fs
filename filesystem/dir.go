@@ -1,19 +1,13 @@
 package filesystem
 
 import (
-	"encoding/gob"
 	"fmt"
 	"os"
-	//"path/filepath"
 	"path"
 	"strings"
-	"github.com/Jumpscale/aysfs/database"
 	"github.com/Jumpscale/aysfs/metadata"
-	"github.com/boltdb/bolt"
 
 	"golang.org/x/net/context"
-
-	"bytes"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -58,52 +52,8 @@ func (d *dir) dbKey() []byte {
 }
 
 func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
-//  var node fs.Node
 	log.Debug("Directory search entry '%s'", name)
 
-//	err := d.fs.db.View(func(tx *bolt.Tx) error {
-//		bucket := tx.Bucket([]byte("main"))
-//		if bucket == nil {
-//			return fuse.ENOENT
-//		}
-//		raw := bucket.Get([]byte(filepath.Join(d.Abs(), name)))
-//		if raw == nil {
-//			return fuse.ENOENT
-//		}
-//
-//		if string(raw[:3]) == "dir" {
-//			node = &dir{
-//				fs:     d.fs,
-//				name:   name,
-//				parent: d,
-//			}
-//			return nil
-//		}
-//
-//		fi, err := newFileInfo(fmt.Sprintf("%s|%s", name, string(raw)))
-//		if err != nil {
-//			return err
-//		}
-//		node = &file{
-//			dir:  d,
-//			info: fi,
-//		}
-//
-//		return nil
-//	})
-//
-//	// Entry found
-//	if err == nil {
-//		log.Debug("Entry '%s' found", node)
-//		return node, true, nil
-//	}
-//
-//	// error which is not just a not found error
-//	if err != nil && err != fuse.ENOENT {
-//		return nil, false, err
-//	}
-
-	//log.Debug("Entry '%s' NOT found", name)
 	// look into the metadata for the entry
 	dirnode := d.fs.metadata.Search(d.Abs())
 	metanode := dirnode.Children()[name]
@@ -133,36 +83,6 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 	return nil, false, fuse.ENOENT
 }
 
-func (d *dir) loadAll() ([]fuse.Dirent, error) {
-	results := []fuse.Dirent{}
-
-	raw, err := database.LoadFromBolt(d.fs.db, d.dbKey())
-	if err != nil {
-		return nil, err
-	}
-
-	gob.NewDecoder(bytes.NewReader(raw)).Decode(&results)
-
-	return results, err
-}
-
-func (d *dir) storeAll(content []fuse.Dirent) error {
-	buff := bytes.Buffer{}
-	if err := gob.NewEncoder(&buff).Encode(content); err != nil {
-		return err
-	}
-	return database.StoreInBolt(d.fs.db, []byte(d.dbKey()), buff.Bytes())
-}
-
-func storeFile(db *bolt.DB, f *file) error {
-	content := []byte(fmt.Sprintf("%s|%d", f.info.Hash, f.info.Size))
-	return database.StoreInBolt(db, []byte(f.path()), content)
-}
-
-func storeDir(db *bolt.DB, dir *dir) error {
-	return database.StoreInBolt(db, []byte(dir.Abs()), []byte("dir"))
-}
-
 var _ = fs.Node(&dir{})
 
 func (d *dir) Attr(ctx context.Context, a *fuse.Attr) error {
@@ -177,20 +97,7 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 	var (
 		results []fuse.Dirent
-		err     error
 	)
-
-	//try to loadAll content of directory from db
-
-	results, err = d.loadAll()
-	if err == nil {
-		log.Debug("ReadDirAll got results from DB")
-		return results, nil
-	}
-
-	if err != nil && err != database.NotFound {
-		return nil, err
-	}
 
 	log.Debug("ReadDirAll found no results in DB, load from meta (%s)", d.Abs())
 	dirNode := d.fs.metadata.Search(d.Abs())
@@ -206,33 +113,10 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 		if child.IsLeaf() {
 			//file
 			fileNode := child.(metadata.Leaf)
-//			file := &file{
-//				info: &fileInfo{
-//					Size: fileNode.Size(),
-//					Hash: fileNode.Hash(),
-//					Filename: fileNode.Path(),
-//				},
-//				dir:  d,
-//			}
-//			//insert file into db
-//			if err := storeFile(d.fs.db, file); err != nil {
-//				return nil, err
-//			}
-
 			// prepare object for fuse
 			de.Type = fuse.DT_File
 			de.Name = fileNode.Name()
 		} else {
-//			//dir
-//			dir := &dir{
-//				parent: d,
-//				name:   child.Name(),
-//			}
-//			//add directory into db
-//			if err := storeDir(d.fs.db, dir); err != nil {
-//				return nil, err
-//			}
-
 			// prepare object for fuse
 			de.Name = child.Name()
 			de.Type = fuse.DT_Dir
@@ -240,8 +124,6 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 		results = append(results, de)
 	}
-
-	//d.storeAll(results)
 
 	return results, nil
 }
@@ -254,21 +136,6 @@ func (d *dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-//
-//	if !cached {
-//		switch n := node.(type) {
-//		case *dir:
-//			dir := node.(*dir)
-//			if err := storeDir(d.fs.db, dir); err != nil {
-//				log.Error("Putting dir '%v' ento db failed: %s", n, err)
-//			}
-//		case *file:
-//			f := node.(*file)
-//			if err := storeFile(d.fs.db, f); err != nil {
-//				log.Error("Putting file '%v' into db failed: %s", n, err)
-//			}
-//		}
-//	}
 
 	return node, nil
 }

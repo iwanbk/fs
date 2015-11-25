@@ -127,29 +127,6 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 	}
 }
 
-func (f *file) loadBolt(ctx context.Context, fn func(io.Reader) error) error {
-	chR := make(chan io.Reader)
-	chErr := make(chan error)
-
-	go func() {
-		r, err := f.dir.fs.boltdb.GetFileContent(f.binPath())
-		if err != nil {
-			chErr <- err
-		} else {
-			chR <- r
-		}
-	}()
-
-	select {
-	case r := <-chR:
-		return fn(r)
-	case err := <-chErr:
-		return err
-	case <-ctx.Done():
-		return fuse.EINTR
-	}
-}
-
 func (f *file) loadLocalCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
 	r, err := f.dir.fs.local.GetFileContent(f.binPath())
 	if err != nil {
