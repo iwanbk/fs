@@ -1,5 +1,8 @@
 package metadata
-import "path"
+import (
+	"path"
+	"strings"
+)
 
 type branch struct {
 	name string
@@ -37,4 +40,21 @@ func (b *branch) Parent() Node {
 
 func (b *branch) Children() map[string]Node {
 	return b.children
+}
+
+func (b *branch) Search(path string) Node {
+	path = strings.TrimLeft(path, PathSep)
+	var node Node = b
+	if path == "" {
+		return node
+	}
+	for _, part := range strings.Split(path, PathSep) {
+		if child, ok := node.Children()[part]; ok {
+			node = child
+		} else {
+			return nil
+		}
+	}
+
+	return node
 }

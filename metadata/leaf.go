@@ -8,10 +8,10 @@ type leaf struct {
 	parent Node
 	name string
 	hash string
-	size int
+	size int64
 }
 
-func NewLeaf(name string, parent Node, hash string, size int) Node {
+func NewLeaf(name string, parent Node, hash string, size int64) Node {
 	return &leaf{
 		name: name,
 		parent: parent,
@@ -48,6 +48,10 @@ func (l *leaf) Hash() string {
 	return l.hash
 }
 
-func (l *leaf) Size() int {
+func (l *leaf) Size() int64 {
 	return l.size
+}
+
+func (l *leaf) Search(path string) Node {
+	return nil
 }

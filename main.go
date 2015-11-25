@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"net/http"
 	_ "net/http/pprof"
@@ -14,6 +13,7 @@ import (
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/filesystem"
 	"github.com/op/go-logging"
+	"path"
 )
 
 var version = "0.1"
@@ -33,7 +33,7 @@ func init() {
 
 	flag.StringVar(&fConfigPath, "config", "config.toml", "path to config file")
 	flag.StringVar(&fConfigPath, "c", "config.toml", "path to config file")
-	flag.IntVar(&fDebugLevel, "l", 5, "Debug leve (0 less verbose, to 5 most verbose [default])")
+	flag.IntVar(&fDebugLevel, "l", 0, "Debug leve (0 less verbose [default], to 5 most verbose)")
 }
 
 func usage() {
@@ -74,10 +74,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	mountpoint := flag.Arg(0)
-	if strings.HasSuffix(mountpoint, string(os.PathSeparator)) {
-		mountpoint = mountpoint[:len(mountpoint)-2]
-	}
+	mountpoint := path.Clean(flag.Arg(0))
 
 	cfg := config.LoadConfig(fConfigPath)
 	if cfg.Main.Boltdb == "" {

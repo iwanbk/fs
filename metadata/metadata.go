@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"strings"
-	//"os"
-	"os"
 )
 
 var (
+	PathSep = "/"
 	log = logging.MustGetLogger("metadata")
 )
 
@@ -18,22 +17,16 @@ type Node interface{
 	Parent() Node
 	Children() map[string]Node
 	IsLeaf() bool
+	Search(path string) Node
 }
 
 type Leaf interface {
 	Node
 	Hash() string
-	Size() int
+	Size() int64
 }
 
-type Metadata interface {
-	Node
-	Search(path string) Node
-}
-
-type metadataImpl struct {
-	Node
-}
+type Metadata Node
 
 func NewMetadata(base string, lines []string) (Metadata, error) {
 	root := NewBranch("/", nil)
@@ -44,16 +37,23 @@ func NewMetadata(base string, lines []string) (Metadata, error) {
 			log.Error("Wrong metadata line syntax '%s'", line)
 			continue
 		}
-		path := strings.TrimLeft(lineParts[0], string(os.PathSeparator))
+		path := lineParts[0]
+		if strings.HasPrefix(path, base) {
+			path = strings.TrimPrefix(path, base)
+		} else {
+			continue
+		}
+		//remove perfix / if exists.
+		path = strings.TrimLeft(path, PathSep)
 		hash := lineParts[1]
-		var size int
+		var size int64
 		count, err := fmt.Sscanf(lineParts[2], "%d", &size)
 		if err != nil || count != 1{
 			log.Error("Invalid metadata line '%s' (%d, %s)", line, count, err)
 			continue
 		}
 
-		parts := strings.Split(path, "/")
+		parts := strings.Split(path, PathSep)
 		node := root
 		for i, part := range parts {
 			if node.IsLeaf() {
@@ -79,19 +79,5 @@ func NewMetadata(base string, lines []string) (Metadata, error) {
 
 	}
 
-	return &metadataImpl{root}, nil
-}
-
-func (meta *metadataImpl) Search(path string) Node {
-	path = strings.TrimLeft(path, string(os.PathSeparator))
-	var node Node = meta
-	for _, part := range strings.Split(path, string(os.PathSeparator)) {
-		if child, ok := node.Children()[part]; ok {
-			node = child
-		} else {
-			return nil
-		}
-	}
-
-	return node
+	return Metadata(root), nil
 }

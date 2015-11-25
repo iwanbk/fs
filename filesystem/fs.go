@@ -5,8 +5,6 @@ import (
 	"github.com/op/go-logging"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"bazil.org/fuse"
@@ -14,6 +12,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/metadata"
 )
 
 var (
@@ -23,7 +22,7 @@ var (
 type FS struct {
 	db *bolt.DB
 	// root     map[string]json.RawMessage
-	metadata []string
+	metadata metadata.Metadata
 
 	boltdb cache.Cache
 	local  cache.Cache
@@ -55,32 +54,31 @@ func NewFS(mountpoint string, cfg *config.Config) *FS {
 		fmt.Println("add Store", s.URL)
 		stores = append(stores, cache.NewHTTPCache(s.URL, "dedupe"))
 	}
-
 	filesys := &FS{
 		db:       db,
-		metadata: []string{},
-
 		boltdb: cache.NewBoldCache(db),
 		local:  localCache,
 		caches: caches,
 		stores: stores,
 	}
 
+	allMetadata := make([]string, 0)
 	for _, ays := range cfg.Ays {
-		metadata, err := filesys.GetMetaData("dedupe", ays.ID)
+		partialMetadata, err := filesys.GetMetaData("dedupe", ays.ID)
 		if err != nil {
 			log.Fatal("error during metadata fetching", err)
 		}
 
-		for i, line := range metadata {
-			if strings.HasPrefix(line, mountpoint) {
-				metadata[i] = strings.TrimPrefix(line, mountpoint)
-			}
-		}
-		sort.StringSlice(metadata).Sort()
-		filesys.metadata = append(filesys.metadata, metadata...)
+		allMetadata = append(allMetadata, partialMetadata...)
 	}
 
+	meta, err := metadata.NewMetadata(mountpoint, allMetadata)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Debug("%v", meta)
+	filesys.metadata = meta
 	return filesys
 }
 
