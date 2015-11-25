@@ -232,14 +232,12 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 var _ = fs.HandleReader(&file{})
 
 func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	log.Debug("Read file '%v' '%v'", f, req)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	f.reader.Seek(req.Offset, 0)
 	buff := make([]byte, req.Size)
 	n, err := f.reader.Read(buff)
-
 	resp.Data = buff[:n]
 
 	if err != nil && err != io.EOF {
