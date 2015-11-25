@@ -131,27 +131,9 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 	}
 }
 
-func (f *file) loadLocalCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
-	log.Debug("Loading file from local cache '%v' / '%v'", f.dir.fs.local.BasePath(), f)
-	r, err := f.dir.fs.local.GetFileContent(f.binPath())
-	if err != nil {
-		return err
-	}
-	return fn(r)
-}
-
-func (f *file) loadGridCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+func (f *file) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
 	log.Debug("Loading file from grid cache '%v' / '%v'", f.dir.fs.caches, f)
-	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second)
-	if err != nil {
-		return err
-	}
-	return fn(r)
-}
-
-func (f *file) loadStore(ctx context.Context, fn func(io.ReadSeeker) error) error {
-	log.Debug("Loading file from store '%v' / '%v'", f.dir.fs.stores, f)
-	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.stores, time.Second*10)
+	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second*10)
 	if err != nil {
 		return err
 	}
@@ -220,20 +202,8 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 		return nil
 	}
 
-	// first try to get from local cache
-	err := f.loadLocalCache(ctx, handleOpen)
-	if err == nil {
-		return f, nil
-	}
-
 	// then try to get from grid caches
-	err = f.loadGridCache(ctx, handleOpen)
-	if err == nil {
-		return f, nil
-	}
-
-	// if not in caches try to get from stores
-	err = f.loadStore(ctx, handleOpen)
+	err := f.loadFromCache(ctx, handleOpen)
 	if err == nil {
 		return f, nil
 	}

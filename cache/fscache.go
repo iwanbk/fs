@@ -21,6 +21,18 @@ func NewFSCache(root string, dedupe string) Cache {
 	}
 }
 
+func (f *fsCache) Purge() error {
+	if err := os.RemoveAll(f.root); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(f.root, 0660); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (f *fsCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	chrootPath := chroot(f.root, filepath.Join(f.dedupe, "files", path))
 	file, err := os.Open(chrootPath)
@@ -38,11 +50,6 @@ func (f *fsCache) GetMetaData(dedup, id string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// metadata, err := ioutil.ReadAll(file)
-	// if err != nil {
-	// 	log.Printf("can't read %s: %v\n", chrootPath, err)
-	// 	return nil, err
-	// }
 
 	metadata := []string{}
 	scanner := bufio.NewScanner(file)

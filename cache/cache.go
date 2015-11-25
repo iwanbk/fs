@@ -15,6 +15,7 @@ type Cache interface {
 	GetMetaData(dedupe, id string) ([]string, error)
 	Exists(path string) bool
 	BasePath() string
+	Purge() error
 }
 
 // chroot return the absolute path of path but chrooted at root

@@ -8,7 +8,6 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/boltdb/bolt"
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/metadata"
@@ -19,54 +18,40 @@ var (
 )
 
 type FS struct {
-	db *bolt.DB
-	// root     map[string]json.RawMessage
 	metadata metadata.Metadata
-
-	local  cache.Cache
-	caches []cache.Cache
-	stores []cache.Cache
+	local    cache.Cache
+	caches   []cache.Cache
 }
 
 func NewFS(mountpoint string, cfg *config.Config) *FS {
 	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
-	os.RemoveAll(localRoot)
-	os.MkdirAll(localRoot, 0660)
 	localCache := cache.NewFSCache(localRoot, "dedupe")
-
-	caches := []cache.Cache{}
-	for _, c := range cfg.Cache {
-		log.Info("Add cache %s", c.Mnt)
-		caches = append(caches, cache.NewFSCache(c.Mnt, "dedupe"))
-	}
-
-	stores := []cache.Cache{}
-	for _, s := range cfg.Store {
-		log.Info("Add Store %s", s.URL)
-		stores = append(stores, cache.NewHTTPCache(s.URL, "dedupe"))
-	}
+	localCache.Purge()
 
 	meta, _ := metadata.NewMetadata(mountpoint, nil)
 
-	filesys := &FS{
+	return &FS{
 		metadata: meta,
 		local:  localCache,
-		caches: caches,
-		stores: stores,
+		caches: []cache.Cache{localCache},
+	}
+}
+
+func (f *FS) AddCache(cache cache.Cache) {
+	f.caches = append(f.caches, cache)
+}
+
+func (f *FS) AttachFList(ID string) error {
+	partialMetadata, err := f.GetMetaData("dedupe", ID)
+	if err != nil {
+		return err
 	}
 
-	for _, ays := range cfg.Ays {
-		partialMetadata, err := filesys.GetMetaData("dedupe", ays.ID)
-		if err != nil {
-			log.Fatal("error during metadata fetching", err)
-		}
-
-		for _, line := range partialMetadata {
-			meta.Index(line)
-		}
+	for _, line := range partialMetadata {
+		f.metadata.Index(line)
 	}
 
-	return filesys
+	return nil
 }
 
 var _ = fs.FS(&FS{})
@@ -82,50 +67,31 @@ func (f *FS) Root() (fs.Node, error) {
 }
 
 func (f *FS) GetMetaData(dedupe string, id string) ([]string, error) {
-	// try from local
-	// metadata, err := f.local.GetMetaData(dedupe, id)
-	// if err == nil {
-	// 	return metadata, nil
-	// }
-
-	// first try to get from caches
 	log.Debug("Getting metadata for '%s' from '%s' cache", id, dedupe)
-	metadata, err := getMetaData(f.caches, time.Second, dedupe, id)
-	if err == nil {
-		return metadata, nil
-	}
-
-	// if not in caches try to get from stores
-	log.Debug("Getting metadata for '%s' from '%s' store", id, dedupe)
-	metadata, err = getMetaData(f.stores, time.Second*10, dedupe, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return metadata, nil
+	return getMetaData(f.caches, time.Second*10, dedupe, id)
 }
 
 func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string) ([]string, error) {
 	chRes := make(chan []string)
-	chErr := make(chan error)
-	cancels := make(chan struct{}, len(caches))
+	cancels := make(chan int, len(caches))
 	running := 0
 
 	defer func() {
 		for _ = range caches {
-			cancels <- struct{}{}
+			cancels <- 1
 		}
 	}()
 
 	for _, c := range caches {
-		go func(c cache.Cache, out chan []string, chErr chan error) {
+		go func(c cache.Cache, out chan []string) {
 			log.Debug("Trying cache %v", c)
 			running++
 			defer func() { running-- }()
 
 			content, err := c.GetMetaData(dedupe, id)
 			if err != nil {
-				chErr <- err
+				<-cancels
+				return
 			}
 
 			select {
@@ -138,7 +104,7 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 				log.Debug("Metadata found from cache %v", c)
 				out <- content
 			}
-		}(c, chRes, chErr)
+		}(c, chRes)
 	}
 
 	log.Debug("Waiting for cache response")
@@ -148,12 +114,6 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 			return nil, fuse.ENOENT
 		}
 		return content, nil
-
-	case <-chErr:
-		if running <= 0 {
-			return nil, fuse.ENOENT
-		}
-
 	case <-time.After(timeout):
 		return nil, fuse.ENOENT
 	}

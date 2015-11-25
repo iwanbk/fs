@@ -23,6 +23,11 @@ func NewHTTPCache(addr string, dedupe string) Cache {
 	}
 }
 
+func (f *httpCache) Purge() error {
+	//not supported by this cache.
+	return nil
+}
+
 func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	url := fmt.Sprintf("%s/%s/files/%s", f.addr, f.dedupe, path)
 	resp, err := http.Get(url)
@@ -71,11 +76,11 @@ func (f *httpCache) GetMetaData(dedupe, id string) ([]string, error) {
 
 func (f *httpCache) Exists(path string) bool {
 	url := fmt.Sprintf("%s/%s", f.addr, path)
-	resp, err := http.Get(url)
+	resp, err := http.Head(url)
 	if err != nil {
-		// log.Printf("can't get file from %s: %v\n", url, err)
 		return false
 	}
+
 	if resp.StatusCode != http.StatusOK {
 		return false
 	}

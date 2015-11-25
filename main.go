@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/filesystem"
+	"github.com/Jumpscale/aysfs/cache"
 	"github.com/op/go-logging"
 	"path"
 )
@@ -79,6 +80,21 @@ func main() {
 	cfg := config.LoadConfig(fConfigPath)
 
 	fs := filesystem.NewFS(mountPoint, cfg)
+
+	//attaching cache to the fs
+	for _, c := range cfg.Cache {
+		fs.AddCache(cache.NewFSCache(c.Mnt, "dedupe"))
+	}
+
+	//attaching stores to the fs.
+	for _, s := range cfg.Store {
+		fs.AddCache(cache.NewHTTPCache(s.URL, "dedupe"))
+	}
+
+	//now adding the AYS lists.
+	for _, a := range cfg.Ays {
+		fs.AttachFList(a.ID)
+	}
 
 	log.Info("Mounting Fuse File system")
 	if err := mount(fs, flag.Arg(0)); err != nil {
