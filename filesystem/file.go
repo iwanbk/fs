@@ -78,6 +78,7 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 
 	for _, c := range caches {
 		go func(c cache.Cache, out chan io.ReadSeeker) {
+			log.Debug("Loading file from cache '%v' / '%v'", c, path)
 			r, err := c.GetFileContent(path)
 			if err == nil {
 				select{
@@ -117,11 +118,17 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 }
 
 func (f *file) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
-	log.Debug("Loading file from grid cache '%v' / '%v'", f.dir.fs.caches, f)
-	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second*10)
+	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second*1)
+	if err == nil {
+		return fn(r)
+	}
+
+	r, err = getFileContent(ctx, f.binPath(), f.dir.fs.stores, time.Second*10)
 	if err != nil {
 		return err
+
 	}
+
 	return fn(r)
 }
 

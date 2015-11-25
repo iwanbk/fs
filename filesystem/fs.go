@@ -22,6 +22,7 @@ type FS struct {
 	metadata metadata.Metadata
 	local    cache.Cache
 	caches   []cache.Cache
+	stores   []cache.Cache
 }
 
 func NewFS(mountpoint string, cfg *config.Config) *FS {
@@ -35,11 +36,16 @@ func NewFS(mountpoint string, cfg *config.Config) *FS {
 		metadata: meta,
 		local:  localCache,
 		caches: []cache.Cache{localCache},
+		stores: make([]cache.Cache, 0),
 	}
 }
 
 func (f *FS) AddCache(cache cache.Cache) {
 	f.caches = append(f.caches, cache)
+}
+
+func (f *FS) AddStore(store cache.Cache) {
+	f.stores = append(f.stores, store)
 }
 
 func (f *FS) AttachFList(ID string) error {
@@ -69,7 +75,12 @@ func (f *FS) Root() (fs.Node, error) {
 
 func (f *FS) GetMetaData(dedupe string, id string) ([]string, error) {
 	log.Debug("Getting metadata for '%s' from '%s' cache", id, dedupe)
-	return getMetaData(f.caches, time.Second*10, dedupe, id)
+	result, err := getMetaData(f.caches, time.Second, dedupe, id)
+	if err == nil {
+		return result, nil
+	}
+
+	return getMetaData(f.stores, time.Second * 10, dedupe, id)
 }
 
 func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string) ([]string, error) {
