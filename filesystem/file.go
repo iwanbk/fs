@@ -86,7 +86,7 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 				default:
 					f, ok := r.(io.ReadCloser)
 					if ok {
-						log.Debug("Closing unused file")
+						log.Debug("Closing unused file '%s' from cache '%v'", path, c)
 						f.Close()
 					}
 				}
@@ -184,12 +184,13 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	resp.Flags = fuse.OpenKeepCache | fuse.OpenNonSeekable
 
 	if f.opener > 0 {
+		f.opener++
 		return f, nil
 	}
 
 	handleOpen := func(r io.ReadSeeker) error {
 		f.reader = r
-		f.opener++
+		f.opener = 1
 		return nil
 	}
 
@@ -215,10 +216,11 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 		// save file into local cache
 		go func() {
 			if err := f.saveLocal(); err != nil {
-				log.Error("can't save file %s into local cache: %v", f.info.Filename, err)
+				log.Error("Can't save file %s into local cache: %v", f, err)
 			}
 
 			if r, ok := f.reader.(io.Closer); ok {
+				log.Debug("Closing file '%s'", f)
 				r.Close()
 			}
 		}()
@@ -241,7 +243,7 @@ func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	resp.Data = buff[:n]
 
 	if err != nil && err != io.EOF {
-		log.Error("error read", err)
+		log.Error("Error read", err)
 		return err
 	}
 

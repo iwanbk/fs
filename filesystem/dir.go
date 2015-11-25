@@ -69,7 +69,7 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 			info: &fileInfo{
 				Size: fileNode.Size(),
 				Hash: fileNode.Hash(),
-				Filename: fileNode.Path(),
+				Filename: fileNode.Name(),
 			},
 		}, false, nil
 	} else {
