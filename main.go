@@ -88,7 +88,7 @@ func main() {
 
 	//attaching stores to the fs.
 	for _, s := range cfg.Store {
-		fs.AddCache(cache.NewHTTPCache(s.URL, "dedupe"))
+		fs.AddStore(cache.NewHTTPCache(s.URL, "dedupe"))
 	}
 
 	//now adding the AYS lists.
