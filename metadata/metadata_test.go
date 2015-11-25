@@ -83,7 +83,7 @@ func TestSearchSelf(t *testing.T) {
 	node := meta.Search("/")
 	assert.NotNil(t, node)
 
-	assert.Equal(t, meta, node)
+	assert.Equal(t, meta.Path(), node.Path())
 }
 
 func TestLeaf(t *testing.T) {
