@@ -24,7 +24,6 @@ type Config struct {
 
 type Main struct {
 	ID     string
-	Boltdb string
 }
 
 type AYS struct {

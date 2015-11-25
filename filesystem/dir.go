@@ -55,21 +55,21 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 	log.Debug("Directory search entry '%s'", name)
 
 	// look into the metadata for the entry
-	dirnode := d.fs.metadata.Search(d.Abs())
-	metanode := dirnode.Children()[name]
-	if metanode == nil {
+	dirNode := d.fs.metadata.Search(d.Abs())
+	childNode := dirNode.Children()[name]
+	if childNode == nil {
 		return nil, false, fuse.ENOENT
 	}
 
-	if metanode.IsLeaf() {
+	if childNode.IsLeaf() {
 		//file
-		fnode := metanode.(metadata.Leaf)
+		fileNode := childNode.(metadata.Leaf)
 		return &file{
 			dir:  d,
 			info: &fileInfo{
-				Size: fnode.Size(),
-				Hash: fnode.Hash(),
-				Filename: fnode.Path(),
+				Size: fileNode.Size(),
+				Hash: fileNode.Hash(),
+				Filename: fileNode.Path(),
 			},
 		}, false, nil
 	} else {

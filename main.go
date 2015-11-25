@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -16,7 +15,10 @@ import (
 	"path"
 )
 
-var version = "0.1"
+var (
+	version = "0.1"
+	log = logging.MustGetLogger("main")
+)
 
 var (
 	fVersion    bool
@@ -62,28 +64,23 @@ func main() {
 
 	if fPprof {
 		go func() {
-			log.Println(http.ListenAndServe("localhost:6060", nil))
+			log.Info("%v", http.ListenAndServe("localhost:6060", nil))
 
 		}()
 	}
-
-	log.SetPrefix(progName + ": ")
 
 	if flag.NArg() != 1 {
 		usage()
 		os.Exit(2)
 	}
 
-	mountpoint := path.Clean(flag.Arg(0))
+	mountPoint := path.Clean(flag.Arg(0))
 
 	cfg := config.LoadConfig(fConfigPath)
-	if cfg.Main.Boltdb == "" {
-		cfg.Main.Boltdb = "db.bolt"
-	}
 
-	fs := filesystem.NewFS(mountpoint, cfg)
+	fs := filesystem.NewFS(mountPoint, cfg)
 
-	log.Println("mounting Fuse File system")
+	log.Info("Mounting Fuse File system")
 	if err := mount(fs, flag.Arg(0)); err != nil {
 		log.Fatal(err)
 	}

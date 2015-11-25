@@ -30,13 +30,6 @@ type FS struct {
 }
 
 func NewFS(mountpoint string, cfg *config.Config) *FS {
-
-	_ = os.Remove(cfg.Main.Boltdb)
-	db, err := bolt.Open(cfg.Main.Boltdb, 0600, nil)
-	if err != nil {
-		log.Fatalf("can't open boltdb database at %s: %s\n", cfg.Main.Boltdb, err)
-	}
-
 	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
 	os.RemoveAll(localRoot)
 	os.MkdirAll(localRoot, 0660)
@@ -56,7 +49,6 @@ func NewFS(mountpoint string, cfg *config.Config) *FS {
 	meta, _ := metadata.NewMetadata(mountpoint, nil)
 
 	filesys := &FS{
-		db:       db,
 		metadata: meta,
 		local:  localCache,
 		caches: caches,
