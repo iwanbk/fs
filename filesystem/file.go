@@ -70,6 +70,10 @@ func (f *file) path() string {
 }
 
 func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
+	if len(caches) == 0 {
+		return nil, fuse.ENOENT
+	}
+
 	chRes := make(chan io.ReadSeeker)
 	chErr := make(chan error)
 	cancels := make(chan struct{}, len(caches))
@@ -128,6 +132,7 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 }
 
 func (f *file) loadLocalCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	log.Debug("Loading file from local cache '%v' / '%v'", f.dir.fs.local.BasePath(), f)
 	r, err := f.dir.fs.local.GetFileContent(f.binPath())
 	if err != nil {
 		return err
@@ -136,6 +141,7 @@ func (f *file) loadLocalCache(ctx context.Context, fn func(io.ReadSeeker) error)
 }
 
 func (f *file) loadGridCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	log.Debug("Loading file from grid cache '%v' / '%v'", f.dir.fs.caches, f)
 	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second)
 	if err != nil {
 		return err
@@ -144,6 +150,7 @@ func (f *file) loadGridCache(ctx context.Context, fn func(io.ReadSeeker) error) 
 }
 
 func (f *file) loadStore(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	log.Debug("Loading file from store '%v' / '%v'", f.dir.fs.stores, f)
 	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.stores, time.Second*10)
 	if err != nil {
 		return err
@@ -197,6 +204,7 @@ func (f *file) Attr(ctx context.Context, a *fuse.Attr) error {
 var _ = fs.NodeOpener(&file{})
 
 func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	log.Debug("Opening file '%v' for reading", f)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -236,6 +244,7 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 var _ = fs.HandleReleaser(&file{})
 
 func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+	log.Debug("Release file '%v'", f)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -260,6 +269,7 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 var _ = fs.HandleReader(&file{})
 
 func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+	log.Debug("Read file '%v' '%v'", f, req)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 

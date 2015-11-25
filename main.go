@@ -35,7 +35,7 @@ func init() {
 
 	flag.StringVar(&fConfigPath, "config", "config.toml", "path to config file")
 	flag.StringVar(&fConfigPath, "c", "config.toml", "path to config file")
-	flag.IntVar(&fDebugLevel, "l", 0, "Debug leve (0 less verbose [default], to 5 most verbose)")
+	flag.IntVar(&fDebugLevel, "l", 4, "Debug leve (0 less verbose, to 5 most verbose) default to 4")
 }
 
 func usage() {

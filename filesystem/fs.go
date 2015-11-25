@@ -1,7 +1,6 @@
 package filesystem
 
 import (
-	"fmt"
 	"github.com/op/go-logging"
 	"os"
 	"path/filepath"
@@ -37,15 +36,16 @@ func NewFS(mountpoint string, cfg *config.Config) *FS {
 
 	caches := []cache.Cache{}
 	for _, c := range cfg.Cache {
-		fmt.Println("add cache", c.Mnt)
+		log.Info("Add cache %s", c.Mnt)
 		caches = append(caches, cache.NewFSCache(c.Mnt, "dedupe"))
 	}
 
 	stores := []cache.Cache{}
 	for _, s := range cfg.Store {
-		fmt.Println("add Store", s.URL)
+		log.Info("Add Store %s", s.URL)
 		stores = append(stores, cache.NewHTTPCache(s.URL, "dedupe"))
 	}
+
 	meta, _ := metadata.NewMetadata(mountpoint, nil)
 
 	filesys := &FS{
