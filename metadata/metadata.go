@@ -20,12 +20,6 @@ type Node interface{
 	Search(path string) Node
 }
 
-type Leaf interface {
-	Node
-	Hash() string
-	Size() int64
-}
-
 type Metadata interface {
 	Node
 	Index(line string) error

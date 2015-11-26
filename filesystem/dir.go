@@ -64,14 +64,22 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 	if childNode.IsLeaf() {
 		//file
 		fileNode := childNode.(metadata.Leaf)
-		return &file{
-			dir:  d,
-			info: &fileInfo{
-				Size: fileNode.Size(),
-				Hash: fileNode.Hash(),
-				Filename: fileNode.Name(),
-			},
-		}, false, nil
+		fileNode.Lock()
+		defer fileNode.Unlock()
+
+		fsNode := fileNode.FuseNode()
+		if fsNode == nil {
+			fsNode = &file{
+				dir:  d,
+				info: &fileInfo{
+					Size: fileNode.Size(),
+					Hash: fileNode.Hash(),
+					Filename: fileNode.Name(),
+				},
+			}
+			fileNode.SetFuseNode(fsNode)
+		}
+		return fsNode, false, nil
 	} else {
 		return &dir{
 			fs:     d.fs,

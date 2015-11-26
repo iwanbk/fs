@@ -2,13 +2,27 @@ package metadata
 
 import (
 	"path"
+	"sync"
+	"bazil.org/fuse/fs"
 )
+
+type Leaf interface {
+	Node
+	sync.Locker
+	Hash() string
+	Size() int64
+	FuseNode() fs.Node
+	SetFuseNode(node fs.Node)
+}
 
 type leaf struct {
 	parent Node
 	name string
 	hash string
 	size int64
+
+	lock sync.Mutex
+	fuseNode fs.Node
 }
 
 func NewLeaf(name string, parent Node, hash string, size int64) Node {
@@ -54,4 +68,20 @@ func (l *leaf) Size() int64 {
 
 func (l *leaf) Search(path string) Node {
 	return nil
+}
+
+func (l *leaf) FuseNode() fs.Node {
+	return l.fuseNode
+}
+
+func (l *leaf) SetFuseNode(node fs.Node) {
+	l.fuseNode = node
+}
+
+func (l *leaf) Lock() {
+	l.lock.Lock()
+}
+
+func (l *leaf) Unlock() {
+	l.lock.Unlock()
 }
