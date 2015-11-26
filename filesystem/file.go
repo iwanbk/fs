@@ -129,16 +129,20 @@ func (f *fileImpl) saveLocal(reader io.ReadSeeker) error {
 
 		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
 		defer outFile.Close()
+
 		if err != nil {
 			log.Error("error while saving %s into local cache. open error %s\n", f.info.Name(), err)
 			os.Remove(path)
+			return err
 		}
 
 		// move to begining of the file to be sure to copy all the data
 		_, err = reader.Seek(0, 0)
 		if err != nil {
-			log.Error("error while saving %s into local cache. seek error: %s\n", f.info.Name(), err)
+			os.Remove(path)
+			return err
 		}
+
 		_, err = io.Copy(outFile, reader)
 		if err != nil {
 			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Name(), err)
@@ -195,7 +199,10 @@ func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.reader.Seek(seek, 0)
+	_, err := f.reader.Seek(seek, 0)
+	if err != nil {
+		return 0, err
+	}
 	return f.reader.Read(buffer)
 }
 
@@ -208,13 +215,15 @@ func (f *fileImpl) Release() {
 	if f.opener <= 0 {
 		// save file into local cache
 		go func(reader io.ReadSeeker) {
+			defer func() {
+				if r, ok := reader.(io.Closer); ok {
+					log.Debug("Closing file '%s'", f)
+					r.Close()
+				}
+			}()
+
 			if err := f.saveLocal(reader); err != nil {
 				log.Error("Can't save file %s into local cache: %v", f, err)
-			}
-
-			if r, ok := reader.(io.Closer); ok {
-				log.Debug("Closing file '%s'", f)
-				r.Close()
 			}
 		}(f.reader)
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"io/ioutil"
-	"bytes"
 	"bufio"
 	"path"
 )
@@ -28,6 +26,26 @@ func (f *httpCache) Purge() error {
 	return nil
 }
 
+//TODO this must be change (the body reader) to be more efficient than this impl
+//since now we have to read the entire file (that can be big) before we can read data.
+type bodyReader struct {
+	body io.ReadCloser
+}
+
+func (reader *bodyReader) Read(p []byte) (int, error) {
+	log.Debug("Reading from HTTP cache...")
+	return reader.body.Read(p)
+}
+
+func (reader *bodyReader) Close() error {
+	return reader.body.Close()
+}
+
+func (reader *bodyReader) Seek(offset int64, whence int) (int64, error){
+	return 0, fmt.Errorf("Not implemented")
+}
+
+
 func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	url := fmt.Sprintf("%s/%s/files/%s", f.addr, f.dedupe, path)
 	resp, err := http.Get(url)
@@ -39,13 +57,9 @@ func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
 		return nil, fmt.Errorf("can't get file from %s: http status code is %d\n", url, resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		// log.Printf("can't read response from %s: %v\n", url, err)
-		return nil, err
-	}
-	return bytes.NewReader(content), nil
+	return &bodyReader{
+		body: resp.Body,
+	}, nil
 }
 
 func (f *httpCache) GetMetaData(dedupe, id string) ([]string, error) {
