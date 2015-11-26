@@ -16,6 +16,10 @@ import (
 	"path"
 )
 
+const (
+	FileReadBuffer = 512 * 1024 //bytes [512K]
+)
+
 type File interface {
 	fs.Node
 	fs.Handle
@@ -29,6 +33,7 @@ type fileImpl struct {
 	info   metadata.Leaf
 	reader io.ReadSeeker
 	opener int
+	buffer []byte
 
 	mu     sync.Mutex
 }
@@ -177,6 +182,11 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	}
 
 	handleOpen := func(r io.ReadSeeker) error {
+		//allocate buffer
+		if len(f.buffer) == 0 {
+			f.buffer = make([]byte, FileReadBuffer)
+		}
+
 		f.reader = r
 		f.opener = 1
 		return nil
@@ -218,11 +228,17 @@ func (f *fileImpl) Release(ctx context.Context, req *fuse.ReleaseRequest) error 
 func (f *fileImpl) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-
 	f.reader.Seek(req.Offset, 0)
-	buff := make([]byte, req.Size)
-	n, err := f.reader.Read(buff)
-	resp.Data = buff[:n]
+
+	var buffer []byte
+	if req.Size > len(f.buffer) {
+		buffer = f.buffer
+	} else {
+		buffer = f.buffer[:req.Size]
+	}
+
+	n, err := f.reader.Read(buffer)
+	resp.Data = buffer[:n]
 
 	if err != nil && err != io.EOF {
 		log.Error("Error read", err)
