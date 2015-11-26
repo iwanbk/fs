@@ -6,10 +6,22 @@ import (
 	"testing"
 )
 
-func TestNewFileInfo(t *testing.T) {
-	fi, err := newFileInfo("arakoonStart.py|a0acf38b3f672a42ed177e9ed09eec3f|915")
-	assert.NoError(t, err)
-	assert.Equal(t, "arakoonStart.py", fi.Filename)
-	assert.EqualValues(t, 915, fi.Size)
-	assert.Equal(t, "a0acf38b3f672a42ed177e9ed09eec3f", fi.Hash)
+func TestFileBuffer(t *testing.T) {
+	buffer := NewFileBuffer(nil).(*fileBufferImpl)
+
+	assert.Len(t, buffer.buffer, FileReadBuffer)
+	assert.False(t, buffer.available(0, 100))
+
+	buffer.size = 100
+	assert.True(t, buffer.available(0, 100))
+
+	buffer.offset = 100
+	buffer.size = 200
+
+	assert.False(t, buffer.available(0, 150))
+	assert.False(t, buffer.available(100, 250))
+	assert.True(t, buffer.available(100, 200))
+	assert.True(t, buffer.available(150, 50))
+	assert.True(t, buffer.available(150, 150))
+	assert.True(t, buffer.available(200, 100))
 }

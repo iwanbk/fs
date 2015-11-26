@@ -16,16 +16,12 @@ import (
 	"path"
 )
 
-const (
-	FileReadBuffer = 512 * 1024 //bytes [512K]
-)
-
 type File interface {
 	fs.Node
-	fs.Handle
-	fs.HandleReleaser
-	fs.HandleReader
+	fs.NodeOpener
 	Parent() Dir
+	Read(seek int64, buffer []byte) (int, error)
+	Release()
 }
 
 type fileImpl struct {
@@ -33,7 +29,6 @@ type fileImpl struct {
 	info   metadata.Leaf
 	reader io.ReadSeeker
 	opener int
-	buffer []byte
 
 	mu     sync.Mutex
 }
@@ -101,10 +96,10 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 		return r, nil
 	case <-wait:
 		//all exited with no response.
+		log.Warning("All caches failed to open the file '%s'", path)
 		return nil, fuse.ENOENT
 	case <-time.After(timeout):
 		return nil, fuse.ENOENT
-
 	case <-ctx.Done():
 		return nil, fuse.EINTR
 	}
@@ -182,11 +177,6 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	}
 
 	handleOpen := func(r io.ReadSeeker) error {
-		//allocate buffer
-		if len(f.buffer) == 0 {
-			f.buffer = make([]byte, FileReadBuffer)
-		}
-
 		f.reader = r
 		f.opener = 1
 		return nil
@@ -195,16 +185,24 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	// then try to get from grid caches
 	err := f.loadFromCache(ctx, handleOpen)
 	if err == nil {
-		return f, nil
+		return NewFileBuffer(f), nil
 	}
 
 	return nil, fuse.ENOENT
 }
 
-func (f *fileImpl) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
-	log.Debug("Release file '%v'", f)
+func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	f.reader.Seek(seek, 0)
+	return f.reader.Read(buffer)
+}
+
+func (f *fileImpl) Release() {
+	f.mu.Lock()
+	f.mu.Unlock()
+	log.Debug("Release file '%v'", f)
 
 	f.opener--
 	if f.opener <= 0 {
@@ -221,29 +219,4 @@ func (f *fileImpl) Release(ctx context.Context, req *fuse.ReleaseRequest) error 
 			}
 		}()
 	}
-
-	return nil
-}
-
-func (f *fileImpl) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.reader.Seek(req.Offset, 0)
-
-	var buffer []byte
-	if req.Size > len(f.buffer) {
-		buffer = f.buffer
-	} else {
-		buffer = f.buffer[:req.Size]
-	}
-
-	n, err := f.reader.Read(buffer)
-	resp.Data = buffer[:n]
-
-	if err != nil && err != io.EOF {
-		log.Error("Error read", err)
-		return err
-	}
-
-	return nil
 }
