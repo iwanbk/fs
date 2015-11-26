@@ -116,3 +116,15 @@ func TestPrefixing(t *testing.T) {
 	assert.Equal(t, int64(23605576), leaf.Size())
 	assert.Equal(t, "d7ca41fbf8cb8a03fc70d773c32ec8d2", leaf.Hash())
 }
+
+func TestLeafLocking(t *testing.T) {
+	meta, err := NewMetadata("", lines)
+	assert.NoError(t, err)
+
+	node := meta.Search("/opt/mongodb/bin/mongod")
+
+	leaf := node.(Leaf)
+	defer leaf.Unlock()
+	leaf.Lock()
+
+}

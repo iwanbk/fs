@@ -66,11 +66,7 @@ var _ = fs.FS(&FS{})
 func (f *FS) Root() (fs.Node, error) {
 	log.Debug("Accessing filesystem root")
 
-	n := &dir{
-		fs:   f,
-		name: "/",
-	}
-	return n, nil
+	return NewDir(f, nil, f.metadata), nil
 }
 
 func (f *FS) GetMetaData(dedupe string, id string) ([]string, error) {

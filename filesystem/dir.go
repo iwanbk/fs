@@ -3,8 +3,6 @@ package filesystem
 import (
 	"fmt"
 	"os"
-	"path"
-	"strings"
 	"github.com/Jumpscale/aysfs/metadata"
 
 	"golang.org/x/net/context"
@@ -13,50 +11,46 @@ import (
 	"bazil.org/fuse/fs"
 )
 
-type dir struct {
+type Dir interface {
+	fs.Node
+	fs.HandleReadDirAller
+	fs.NodeStringLookuper
+	fmt.Stringer
+	Parent() Dir
+	FS() *FS
+}
+
+type dirImpl struct {
 	fs     *FS
-	parent *dir
-	name   string
+	parent Dir
+	info   metadata.Node
 }
 
-func (d *dir) String() string {
-	if d.parent == nil {
-		return d.name
-	} else {
-		return path.Join(d.parent.String(), d.name)
+func NewDir(fs *FS, parent Dir, node metadata.Node) Dir {
+	return &dirImpl{
+		fs: fs,
+		parent: parent,
+		info: node,
 	}
-
-}
-//Abs return the absolute path of the directory pointed by d
-func (d *dir) Abs() string {
-	var path string
-	if d.name == "/" {
-		return "/"
-	}
-
-	var name string
-	for d != nil && d.name != "/" {
-		name = d.name
-		if strings.Contains(d.name, "|") {
-			ss := strings.Split(d.name, "|")
-			name = ss[0]
-		}
-		path = fmt.Sprintf("/%s%s", name, path)
-		d = d.parent
-	}
-	return path
 }
 
-func (d *dir) dbKey() []byte {
-	return []byte(fmt.Sprintf("dir:%s", d.Abs()))
+func (d *dirImpl) FS() *FS {
+	return d.fs
 }
 
-func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
-	log.Debug("Directory search entry '%s'", name)
+func (d *dirImpl) Parent() Dir {
+	return d.parent
+}
+
+func (d *dirImpl) String() string {
+	return d.info.Path()
+}
+
+func (d *dirImpl) searchEntry(name string) (fs.Node, bool, error) {
+	log.Debug("Directory '%s' search entry '%s'", d.String(), name)
 
 	// look into the metadata for the entry
-	dirNode := d.fs.metadata.Search(d.Abs())
-	childNode := dirNode.Children()[name]
+	childNode := d.info.Children()[name]
 	if childNode == nil {
 		return nil, false, fuse.ENOENT
 	}
@@ -69,48 +63,39 @@ func (d *dir) searchEntry(name string) (fs.Node, bool, error) {
 
 		fsNode := fileNode.FuseNode()
 		if fsNode == nil {
-			fsNode = &file{
-				dir:  d,
-				info: &fileInfo{
-					Size: fileNode.Size(),
-					Hash: fileNode.Hash(),
-					Filename: fileNode.Name(),
-				},
-			}
+			fsNode = NewFile(d, fileNode)
 			fileNode.SetFuseNode(fsNode)
 		}
 		return fsNode, false, nil
 	} else {
-		return &dir{
-			fs:     d.fs,
-			name:   name,
-			parent: d,
-		}, false, nil
+		return NewDir(d.fs, d, childNode), false, nil
 	}
 
 	return nil, false, fuse.ENOENT
 }
 
-var _ = fs.Node(&dir{})
+var _ = fs.Node(&dirImpl{})
 
-func (d *dir) Attr(ctx context.Context, a *fuse.Attr) error {
+func (d *dirImpl) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Mode = os.ModeDir | 0555
 	return nil
 }
 
-var _ = fs.HandleReadDirAller(&dir{})
+var _ = fs.HandleReadDirAller(&dirImpl{})
 
-func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
+func (d *dirImpl) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	log.Debug("ReadDirAll '%s' entries", d)
 
 	var (
 		results []fuse.Dirent
 	)
 
-	log.Debug("ReadDirAll found no results in DB, load from meta (%s)", d.Abs())
-	dirNode := d.fs.metadata.Search(d.Abs())
+	path := d.String()
+
+	log.Debug("ReadDirAll found no results in DB, load from meta (%s)", path)
+	dirNode := d.fs.metadata.Search(d.String())
 	if dirNode == nil {
-		log.Debug("Directory '%s' not found in meta", d.Abs())
+		log.Debug("Directory '%s' not found in meta", path)
 		return results, nil
 	}
 
@@ -136,10 +121,15 @@ func (d *dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	return results, nil
 }
 
-var _ = fs.NodeStringLookuper(&dir{})
+var _ = fs.NodeStringLookuper(&dirImpl{})
 
-func (d *dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
+func (d *dirImpl) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	log.Debug("Directory '%v' lookup on '%s'", d, name)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatal(r)
+		}
+	}()
 	node, _, err := d.searchEntry(name)
 	if err != nil {
 		return nil, err

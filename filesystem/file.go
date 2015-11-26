@@ -1,13 +1,9 @@
 package filesystem
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,57 +12,49 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/cache"
+	"github.com/Jumpscale/aysfs/metadata"
 	"path"
 )
 
-type fileInfo struct {
-	Size     int64
-	Hash     string
-	Filename string
+type File interface {
+	fs.Node
+	fs.Handle
+	fs.HandleReleaser
+	fs.HandleReader
+	Parent() Dir
 }
 
-//newFileInfo creates a new fileInfo struct by parsing the string s
-//format of s shoud be 'filename|hash|size'
-func newFileInfo(s string) (*fileInfo, error) {
-	ss := strings.Split(s, "|")
-	if len(ss) != 3 {
-		return nil, errors.New("Bad format of file info")
-	}
-
-	size, err := strconv.ParseInt(ss[2], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return &fileInfo{
-		Filename: ss[0],
-		Hash:     ss[1],
-		Size:     size,
-	}, nil
-}
-
-type file struct {
-	dir    *dir
-	info   *fileInfo
+type fileImpl struct {
+	parent Dir
+	info   metadata.Leaf
 	reader io.ReadSeeker
 	opener int
 
 	mu     sync.Mutex
 }
 
-func (f *file) String() string {
-	return path.Join(f.dir.String(), f.info.Filename)
+func NewFile(parent Dir, leaf metadata.Leaf) File {
+	return &fileImpl{
+		parent: parent,
+		info: leaf,
+	}
 }
 
-func (f *file) dbKey() []byte {
-	return []byte(fmt.Sprintf("file:%s", f.info.Hash))
+func (f *fileImpl) Parent() Dir {
+	return f.parent
 }
 
-func (f *file) binPath() string {
-	return filepath.Join(string(f.info.Hash[0]), string(f.info.Hash[1]), f.info.Hash)
+func (f *fileImpl) String() string {
+	return path.Join(f.parent.String(), f.info.Name())
 }
 
-func (f *file) path() string {
-	return filepath.Join(f.dir.Abs(), f.info.Filename)
+func (f *fileImpl) binPath() string {
+	hash := f.info.Hash()
+	return filepath.Join(string(hash[0]), string(hash[1]), hash)
+}
+
+func (f *fileImpl) path() string {
+	return filepath.Join(f.parent.String(), f.info.Name())
 }
 
 func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
@@ -117,13 +105,13 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 	}
 }
 
-func (f *file) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
-	r, err := getFileContent(ctx, f.binPath(), f.dir.fs.caches, time.Second*1)
+func (f *fileImpl) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
+	r, err := getFileContent(ctx, f.binPath(), f.parent.FS().caches, time.Second*1)
 	if err == nil {
 		return fn(r)
 	}
 
-	r, err = getFileContent(ctx, f.binPath(), f.dir.fs.stores, time.Second*10)
+	r, err = getFileContent(ctx, f.binPath(), f.parent.FS().stores, time.Second*10)
 	if err != nil {
 		return err
 
@@ -132,8 +120,8 @@ func (f *file) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) 
 	return fn(r)
 }
 
-func (f *file) saveLocal() error {
-	path := filepath.Join(f.dir.fs.local.BasePath(), "files", f.binPath())
+func (f *fileImpl) saveLocal() error {
+	path := filepath.Join(f.parent.FS().local.BasePath(), "files", f.binPath())
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {
@@ -142,18 +130,18 @@ func (f *file) saveLocal() error {
 		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
 		defer outFile.Close()
 		if err != nil {
-			log.Error("error while saving %s into local cache. open error %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. open error %s\n", f.info.Name(), err)
 			os.Remove(path)
 		}
 
 		// move to begining of the file to be sure to copy all the data
 		_, err = f.reader.Seek(0, 0)
 		if err != nil {
-			log.Error("error while saving %s into local cache. seek error: %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. seek error: %s\n", f.info.Name(), err)
 		}
 		_, err = io.Copy(outFile, f.reader)
 		if err != nil {
-			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Filename, err)
+			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Name(), err)
 			os.Remove(path)
 			return err
 		}
@@ -161,22 +149,22 @@ func (f *file) saveLocal() error {
 	return nil
 }
 
-var _ = fs.Node(&file{})
+var _ = fs.Node(&fileImpl{})
 
-var _ = fs.Handle(&file{})
+var _ = fs.Handle(&fileImpl{})
 
-func (f *file) Attr(ctx context.Context, a *fuse.Attr) error {
+func (f *fileImpl) Attr(ctx context.Context, a *fuse.Attr) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	a.Mode = 0554
-	a.Size = uint64(f.info.Size)
+	a.Size = uint64(f.info.Size())
 	return nil
 }
 
-var _ = fs.NodeOpener(&file{})
+var _ = fs.NodeOpener(&fileImpl{})
 
-func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	log.Debug("Opening file '%v' for reading", f)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -203,9 +191,7 @@ func (f *file) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenR
 	return nil, fuse.ENOENT
 }
 
-var _ = fs.HandleReleaser(&file{})
-
-func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
+func (f *fileImpl) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	log.Debug("Release file '%v'", f)
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -229,9 +215,7 @@ func (f *file) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	return nil
 }
 
-var _ = fs.HandleReader(&file{})
-
-func (f *file) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+func (f *fileImpl) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
