@@ -61,14 +61,12 @@ func (f *fileBufferImpl) readFromOffset(offset int64, min int) error {
 
 func (f *fileBufferImpl) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	if !f.available(req.Offset, int64(req.Size)) {
-		log.Debug("File '%s' reading from next offset %d", f.file, req.Offset)
 		err := f.readFromOffset(req.Offset, req.Size)
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Debug("File '%s' buffer is %s bytes", f.file, f.size)
 	//buffer is ready. Just copy data.
 	offset := req.Offset - f.offset
 	resp.Data = f.buffer[offset: offset + int64(req.Size)]
