@@ -16,6 +16,7 @@ import (
 	"path"
 	"os/signal"
 	"syscall"
+	"net/url"
 )
 
 var (
@@ -105,14 +106,22 @@ func main() {
 	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
 	cacheMgr.AddLayer(cache.NewFSCache(localRoot, "dedupe", true))
 
-	//attaching cache to the fs
+	//attaching cache layers to the fs
 	for _, c := range cfg.Cache {
-		cacheMgr.AddLayer(cache.NewFSCache(c.Mnt, "dedupe", false))
-	}
+		u, err := url.Parse(c.URL)
+		if err != nil {
+			log.Fatalf("Invalid URL for cache '%s'", c.URL)
+		}
+		if u.Scheme == "" || u.Scheme == "file" {
+			//add FS layer
+			cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
+		} else if u.Scheme == "http" || u.Scheme == "https" {
+			if c.Purge {
+				log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
+			}
+			cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
+		}
 
-	//attaching stores to the fs.
-	for _, s := range cfg.Store {
-		cacheMgr.AddLayer(cache.NewHTTPCache(s.URL, "dedupe"))
 	}
 
 	//purge all purgable cache layers.

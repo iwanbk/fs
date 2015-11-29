@@ -1,7 +1,6 @@
 package config
 
 import (
-	"time"
 	"github.com/naoina/toml"
 	"os"
 	"github.com/op/go-logging"
@@ -13,35 +12,27 @@ var (
 
 type Config struct {
 	Main Main
-
 	Ays []AYS
-
 	Cache []Cache
-	Store []Store
-
 	Debug []Debug
 }
 
 type Main struct {
-	ID     string
+	ID string
 }
 
 type AYS struct {
-	ID                 string
-	PrefetchCacheGrid  bool
-	PrefetchCacheLocal bool
-	CacheLocal         bool
-	CacheGrid          bool
+	ID string
+
+//	PrefetchCacheGrid  bool
+//	PrefetchCacheLocal bool
+//	CacheLocal         bool
+//	CacheGrid          bool
 }
 
 type Cache struct {
-	Mnt         string
-	Expirtation time.Duration
-}
-
-type Store struct {
 	URL         string
-	Expirtation time.Duration
+	Purge 		bool
 }
 
 type Debug struct {
