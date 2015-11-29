@@ -14,6 +14,8 @@ import (
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/op/go-logging"
 	"path"
+	"os/signal"
+	"syscall"
 )
 
 var (
@@ -50,6 +52,22 @@ func configureLogging() {
 	logging.SetLevel(logging.Level(fDebugLevel), "")
 	formatter := logging.MustStringFormatter("%{color}%{module} %{level:.1s} > %{message} %{color:reset}")
 	logging.SetFormatter(formatter)
+}
+
+func watchReloadSignal(path string, fs *filesystem.FS) {
+	channel := make(chan os.Signal)
+	signal.Notify(channel, syscall.SIGUSR1)
+	go func(path string, fs *filesystem.FS) {
+		defer close(channel)
+		for {
+			<-channel
+			log.Info("Reloading ays mounts due to user signal")
+			cfg := config.LoadConfig(path)
+			for _, a := range cfg.Ays {
+				fs.AttachFList(a.ID)
+			}
+		}
+	}(path, fs)
 }
 
 func main() {
@@ -95,6 +113,8 @@ func main() {
 	for _, a := range cfg.Ays {
 		fs.AttachFList(a.ID)
 	}
+
+	watchReloadSignal(fConfigPath, fs)
 
 	log.Info("Mounting Fuse File system")
 	if err := mount(fs, flag.Arg(0)); err != nil {
