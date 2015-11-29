@@ -86,6 +86,10 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 	}
 
 	go func() {
+		defer func () {
+			//it happens on write to closed chan.
+			recover()
+		}()
 		wg.Wait()
 		select{
 		case wait <- 1:

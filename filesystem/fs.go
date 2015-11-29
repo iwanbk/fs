@@ -105,6 +105,10 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 	}
 
 	go func() {
+		defer func () {
+			//it happens on write to closed chan.
+			recover()
+		}()
 		wg.Wait()
 		select{
 		case wait <- 1:
