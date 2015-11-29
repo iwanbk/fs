@@ -68,6 +68,7 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 
 	for _, c := range caches {
 		go func(c cache.Cache, out chan io.ReadSeeker) {
+			defer func() { recover() }()
 			log.Debug("Loading file from cache '%v' / '%v'", c, path)
 			r, err := c.GetFileContent(path)
 			if err == nil {
@@ -86,10 +87,7 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 	}
 
 	go func() {
-		defer func () {
-			//it happens on write to closed chan.
-			recover()
-		}()
+		defer func() { recover() }()
 		wg.Wait()
 		select{
 		case wait <- 1:

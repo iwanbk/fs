@@ -89,6 +89,7 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 	wg.Add(len(caches))
 	for _, c := range caches {
 		go func(c cache.Cache, out chan []string) {
+			defer func() { recover() }()
 			log.Debug("Trying cache %v", c)
 			content, err := c.GetMetaData(dedupe, id)
 			if err == nil {
@@ -105,10 +106,7 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 	}
 
 	go func() {
-		defer func () {
-			//it happens on write to closed chan.
-			recover()
-		}()
+		defer func() { recover() }()
 		wg.Wait()
 		select{
 		case wait <- 1:
