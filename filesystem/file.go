@@ -59,7 +59,9 @@ func (f *fileImpl) path() string {
 
 func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
 	result := make(chan io.ReadSeeker)
+	defer close(result)
 	wait := make(chan int)
+	defer close(wait)
 
 	var wg sync.WaitGroup
 	wg.Add(len(caches))
@@ -85,7 +87,10 @@ func getFileContent(ctx context.Context, path string, caches []cache.Cache, time
 
 	go func() {
 		wg.Wait()
-		wait <- 1
+		select{
+		case wait <- 1:
+		default:
+		}
 	}()
 
 	select {

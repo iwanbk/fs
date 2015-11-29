@@ -81,7 +81,9 @@ func (f *FS) GetMetaData(dedupe string, id string) ([]string, error) {
 
 func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string) ([]string, error) {
 	result := make(chan []string)
+	defer close(result)
 	wait := make(chan int)
+	defer close(wait)
 
 	var wg sync.WaitGroup
 	wg.Add(len(caches))
@@ -104,7 +106,10 @@ func getMetaData(caches []cache.Cache, timeout time.Duration, dedupe, id string)
 
 	go func() {
 		wg.Wait()
-		wait <- 1
+		select{
+		case wait <- 1:
+		default:
+		}
 	}()
 
 	log.Debug("Waiting for cache response")
