@@ -38,6 +38,7 @@ func (mgr *cacheManager) Open(path string) (io.ReadSeeker, error) {
 			return utils.NewCallbackCloser(file, path, mgr.getCloseCallback(index - 1)), nil
 		}
 	}
+	log.Error("All caches couldn't open the file '%s'", path)
 	return nil, fmt.Errorf("All caches couldn't open the file '%s'", path)
 }
 
