@@ -22,12 +22,7 @@ func NewHTTPCache(addr string, dedupe string) Cache {
 	}
 }
 
-func (f *httpCache) Purge() error {
-	//not supported by this cache.
-	return nil
-}
-
-func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
+func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
 	url := fmt.Sprintf("%s/%s/files/%s", f.addr, f.dedupe, path)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -41,8 +36,8 @@ func (f *httpCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	return utils.NewReadSeeker(resp.Body), nil
 }
 
-func (f *httpCache) GetMetaData(dedupe, id string) ([]string, error) {
-	url := fmt.Sprintf("%s/%s/md/%s.flist", f.addr, dedupe, id)
+func (f *httpCache) GetMetaData(id string) ([]string, error) {
+	url := fmt.Sprintf("%s/%s/md/%s.flist", f.addr, f.dedupe, id)
 	resp, err := http.Get(url)
 	if err != nil {
 		// log.Printf("can't get file from %s: %v\n", url, err)

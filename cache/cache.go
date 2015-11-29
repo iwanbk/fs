@@ -11,14 +11,29 @@ var (
 )
 
 type Cache interface {
-	GetFileContent(path string) (io.ReadSeeker, error)
-	GetMetaData(dedupe, id string) ([]string, error)
+	Open(path string) (io.ReadSeeker, error)
+	GetMetaData(id string) ([]string, error)
 	Exists(path string) bool
 	BasePath() string
+}
+
+type CachePurger interface {
 	Purge() error
 }
 
-// chroot return the absolute path of path but chrooted at root
+type CacheWriter interface {
+	SetMetaData([]string) error
+	DeDupe(string, io.ReadSeeker) error
+}
+
+type CacheManager interface {
+	Cache
+	CachePurger
+	AddLayer(Cache)
+	Layers() []Cache
+}
+
+// Chroot return the absolute path of path but chrooted at root
 func chroot(root, path string) string {
 	if filepath.IsAbs(path) {
 		return filepath.Join(root, path[1:])

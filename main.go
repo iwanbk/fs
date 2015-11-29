@@ -97,17 +97,26 @@ func main() {
 
 	cfg := config.LoadConfig(fConfigPath)
 
-	fs := filesystem.NewFS(mountPoint, cfg)
+	cacheMgr := cache.NewCacheManager()
+
+	fs := filesystem.NewFS(mountPoint, cacheMgr)
+
+	//add default fs cache layer
+	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
+	cacheMgr.AddLayer(cache.NewFSCache(localRoot, "dedupe", true))
 
 	//attaching cache to the fs
 	for _, c := range cfg.Cache {
-		fs.AddCache(cache.NewFSCache(c.Mnt, "dedupe"))
+		cacheMgr.AddLayer(cache.NewFSCache(c.Mnt, "dedupe", false))
 	}
 
 	//attaching stores to the fs.
 	for _, s := range cfg.Store {
-		fs.AddStore(cache.NewHTTPCache(s.URL, "dedupe"))
+		cacheMgr.AddLayer(cache.NewHTTPCache(s.URL, "dedupe"))
 	}
+
+	//purge all purgable cache layers.
+	cacheMgr.Purge()
 
 	//now adding the AYS lists.
 	for _, a := range cfg.Ays {

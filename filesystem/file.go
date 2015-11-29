@@ -2,16 +2,11 @@ package filesystem
 
 import (
 	"io"
-	"os"
 	"path/filepath"
 	"sync"
-	"time"
-
 	"golang.org/x/net/context"
-
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/metadata"
 	"path"
 )
@@ -57,112 +52,14 @@ func (f *fileImpl) path() string {
 	return filepath.Join(f.parent.String(), f.info.Name())
 }
 
-func getFileContent(ctx context.Context, path string, caches []cache.Cache, timeout time.Duration) (io.ReadSeeker, error) {
-	result := make(chan io.ReadSeeker)
-	defer close(result)
-	wait := make(chan int)
-	defer close(wait)
-
-	var wg sync.WaitGroup
-	wg.Add(len(caches))
-
-	for _, c := range caches {
-		go func(c cache.Cache, out chan io.ReadSeeker) {
-			defer func() { recover() }()
-			log.Debug("Loading file from cache '%v' / '%v'", c, path)
-			r, err := c.GetFileContent(path)
-			if err == nil {
-				select{
-				case out <- r:
-				default:
-					f, ok := r.(io.ReadCloser)
-					if ok {
-						log.Debug("Closing unused file '%s' from cache '%v'", path, c)
-						f.Close()
-					}
-				}
-			}
-			wg.Done()
-		}(c, result)
-	}
-
-	go func() {
-		defer func() { recover() }()
-		wg.Wait()
-		select{
-		case wait <- 1:
-		default:
-		}
-	}()
-
-	select {
-	case r := <-result:
-		if r == nil {
-			return nil, fuse.ENOENT
-		}
-		return r, nil
-	case <-wait:
-		//all exited with no response.
-		log.Warning("All caches failed to open the file '%s'", path)
-		return nil, fuse.ENOENT
-	case <-time.After(timeout):
-		return nil, fuse.ENOENT
-	case <-ctx.Done():
-		return nil, fuse.EINTR
-	}
-}
-
 func (f *fileImpl) loadFromCache(ctx context.Context, fn func(io.ReadSeeker) error) error {
-	r, err := getFileContent(ctx, f.binPath(), f.parent.FS().caches, time.Second*1)
-	if err == nil {
-		return fn(r)
-	}
-
-	r, err = getFileContent(ctx, f.binPath(), f.parent.FS().stores, time.Second*10)
+	file, err := f.parent.FS().cache.Open(f.binPath())
 	if err != nil {
 		return err
-
 	}
 
-	return fn(r)
+	return fn(file)
 }
-
-func (f *fileImpl) saveLocal(reader io.ReadSeeker) error {
-	path := filepath.Join(f.parent.FS().local.BasePath(), "files", f.binPath())
-	_, err := os.Stat(path)
-
-	if os.IsNotExist(err) {
-		os.MkdirAll(filepath.Dir(path), 0660)
-
-		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
-		defer outFile.Close()
-
-		if err != nil {
-			log.Error("error while saving %s into local cache. open error %s\n", f.info.Name(), err)
-			os.Remove(path)
-			return err
-		}
-
-		// move to begining of the file to be sure to copy all the data
-		_, err = reader.Seek(0, 0)
-		if err != nil {
-			os.Remove(path)
-			return err
-		}
-
-		_, err = io.Copy(outFile, reader)
-		if err != nil {
-			log.Error("error while saving %s into local cache. copy error %s\n", f.info.Name(), err)
-			os.Remove(path)
-			return err
-		}
-	}
-	return nil
-}
-
-var _ = fs.Node(&fileImpl{})
-
-var _ = fs.Handle(&fileImpl{})
 
 func (f *fileImpl) Attr(ctx context.Context, a *fuse.Attr) error {
 	f.mu.Lock()
@@ -176,7 +73,7 @@ func (f *fileImpl) Attr(ctx context.Context, a *fuse.Attr) error {
 var _ = fs.NodeOpener(&fileImpl{})
 
 func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	log.Debug("Opening file '%v' for reading", f)
+	log.Debug("Opening file '%s' for reading", f)
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -220,17 +117,13 @@ func (f *fileImpl) Release() {
 
 	f.opener--
 	if f.opener <= 0 {
-		// save file into local cache
+		// Closing the file. we do that inside a go routine so
+		// cache manager can take it's time deduping this file to
+		// other writtable caches.
 		go func(reader io.ReadSeeker) {
-			defer func() {
-				if r, ok := reader.(io.Closer); ok {
-					log.Debug("Closing file '%s'", f)
-					r.Close()
-				}
-			}()
-
-			if err := f.saveLocal(reader); err != nil {
-				log.Error("Can't save file %s into local cache: %v", f, err)
+            log.Debug("Closing file '%s'", f)
+			if reader, ok := reader.(io.Closer); ok {
+				reader.Close()
 			}
 		}(f.reader)
 

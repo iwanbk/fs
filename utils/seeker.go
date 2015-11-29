@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 )
 
-//TODO this must be change (the body reader) to be more efficient than this impl
-//since now we have to read the entire file (that can be big) before we can read data.
 type bodyReader struct {
 	body   io.ReadCloser
 	reader *bytes.Reader

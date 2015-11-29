@@ -12,16 +12,26 @@ import (
 type fsCache struct {
 	root   string
 	dedupe string
+	purge bool
 }
 
-func NewFSCache(root string, dedupe string) Cache {
+func NewFSCache(root string, dedupe string, purge bool) Cache {
 	return &fsCache{
 		root: root,
 		dedupe: dedupe,
+		purge: purge,
 	}
 }
 
+func (f *fsCache) String() string {
+	return fmt.Sprintf("file://%s/%s [%t]", f.root, f.dedupe, f.purge)
+}
+
 func (f *fsCache) Purge() error {
+	if !f.purge {
+		return nil
+	}
+
 	if err := os.RemoveAll(f.root); err != nil {
 		return err
 	}
@@ -33,7 +43,45 @@ func (f *fsCache) Purge() error {
 	return nil
 }
 
-func (f *fsCache) GetFileContent(path string) (io.ReadSeeker, error) {
+func (f *fsCache) DeDupe(binpath string, file io.ReadSeeker) error {
+
+	path := filepath.Join(f.BasePath(), "files", binpath)
+	_, err := os.Stat(path)
+
+	if os.IsNotExist(err) {
+		os.MkdirAll(filepath.Dir(path), 0660)
+
+		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
+		defer outFile.Close()
+
+		if err != nil {
+			log.Error("error while saving %s into local cache. open error %s\n", path, err)
+			os.Remove(path)
+			return err
+		}
+
+		// move to begining of the file to be sure to copy all the data
+		_, err = file.Seek(0, 0)
+		if err != nil {
+			os.Remove(path)
+			return err
+		}
+
+		_, err = io.Copy(outFile, file)
+		if err != nil {
+			log.Error("error while saving %s into local cache. copy error %s\n", path, err)
+			os.Remove(path)
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *fsCache) SetMetaData([]string) error {
+	return fmt.Errorf("Not Implemented")
+}
+
+func (f *fsCache) Open(path string) (io.ReadSeeker, error) {
 	chrootPath := chroot(f.root, filepath.Join(f.dedupe, "files", path))
 	file, err := os.Open(chrootPath)
 	if err != nil {
@@ -43,7 +91,7 @@ func (f *fsCache) GetFileContent(path string) (io.ReadSeeker, error) {
 	return file, nil
 }
 
-func (f *fsCache) GetMetaData(dedup, id string) ([]string, error) {
+func (f *fsCache) GetMetaData(id string) ([]string, error) {
 	path := filepath.Join(f.dedupe, "md", fmt.Sprintf("%s.flist", id))
 	chrootPath := chroot(f.root, path)
 	file, err := os.Open(chrootPath)
