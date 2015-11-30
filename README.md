@@ -28,7 +28,7 @@ config file example
 ## Caches layers:
 Caches are quereid in the order of the definition above. a cach must define a URL to the files location. In case of folders
 on local machine, the url can be defined as absolute path or as `file:///path` syntax.
-*Purge* option works on caches that has write access and if true, this cache will be wiped clean before aysfs starts. 
+*Purge* option works on caches that has write access and if true, this cache will be wiped clean before aysfs starts.
 
 Cache layers that supports writing will get populated with files that are found in higher layers of cache.
 
@@ -53,6 +53,8 @@ Auto discovery use the following step to discover caches:
         - url is http://$ayscache/cache/...
 
 - as local cache use /mnt/ays/cachelocal (only if it exists)
+
+If auto discovery is enable ```/etc/ays/local``` will be scan to find ```.flist``` file.
 
 
 to enable pprof tool, add the -pprof flag to the command  
