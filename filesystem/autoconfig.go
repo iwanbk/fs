@@ -69,6 +69,7 @@ func discoverMetadata(fs *FS, root string) error {
 //AutoConfig tries to autoconfigure the caches and stores by checking predefined location
 //in the local filesystem and predefined hostname
 func (f *FS) AutoConfigCaches() {
+	f.searchLocalStore()
 	f.searchDefaultCache()
 	f.searchDefaultStore()
 }
