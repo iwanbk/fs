@@ -3,6 +3,7 @@ package filesystem
 import (
 	"fmt"
 	"os"
+
 	"github.com/Jumpscale/aysfs/metadata"
 
 	"golang.org/x/net/context"
@@ -28,9 +29,9 @@ type dirImpl struct {
 
 func NewDir(fs *FS, parent Dir, node metadata.Node) Dir {
 	return &dirImpl{
-		fs: fs,
+		fs:     fs,
 		parent: parent,
-		info: node,
+		info:   node,
 	}
 }
 

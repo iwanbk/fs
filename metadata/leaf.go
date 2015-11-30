@@ -3,6 +3,7 @@ package metadata
 import (
 	"path"
 	"sync"
+
 	"bazil.org/fuse/fs"
 )
 
@@ -17,20 +18,20 @@ type Leaf interface {
 
 type leaf struct {
 	parent Node
-	name string
-	hash string
-	size int64
+	name   string
+	hash   string
+	size   int64
 
-	lock sync.Mutex
+	lock     sync.Mutex
 	fuseNode fs.Node
 }
 
 func NewLeaf(name string, parent Node, hash string, size int64) Node {
 	return &leaf{
-		name: name,
+		name:   name,
 		parent: parent,
-		hash: hash,
-		size: size,
+		hash:   hash,
+		size:   size,
 	}
 }
 

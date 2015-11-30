@@ -1,11 +1,11 @@
 package cache
 
 import (
-	"io"
 	"fmt"
+	"io"
+
 	"github.com/Jumpscale/aysfs/utils"
 )
-
 
 type cacheManager struct {
 	layers []Cache
@@ -20,7 +20,7 @@ func NewCacheManager() CacheManager {
 func (mgr *cacheManager) getCloseCallback(index int) utils.OnClose {
 	return func(path string, file io.ReadSeeker) {
 		//only update higher cache layers
-		for ;index >=0; index -- {
+		for ; index >= 0; index-- {
 			if layer, ok := mgr.layers[index].(CacheWriter); ok {
 				log.Debug("Deduping file to '%s'", layer)
 				layer.DeDupe(path, file)
@@ -35,7 +35,7 @@ func (mgr *cacheManager) Open(path string) (io.ReadSeeker, error) {
 		file, err := layer.Open(path)
 		if err == nil {
 			log.Debug("Opening file '%s' from '%s'", path, layer)
-			return utils.NewCallbackCloser(file, path, mgr.getCloseCallback(index - 1)), nil
+			return utils.NewCallbackCloser(file, path, mgr.getCloseCallback(index-1)), nil
 		}
 	}
 	log.Error("All caches couldn't open the file '%s'", path)
@@ -85,4 +85,3 @@ func (mgr *cacheManager) AddLayer(cache Cache) {
 func (mgr *cacheManager) Layers() []Cache {
 	return mgr.layers
 }
-

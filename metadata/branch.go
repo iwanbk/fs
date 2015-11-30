@@ -1,19 +1,20 @@
 package metadata
+
 import (
 	"path"
 	"strings"
 )
 
 type branch struct {
-	name string
-	parent Node
+	name     string
+	parent   Node
 	children map[string]Node
 }
 
 func NewBranch(name string, parent Node) Node {
 	return &branch{
-		name: name,
-		parent: parent,
+		name:     name,
+		parent:   parent,
 		children: make(map[string]Node),
 	}
 }

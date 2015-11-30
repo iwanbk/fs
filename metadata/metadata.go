@@ -2,16 +2,17 @@ package metadata
 
 import (
 	"fmt"
-	"github.com/op/go-logging"
 	"strings"
+
+	"github.com/op/go-logging"
 )
 
 var (
 	PathSep = "/"
-	log = logging.MustGetLogger("metadata")
+	log     = logging.MustGetLogger("metadata")
 )
 
-type Node interface{
+type Node interface {
 	Name() string
 	Path() string
 	Parent() Node
@@ -61,7 +62,7 @@ func (m *metadataImpl) Index(line string) error {
 	hash := lineParts[1]
 	var size int64
 	count, err := fmt.Sscanf(lineParts[2], "%d", &size)
-	if err != nil || count != 1{
+	if err != nil || count != 1 {
 		return fmt.Errorf("Invalid metadata line '%s' (%d, %s)", line, count, err)
 	}
 
@@ -73,7 +74,7 @@ func (m *metadataImpl) Index(line string) error {
 		}
 
 		children := node.Children()
-		if i == len(parts) - 1 {
+		if i == len(parts)-1 {
 			//add the leaf node.
 			children[part] = NewLeaf(part, node, hash, size)
 			//loop will break here.
