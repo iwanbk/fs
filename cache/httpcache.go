@@ -18,7 +18,7 @@ type httpCache struct {
 
 func NewHTTPCache(url string, dedupe string) Cache {
 	return &httpCache{
-		url:   url,
+		url:    url,
 		dedupe: dedupe,
 	}
 }

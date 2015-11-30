@@ -1,21 +1,22 @@
 package cache
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 	"io"
-	"fmt"
-	"bytes"
+	"testing"
 )
 
 var (
-	meta = []string {
+	meta = []string{
 		"/opt/mongodb/bin/mongod|d7ca41fbf8cb8a03fc70d773c32ec8d2|23605576",
 		"/opt/mongodb/bin/mongos|8e7100afca707b38c1d438a4be48d0b2|18354848",
 		"/opt/mongodb/bin/mongo|71ae6457a07eb4cc69bead58e497cb07|11875136",
 	}
 )
+
 func TestChroot(t *testing.T) {
 	tt := []struct {
 		base   string
@@ -43,7 +44,6 @@ type mockCache struct {
 	mock.Mock
 	name string
 }
-
 
 //type Cache interface {
 //	Open(path string) (io.ReadSeeker, error)

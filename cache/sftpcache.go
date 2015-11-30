@@ -1,24 +1,24 @@
 package cache
 
 import (
+	"bufio"
+	"fmt"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
-	"net/url"
-	"fmt"
-	"os"
-	"path"
-	"io/ioutil"
 	"io"
-	"path/filepath"
-	"bufio"
+	"io/ioutil"
+	"net/url"
+	"os"
 	"os/user"
+	"path"
+	"path/filepath"
 	"strings"
 )
 
 type sftpCache struct {
-	url string
+	url    string
 	client *sftp.Client
-	root string
+	root   string
 	dedupe string
 }
 
@@ -97,9 +97,9 @@ func NewSFTPCache(URL string, dedupe string) (Cache, error) {
 	}
 
 	return &sftpCache{
-		url: URL,
+		url:    URL,
 		client: sftpClient,
-		root: u.Path,
+		root:   u.Path,
 		dedupe: dedupe,
 	}, nil
 }
