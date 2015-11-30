@@ -31,6 +31,12 @@ on local machine, the url can be defined as absolute path or as `file:///path` s
 *Purge* option works on caches that has write access and if true, this cache will be wiped clean before aysfs starts.
 
 Cache layers that supports writing will get populated with files that are found in higher layers of cache.
+### Supported cache protocols
+* `file` (local path on machine)
+* `http[s]` (remote stores)
+* `ssh` (remote stores) ex: ssh://[user:password@]remothost/path/to/cache/
+
+> Note: If no password is provided in the URL ssh will also try the private key method
 
 ## starting fuse layer
 mounting the fuse layer at /opt  
