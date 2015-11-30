@@ -1,7 +1,11 @@
 package filesystem
 
 import (
+	"bytes"
+	"fmt"
+
 	"github.com/op/go-logging"
+
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/metadata"
@@ -22,8 +26,17 @@ func NewFS(mountpoint string, cache cache.CacheManager) *FS {
 
 	return &FS{
 		metadata: meta,
-		cache: cache,
+		cache:    cache,
 	}
+}
+
+func (f *FS) String() string {
+	buffer := &bytes.Buffer{}
+	fmt.Fprintf(buffer, "Caches:\n")
+	for _, c := range f.cache.Layers() {
+		fmt.Fprintf(buffer, "\t%s\n", c)
+	}
+	return buffer.String()
 }
 
 func (f *FS) AttachFList(ID string) error {
