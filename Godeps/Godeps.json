@@ -1,0 +1,38 @@
+{
+	"ImportPath": "github.com/Jumpscale/aysfs",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "bazil.org/fuse",
+			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
+		},
+		{
+			"ImportPath": "github.com/kr/fs",
+			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
+		},
+		{
+			"ImportPath": "github.com/naoina/go-stringutil",
+			"Rev": "360db0db4b01d34e12a2ec042c09e7d37fece761"
+		},
+		{
+			"ImportPath": "github.com/naoina/toml",
+			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+		},
+		{
+			"ImportPath": "github.com/op/go-logging",
+			"Rev": "e8d5414f0947014548c2334044a0fac13187dfee"
+		},
+		{
+			"ImportPath": "github.com/pkg/sftp",
+			"Rev": "e09e01e6e10971840f7639df3dd747e6fd2dff3a"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh",
+			"Rev": "1e856cbfdf9bc25eefca75f83f25d55e35ae72e0"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "e0403b4e005737430c05a57aac078479844f919c"
+		}
+	]
+}

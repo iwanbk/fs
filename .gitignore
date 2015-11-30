@@ -24,9 +24,9 @@ _testmain.go
 *.prof
 
 aysfs
-*.json
 *.toml
 *.bolt
 
 .idea
 *.iml
+Godeps/_workspace
