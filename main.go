@@ -113,7 +113,7 @@ func main() {
 		fs.AutoConfigCaches()
 		fs.DiscoverMetadata("/etc/ays/local")
 	} else {
-		cfg := config.LoadConfig(fConfigPath)
+		cfg = config.LoadConfig(fConfigPath)
 		// attaching cache layers to the fs
 		for _, c := range cfg.Cache {
 			u, err := url.Parse(c.URL)
