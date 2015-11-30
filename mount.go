@@ -3,10 +3,11 @@ package main
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/filesystem"
 )
 
-func mount(filesys *FS, mountpoint string) error {
-	c, err := fuse.Mount(mountpoint)
+func mount(filesys fs.FS, mountpoint string) error {
+	c, err := fuse.Mount(mountpoint, fuse.MaxReadahead(filesystem.FileReadBuffer))
 	if err != nil {
 		return err
 	}
