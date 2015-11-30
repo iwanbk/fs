@@ -83,12 +83,7 @@ func (f *fsCache) SetMetaData([]string) error {
 
 func (f *fsCache) Open(path string) (io.ReadSeeker, error) {
 	chrootPath := chroot(f.root, filepath.Join(f.dedupe, "files", path))
-	file, err := os.Open(chrootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return file, nil
+	return os.Open(chrootPath)
 }
 
 func (f *fsCache) GetMetaData(id string) ([]string, error) {

@@ -12,23 +12,23 @@ import (
 )
 
 type httpCache struct {
-	addr   string
+	url    string
 	dedupe string
 }
 
-func NewHTTPCache(addr string, dedupe string) Cache {
+func NewHTTPCache(url string, dedupe string) Cache {
 	return &httpCache{
-		addr:   addr,
+		url:   url,
 		dedupe: dedupe,
 	}
 }
 
 func (f *httpCache) String() string {
-	return fmt.Sprintf("%s/%s", f.addr, f.dedupe)
+	return fmt.Sprintf("%s/%s", f.url, f.dedupe)
 }
 
 func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
-	url := fmt.Sprintf("%s/%s/files/%s", f.addr, f.dedupe, path)
+	url := fmt.Sprintf("%s/%s/files/%s", f.url, f.dedupe, path)
 	resp, err := http.Get(url)
 	if err != nil {
 		// log.Printf("can't get file from %s: %v\n", url, err)
@@ -42,7 +42,7 @@ func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
 }
 
 func (f *httpCache) GetMetaData(id string) ([]string, error) {
-	url := fmt.Sprintf("%s/%s/md/%s.flist", f.addr, f.dedupe, id)
+	url := fmt.Sprintf("%s/%s/md/%s.flist", f.url, f.dedupe, id)
 	resp, err := http.Get(url)
 	if err != nil {
 		// log.Printf("can't get file from %s: %v\n", url, err)
@@ -68,7 +68,7 @@ func (f *httpCache) GetMetaData(id string) ([]string, error) {
 }
 
 func (f *httpCache) Exists(path string) bool {
-	url := fmt.Sprintf("%s/%s", f.addr, path)
+	url := fmt.Sprintf("%s/%s", f.url, path)
 	resp, err := http.Head(url)
 	if err != nil {
 		return false
@@ -82,7 +82,7 @@ func (f *httpCache) Exists(path string) bool {
 }
 
 func (f *httpCache) BasePath() string {
-	u, e := url.Parse(f.addr)
+	u, e := url.Parse(f.url)
 	if e != nil {
 		return ""
 	}

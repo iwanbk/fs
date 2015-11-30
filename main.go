@@ -128,6 +128,12 @@ func main() {
 					log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
 				}
 				cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
+			} else if u.Scheme == "ssh" {
+				layer, err := cache.NewSFTPCache(c.URL, "dedupe")
+				if err != nil {
+					log.Fatalf("Failed to intialize cach layer '%s': %s", c.URL, err)
+				}
+				cacheMgr.AddLayer(layer)
 			}
 
 		}
