@@ -3,6 +3,7 @@ package cache
 import (
 	"io"
 	"path/filepath"
+
 	"github.com/op/go-logging"
 )
 

@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/naoina/toml"
 	"os"
+
+	"github.com/naoina/toml"
 	"github.com/op/go-logging"
 )
 
@@ -11,8 +12,8 @@ var (
 )
 
 type Config struct {
-	Main Main
-	Ays []AYS
+	Main  Main
+	Ays   []AYS
 	Cache []Cache
 	Debug []Debug
 }
@@ -24,15 +25,15 @@ type Main struct {
 type AYS struct {
 	ID string
 
-//	PrefetchCacheGrid  bool
-//	PrefetchCacheLocal bool
-//	CacheLocal         bool
-//	CacheGrid          bool
+	//	PrefetchCacheGrid  bool
+	//	PrefetchCacheLocal bool
+	//	CacheLocal         bool
+	//	CacheGrid          bool
 }
 
 type Cache struct {
-	URL         string
-	Purge 		bool
+	URL   string
+	Purge bool
 }
 
 type Debug struct {

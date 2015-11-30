@@ -1,25 +1,25 @@
 package cache
 
 import (
-	"path/filepath"
-	"io"
-	"fmt"
-	"os"
 	"bufio"
+	"fmt"
+	"io"
+	"os"
 	"path"
+	"path/filepath"
 )
 
 type fsCache struct {
 	root   string
 	dedupe string
-	purge bool
+	purge  bool
 }
 
 func NewFSCache(root string, dedupe string, purge bool) Cache {
 	return &fsCache{
-		root: root,
+		root:   root,
 		dedupe: dedupe,
-		purge: purge,
+		purge:  purge,
 	}
 }
 

@@ -8,26 +8,29 @@ import (
 
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 
+	"path"
+
+	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/filesystem"
-	"github.com/Jumpscale/aysfs/cache"
 	"github.com/op/go-logging"
-	"path"
+
 	"os/signal"
 	"syscall"
-	"net/url"
 )
 
 var (
 	version = "0.1"
-	log = logging.MustGetLogger("main")
+	log     = logging.MustGetLogger("main")
 )
 
 var (
 	fVersion    bool
 	fPprof      bool
 	fConfigPath string
+	fAutoConfig bool
 	fDebugLevel int
 )
 
@@ -38,6 +41,7 @@ func init() {
 	flag.BoolVar(&fPprof, "pprof", false, "enable net pprof")
 
 	flag.StringVar(&fConfigPath, "config", "config.toml", "path to config file")
+	flag.BoolVar(&fAutoConfig, "auto", false, "enable auto configuration")
 	flag.StringVar(&fConfigPath, "c", "config.toml", "path to config file")
 	flag.IntVar(&fDebugLevel, "l", 4, "Debug leve (0 less verbose, to 5 most verbose) default to 4")
 }
@@ -55,7 +59,7 @@ func configureLogging() {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(path string, fs *filesystem.FS) {
+func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
 	go func(path string, fs *filesystem.FS) {
@@ -63,9 +67,14 @@ func watchReloadSignal(path string, fs *filesystem.FS) {
 		for {
 			<-channel
 			log.Info("Reloading ays mounts due to user signal")
-			cfg := config.LoadConfig(path)
-			for _, a := range cfg.Ays {
-				fs.AttachFList(a.ID)
+
+			if auto {
+				fs.DiscoverMetadata("/etc/ays/local")
+			} else if !auto && path != "" {
+				cfg := config.LoadConfig(path)
+				for _, a := range cfg.Ays {
+					fs.AttachFList(a.ID)
+				}
 			}
 		}
 	}(path, fs)
@@ -96,43 +105,47 @@ func main() {
 
 	mountPoint := path.Clean(flag.Arg(0))
 
-	cfg := config.LoadConfig(fConfigPath)
-
 	cacheMgr := cache.NewCacheManager()
-
 	fs := filesystem.NewFS(mountPoint, cacheMgr)
+	var cfg *config.Config
 
-	//add default fs cache layer
-	localRoot := filepath.Join(os.TempDir(), "aysfs_cahce")
-	cacheMgr.AddLayer(cache.NewFSCache(localRoot, "dedupe", true))
-
-	//attaching cache layers to the fs
-	for _, c := range cfg.Cache {
-		u, err := url.Parse(c.URL)
-		if err != nil {
-			log.Fatalf("Invalid URL for cache '%s'", c.URL)
-		}
-		if u.Scheme == "" || u.Scheme == "file" {
-			//add FS layer
-			cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
-		} else if u.Scheme == "http" || u.Scheme == "https" {
-			if c.Purge {
-				log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
+	if fAutoConfig {
+		fs.AutoConfigCaches()
+		fs.DiscoverMetadata("/etc/ays/local")
+	} else {
+		cfg := config.LoadConfig(fConfigPath)
+		// attaching cache layers to the fs
+		for _, c := range cfg.Cache {
+			u, err := url.Parse(c.URL)
+			if err != nil {
+				log.Fatalf("Invalid URL for cache '%s'", c.URL)
 			}
-			cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
-		}
+			if u.Scheme == "" || u.Scheme == "file" {
+				//add FS layer
+				cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
+			} else if u.Scheme == "http" || u.Scheme == "https" {
+				if c.Purge {
+					log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
+				}
+				cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
+			}
 
+		}
 	}
+
+	fmt.Println(fs)
 
 	//purge all purgable cache layers.
 	cacheMgr.Purge()
 
-	//now adding the AYS lists.
-	for _, a := range cfg.Ays {
-		fs.AttachFList(a.ID)
+	if !fAutoConfig && cfg != nil {
+		//now adding the AYS lists.
+		for _, a := range cfg.Ays {
+			fs.AttachFList(a.ID)
+		}
 	}
 
-	watchReloadSignal(fConfigPath, fs)
+	watchReloadSignal(fConfigPath, fAutoConfig, fs)
 
 	log.Info("Mounting Fuse File system")
 	if err := mount(fs, flag.Arg(0)); err != nil {

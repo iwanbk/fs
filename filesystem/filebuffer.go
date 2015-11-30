@@ -1,13 +1,13 @@
 package filesystem
 
 import (
+	"fmt"
+	"io"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"golang.org/x/net/context"
-	"fmt"
-	"io"
 )
-
 
 const (
 	FileReadBuffer = 512 * 1024 //bytes [512K]
@@ -20,15 +20,15 @@ type FileBuffer interface {
 }
 
 type fileBufferImpl struct {
-	file File
+	file   File
 	buffer []byte
 	offset int64
-	size int64
+	size   int64
 }
 
 func NewFileBuffer(file File) FileBuffer {
 	return &fileBufferImpl{
-		file: file,
+		file:   file,
 		buffer: make([]byte, FileReadBuffer),
 	}
 }
@@ -40,7 +40,7 @@ func (f *fileBufferImpl) Release(ctx context.Context, req *fuse.ReleaseRequest) 
 
 func (f *fileBufferImpl) available(offset int64, size int64) bool {
 	diff := offset - f.offset
-	return offset >= f.offset && diff + size <= f.size
+	return offset >= f.offset && diff+size <= f.size
 }
 
 func (f *fileBufferImpl) readFromOffset(offset int64, min int) error {
@@ -69,7 +69,7 @@ func (f *fileBufferImpl) Read(ctx context.Context, req *fuse.ReadRequest, resp *
 
 	//buffer is ready. Just copy data.
 	offset := req.Offset - f.offset
-	resp.Data = f.buffer[offset: offset + int64(req.Size)]
+	resp.Data = f.buffer[offset : offset+int64(req.Size)]
 
 	return nil
 }

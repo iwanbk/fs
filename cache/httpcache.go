@@ -1,12 +1,13 @@
 package cache
 
 import (
-	"io"
+	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"bufio"
 	"path"
+
 	"github.com/Jumpscale/aysfs/utils"
 )
 
@@ -17,9 +18,13 @@ type httpCache struct {
 
 func NewHTTPCache(addr string, dedupe string) Cache {
 	return &httpCache{
-		addr: addr,
+		addr:   addr,
 		dedupe: dedupe,
 	}
+}
+
+func (f *httpCache) String() string {
+	return fmt.Sprintf("%s/%s", f.addr, f.dedupe)
 }
 
 func (f *httpCache) Open(path string) (io.ReadSeeker, error) {

@@ -4,11 +4,14 @@ import (
 	"io"
 	"path/filepath"
 	"sync"
+
 	"golang.org/x/net/context"
+
+	"path"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/metadata"
-	"path"
 )
 
 type File interface {
@@ -25,13 +28,13 @@ type fileImpl struct {
 	reader io.ReadSeeker
 	opener int
 
-	mu     sync.Mutex
+	mu sync.Mutex
 }
 
 func NewFile(parent Dir, leaf metadata.Leaf) File {
 	return &fileImpl{
 		parent: parent,
-		info: leaf,
+		info:   leaf,
 	}
 }
 
@@ -121,7 +124,7 @@ func (f *fileImpl) Release() {
 		// cache manager can take it's time deduping this file to
 		// other writtable caches.
 		go func(reader io.ReadSeeker) {
-            log.Debug("Closing file '%s'", f)
+			log.Debug("Closing file '%s'", f)
 			if reader, ok := reader.(io.Closer); ok {
 				reader.Close()
 			}
