@@ -47,7 +47,7 @@ func discoverMetadata(fs *FS, root string) error {
 		partialMetadata, err := readFList(path)
 		if err != nil {
 			//TODO check if we want to stop walking or not
-			log.Errorf("Error while walking metadata dir at %s: %v\n", path, err)
+			log.Error("Error while walking metadata dir at %s: %v\n", path, err)
 			return err
 		}
 
@@ -59,7 +59,7 @@ func discoverMetadata(fs *FS, root string) error {
 	}
 
 	if err := filepath.Walk(root, walkFunc); err != nil {
-		log.Errorf("Error auto discover metadata: %v\n", err)
+		log.Error("Error auto discover metadata: %v\n", err)
 		return err
 	}
 
