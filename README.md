@@ -13,14 +13,24 @@ config file example
 [[ays]]
     id="jumpscale__mongodb"
 
-# grid level cache
+# Cache layers
 [[cache]]
-    mnt="/mnt/store1"
+    url="/mnt/store1"
+    purge=true
 
-# global stores
-[[store]]
+[[cache]]
+    url="/mnt/store2"
+
+[[cache]]
     url="http://ays_store"
 ```
+
+## Caches layers:
+Caches are quereid in the order of the definition above. a cach must define a URL to the files location. In case of folders
+on local machine, the url can be defined as absolute path or as `file:///path` syntax.
+*Purge* option works on caches that has write access and if true, this cache will be wiped clean before aysfs starts. 
+
+Cache layers that supports writing will get populated with files that are found in higher layers of cache.
 
 ## starting fuse layer
 mounting the fuse layer at /opt  
