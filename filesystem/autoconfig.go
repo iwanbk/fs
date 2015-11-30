@@ -70,7 +70,6 @@ func discoverMetadata(fs *FS, root string) error {
 //in the local filesystem and predefined hostname
 func (f *FS) AutoConfigCaches() {
 	f.searchDefaultCache()
-	f.searchDefaultCache()
 	f.searchDefaultStore()
 }
 
