@@ -93,7 +93,6 @@ func (d *dirImpl) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 
 	path := d.String()
 
-	log.Debug("ReadDirAll found no results in DB, load from meta (%s)", path)
 	dirNode := d.fs.metadata.Search(d.String())
 	if dirNode == nil {
 		log.Debug("Directory '%s' not found in meta", path)

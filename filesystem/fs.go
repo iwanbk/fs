@@ -22,7 +22,11 @@ type FS struct {
 
 func NewFS(mountpoint string, cache cache.CacheManager) *FS {
 
-	meta, _ := metadata.NewMetadata(mountpoint, nil)
+	//meta, _ := metadata.NewMemMetadata(mountpoint, nil)
+	meta, err := metadata.NewBoltMetadata(mountpoint, "bolt.db")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return &FS{
 		metadata: meta,

@@ -3,17 +3,74 @@ package metadata
 import (
 	"fmt"
 	"strings"
+	"path"
 )
 
-type metadataImpl struct {
+type memMetadataImpl struct {
 	Node
 	base string
 }
 
-func NewMetadata(base string, lines []string) (Metadata, error) {
-	root := NewBranch("/", nil)
 
-	meta := &metadataImpl{Node: root, base: base}
+type memBranch struct {
+	name     string
+	parent   Node
+	children map[string]Node
+}
+
+func newMemBranch(name string, parent Node) Node {
+	return &memBranch{
+		name:     name,
+		parent:   parent,
+		children: make(map[string]Node),
+	}
+}
+
+func (b *memBranch) IsLeaf() bool {
+	return false
+}
+
+func (b *memBranch) Name() string {
+	return b.name
+}
+
+func (b *memBranch) Path() string {
+	if b.parent == nil {
+		return b.name
+	} else {
+		return path.Join(b.parent.Path(), b.name)
+	}
+}
+
+func (b *memBranch) Parent() Node {
+	return b.parent
+}
+
+func (b *memBranch) Children() map[string]Node {
+	return b.children
+}
+
+func (b *memBranch) Search(path string) Node {
+	path = strings.TrimLeft(path, PathSep)
+	var node Node = b
+	if path == "" {
+		return node
+	}
+	for _, part := range strings.Split(path, PathSep) {
+		if child, ok := node.Children()[part]; ok {
+			node = child
+		} else {
+			return nil
+		}
+	}
+
+	return node
+}
+
+func NewMemMetadata(base string, lines []string) (Metadata, error) {
+	root := newMemBranch("/", nil)
+
+	meta := &memMetadataImpl{Node: root, base: base}
 	for _, line := range lines {
 		if err := meta.Index(line); err != nil {
 			return nil, err
@@ -23,7 +80,7 @@ func NewMetadata(base string, lines []string) (Metadata, error) {
 	return meta, nil
 }
 
-func (m *metadataImpl) Index(line string) error {
+func (m *memMetadataImpl) Index(line string) error {
 	lineParts := strings.Split(line, "|")
 	if len(lineParts) != 3 {
 		return fmt.Errorf("Wrong metadata line syntax '%s'", line)
@@ -55,14 +112,14 @@ func (m *metadataImpl) Index(line string) error {
 		children := node.Children()
 		if i == len(parts)-1 {
 			//add the leaf node.
-			children[part] = NewLeaf(part, node, hash, size)
+			children[part] = newLeaf(part, node, hash, size)
 			//loop will break here.
 		} else {
 			//branch node
 			if child, ok := children[part]; ok {
 				node = child
 			} else {
-				node = NewBranch(part, node)
+				node = newMemBranch(part, node)
 				children[part] = node
 			}
 		}
