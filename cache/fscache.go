@@ -45,7 +45,7 @@ func (f *fsCache) Purge() error {
 
 func (f *fsCache) DeDupe(binpath string, file io.ReadSeeker) error {
 
-	path := filepath.Join(f.BasePath(), "files", binpath)
+	path := filepath.Join(f.BasePath(), binpath)
 	_, err := os.Stat(path)
 
 	if os.IsNotExist(err) {
@@ -82,7 +82,7 @@ func (f *fsCache) SetMetaData([]string) error {
 }
 
 func (f *fsCache) Open(path string) (io.ReadSeeker, error) {
-	chrootPath := chroot(f.root, filepath.Join(f.dedupe, "files", path))
+	chrootPath := chroot(f.root, filepath.Join(f.dedupe, path))
 	return os.Open(chrootPath)
 }
 

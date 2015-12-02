@@ -3,8 +3,6 @@ package cache
 import (
 	"bufio"
 	"fmt"
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
 	"net/url"
@@ -13,6 +11,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 )
 
 type sftpCache struct {
@@ -109,7 +110,7 @@ func (c *sftpCache) String() string {
 }
 
 func (c *sftpCache) Open(path string) (io.ReadSeeker, error) {
-	chrootPath := chroot(c.root, filepath.Join(c.dedupe, "files", path))
+	chrootPath := chroot(c.root, filepath.Join(c.dedupe, path))
 	return os.Open(chrootPath)
 }
 

@@ -28,7 +28,7 @@ func (f *httpCache) String() string {
 }
 
 func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
-	url := fmt.Sprintf("%s/%s/files/%s", f.url, f.dedupe, path)
+	url := fmt.Sprintf("%s/%s/%s", f.url, f.dedupe, path)
 	resp, err := http.Get(url)
 	if err != nil {
 		// log.Printf("can't get file from %s: %v\n", url, err)
