@@ -50,27 +50,30 @@ func (f *fsCache) DeDupe(binpath string, file io.ReadSeeker) error {
 
 	if os.IsNotExist(err) {
 		os.MkdirAll(filepath.Dir(path), 0660)
-
-		outFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0600)
-		defer outFile.Close()
+		partialPath := fmt.Sprintf("%s.partial", path)
+		outFile, err := os.OpenFile(partialPath, os.O_CREATE|os.O_WRONLY, 0600)
+		defer func() {
+			outFile.Close()
+			os.Rename(partialPath, path)
+		}()
 
 		if err != nil {
 			log.Error("error while saving %s into local cache. open error %s\n", path, err)
-			os.Remove(path)
+			os.Remove(partialPath)
 			return err
 		}
 
 		// move to begining of the file to be sure to copy all the data
 		_, err = file.Seek(0, 0)
 		if err != nil {
-			os.Remove(path)
+			os.Remove(partialPath)
 			return err
 		}
 
 		_, err = io.Copy(outFile, file)
 		if err != nil {
 			log.Error("error while saving %s into local cache. copy error %s\n", path, err)
-			os.Remove(path)
+			os.Remove(partialPath)
 			return err
 		}
 	}
