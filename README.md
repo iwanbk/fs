@@ -22,6 +22,9 @@ config file example
     url="/mnt/store2"
 
 [[cache]]
+    url="ssh://remotehost/path/to/cache"
+    
+[[cache]]
     url="http://ays_store"
 ```
 
