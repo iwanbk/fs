@@ -108,6 +108,7 @@ func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 
 	_, err := f.reader.Seek(seek, 0)
 	if err != nil {
+		log.Error("Error seeking file %v to %v: %v", f.String(), seek, err)
 		return 0, err
 	}
 	return f.reader.Read(buffer)
@@ -116,7 +117,7 @@ func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 func (f *fileImpl) Release() {
 	f.mu.Lock()
 	f.mu.Unlock()
-	log.Debug("Release file '%v'", f)
+	log.Debug("Release file '%v', still opened %d", f, f.opener-1)
 
 	f.opener--
 	if f.opener <= 0 {
