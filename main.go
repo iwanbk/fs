@@ -68,13 +68,15 @@ func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
 			<-channel
 			log.Info("Reloading ays mounts due to user signal")
 
-			if auto {
-				fs.DiscoverMetadata("/etc/ays/local")
-			} else if !auto && path != "" {
+			// delete Metadata Tree
+			fs.PurgeMetadata()
+
+			// Create New Metadata tree
+			if !auto && path != "" {
 				cfg := config.LoadConfig(path)
-				for _, a := range cfg.Ays {
-					fs.AttachFList(a.ID)
-				}
+				fs.DiscoverMetadata(cfg.Metadata)
+			} else {
+				fs.DiscoverMetadata("/etc/ays/local")
 			}
 		}
 	}(path, fs)
@@ -107,13 +109,11 @@ func main() {
 
 	cacheMgr := cache.NewCacheManager()
 	fs := filesystem.NewFS(mountPoint, cacheMgr)
-	var cfg *config.Config
+	cfg := config.LoadConfig(fConfigPath)
 
 	if fAutoConfig {
 		fs.AutoConfigCaches()
-		fs.DiscoverMetadata("/etc/ays/local")
 	} else {
-		cfg = config.LoadConfig(fConfigPath)
 		// attaching cache layers to the fs
 		for _, c := range cfg.Cache {
 			u, err := url.Parse(c.URL)
@@ -138,18 +138,8 @@ func main() {
 
 		}
 	}
-
+	fs.DiscoverMetadata(cfg.Metadata)
 	fmt.Println(fs)
-
-	//purge all purgable cache layers.
-	cacheMgr.Purge()
-
-	if !fAutoConfig && cfg != nil {
-		//now adding the AYS lists.
-		for _, a := range cfg.Ays {
-			fs.AttachFList(a.ID)
-		}
-	}
 
 	watchReloadSignal(fConfigPath, fAutoConfig, fs)
 

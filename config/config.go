@@ -12,8 +12,9 @@ var (
 )
 
 type Config struct {
-	Main  Main
-	Ays   []AYS
+	Main     Main
+	Metadata string
+	// Ays   []AYS
 	Cache []Cache
 	Debug []Debug
 }
@@ -57,5 +58,10 @@ func LoadConfig(path string) *Config {
 	if err != nil {
 		log.Fatalf("can't read config file at %s: %s\n", path, err)
 	}
+
+	if cfg.Metadata == "" {
+		cfg.Metadata = "/etc/ays/local"
+	}
+
 	return cfg
 }

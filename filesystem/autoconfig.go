@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +19,12 @@ func (f *FS) DiscoverMetadata(root string) error {
 }
 
 func discoverMetadata(fs *FS, root string) error {
+	_, err := os.Stat(root)
+	if err != nil {
+		log.Error("Directory for metadata discovery doesn't exists, %v: %v", root, err)
+		return err
+	}
+
 	readFList := func(path string) ([]string, error) {
 		file, err := os.Open(path)
 		if err != nil {
@@ -38,22 +45,14 @@ func discoverMetadata(fs *FS, root string) error {
 		return metadata, nil
 	}
 
+	flistFiles := []string{}
 	walkFunc := func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() || !strings.HasSuffix(path, ".flist") {
 			return nil
 		}
 
 		log.Debug("Flist file found :%s\n", path)
-		partialMetadata, err := readFList(path)
-		if err != nil {
-			//TODO check if we want to stop walking or not
-			log.Error("Error while walking metadata dir at %s: %v\n", path, err)
-			return err
-		}
-
-		for _, line := range partialMetadata {
-			fs.metadata.Index(line)
-		}
+		flistFiles = append(flistFiles, path)
 
 		return nil
 	}
@@ -63,10 +62,24 @@ func discoverMetadata(fs *FS, root string) error {
 		return err
 	}
 
+	sort.StringSlice(flistFiles).Sort()
+	for i := len(flistFiles) - 1; i >= 0; i-- {
+		log.Debug("add %s to metadata", flistFiles[i])
+		partialMetadata, err := readFList(flistFiles[i])
+		if err != nil {
+			log.Error("Error while reading metadata flist %s: %v\n", flistFiles[i], err)
+			return err
+		}
+
+		for _, line := range partialMetadata {
+			fs.metadata.Index(line)
+		}
+	}
+
 	return nil
 }
 
-//AutoConfig tries to autoconfigure the caches and stores by checking predefined location
+//AutoConfigCaches tries to autoconfigure the caches and stores by checking predefined location
 //in the local filesystem and predefined hostname
 func (f *FS) AutoConfigCaches() {
 	f.searchLocalStore()
