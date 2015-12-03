@@ -20,14 +20,7 @@ type FS struct {
 	cache    cache.CacheManager
 }
 
-func NewFS(mountpoint string, cache cache.CacheManager) *FS {
-
-	//meta, _ := metadata.NewMemMetadata(mountpoint, nil)
-	meta, err := metadata.NewBoltMetadata(mountpoint, "bolt.db")
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
 	return &FS{
 		metadata: meta,
 		cache:    cache,

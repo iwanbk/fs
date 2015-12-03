@@ -1,30 +1,30 @@
 package metadata
 
 import (
-	"github.com/boltdb/bolt"
-	"strings"
-	"fmt"
-	"path"
 	"encoding/json"
+	"fmt"
+	"github.com/boltdb/bolt"
+	"path"
+	"strings"
 )
 
 type boltMetadataImpl struct {
 	Node
-	db *bolt.DB
+	db   *bolt.DB
 	base string
 }
 
 type boltBranch struct {
-	name string
+	name   string
 	parent Node
-	db *bolt.DB
+	db     *bolt.DB
 }
 
 func newBoltBrach(name string, db *bolt.DB, parent Node) Node {
 	return &boltBranch{
-		name: name,
+		name:   name,
 		parent: parent,
-		db: db,
+		db:     db,
 	}
 }
 
@@ -49,7 +49,7 @@ func (b *boltBranch) getPathParts() []string {
 	}
 	reversed := make([]string, len(parts))
 	for i := 0; i < len(parts); i++ {
-		reversed[i] = parts[len(parts) - i - 1]
+		reversed[i] = parts[len(parts)-i-1]
 	}
 
 	return reversed
@@ -74,7 +74,7 @@ func (b *boltBranch) getCurrentBucket(t *bolt.Tx) *bolt.Bucket {
 
 func (b *boltBranch) Children() map[string]Node {
 	nodes := make(map[string]Node)
-	b.db.View(func (t *bolt.Tx) error {
+	b.db.View(func(t *bolt.Tx) error {
 		bucket := b.getCurrentBucket(t)
 		if bucket == nil {
 			return fmt.Errorf("Invalid path")
@@ -135,11 +135,11 @@ func NewBoltMetadata(base string, dbpath string) (Metadata, error) {
 
 	root := &boltBranch{
 		name: "/",
-		db: db,
+		db:   db,
 	}
 
 	meta := &boltMetadataImpl{
-		db: db,
+		db:   db,
 		Node: root,
 		base: base,
 	}
@@ -170,7 +170,7 @@ func (m *boltMetadataImpl) Index(line string) error {
 	}
 
 	parts := strings.Split(path, PathSep)
-	go m.db.Batch(func (t *bolt.Tx) error {
+	go m.db.Batch(func(t *bolt.Tx) error {
 		bucket, err := t.CreateBucketIfNotExists([]byte(m.Name()))
 		if err != nil {
 			return err
@@ -179,7 +179,7 @@ func (m *boltMetadataImpl) Index(line string) error {
 		for i, part := range parts {
 			if i == len(parts)-1 {
 				//add the leaf node.
-				data := map[string]interface{} {
+				data := map[string]interface{}{
 					"hash": hash,
 					"size": size,
 				}

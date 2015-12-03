@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Jumpscale/aysfs/cache"
+	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,7 +50,8 @@ func TestDiscoverMetadata(t *testing.T) {
 	ioutil.WriteFile(filepath.Join(dir, "jumpscale__mongodb.flist"), []byte(fixtures), 0770)
 	ioutil.WriteFile(filepath.Join(dir, "notValid"), []byte("/dir/helloworld"), 0770)
 
-	fs := NewFS("/", cache.NewCacheManager())
+	meta, _ := metadata.NewMemMetadata("/", nil)
+	fs := NewFS("/", meta, cache.NewCacheManager())
 	err = discoverMetadata(fs, dir)
 	assert.NoError(t, err)
 

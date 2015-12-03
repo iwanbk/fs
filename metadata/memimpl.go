@@ -2,15 +2,14 @@ package metadata
 
 import (
 	"fmt"
-	"strings"
 	"path"
+	"strings"
 )
 
 type memMetadataImpl struct {
 	Node
 	base string
 }
-
 
 type memBranch struct {
 	name     string
