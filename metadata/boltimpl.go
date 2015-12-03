@@ -128,8 +128,6 @@ func (b *boltBranch) Search(path string) Node {
 }
 
 func NewBoltMetadata(base string, dbpath string) (Metadata, error) {
-
-
 	db, err := bolt.Open(dbpath, 0600, nil)
 	if err != nil {
 		return nil, err
@@ -172,7 +170,7 @@ func (m *boltMetadataImpl) Index(line string) error {
 	}
 
 	parts := strings.Split(path, PathSep)
-	return m.db.Batch(func (t *bolt.Tx) error {
+	go m.db.Batch(func (t *bolt.Tx) error {
 		bucket, err := t.CreateBucketIfNotExists([]byte(m.Name()))
 		if err != nil {
 			return err
@@ -204,4 +202,6 @@ func (m *boltMetadataImpl) Index(line string) error {
 
 		return nil
 	})
+
+	return nil
 }
