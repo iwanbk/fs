@@ -12,15 +12,14 @@ var (
 )
 
 type Config struct {
-	Main     Main
-	Metadata string
-	// Ays   []AYS
+	Main  Main
 	Cache []Cache
 	Debug []Debug
 }
 
 type Main struct {
-	ID string
+	ID       string
+	Metadata string
 }
 
 type AYS struct {
@@ -57,10 +56,6 @@ func LoadConfig(path string) *Config {
 	err = toml.NewDecoder(f).Decode(cfg)
 	if err != nil {
 		log.Fatalf("can't read config file at %s: %s\n", path, err)
-	}
-
-	if cfg.Metadata == "" {
-		cfg.Metadata = "/etc/ays/local"
 	}
 
 	return cfg
