@@ -115,11 +115,15 @@ func main() {
 
 	cacheMgr := cache.NewCacheManager()
 	fs := filesystem.NewFS(mountPoint, cacheMgr)
-	cfg := config.LoadConfig(fConfigPath)
+	metadataDir := ""
 
 	if fAutoConfig {
 		fs.AutoConfigCaches()
-	} else {
+	}
+
+	if _, err := os.Stat(fConfigPath); err == nil {
+		cfg := config.LoadConfig(fConfigPath)
+		metadataDir = cfg.Main.Metadata
 		// attaching cache layers to the fs
 		for _, c := range cfg.Cache {
 			u, err := url.Parse(c.URL)
@@ -144,13 +148,18 @@ func main() {
 
 		}
 	}
-	fs.DiscoverMetadata(cfg.Metadata)
+	if metadataDir == "" {
+		// TODO Make portable
+		metadataDir = "/etc/ays/local"
+	}
+	fs.DiscoverMetadata(metadataDir)
 	fmt.Println(fs)
 
 	watchReloadSignal(fConfigPath, fAutoConfig, fs)
 
 	log.Info("Mounting Fuse File system")
-	if err := mount(fs, flag.Arg(0)); err != nil {
+	if err := mount(fs, mountPoint); err != nil {
 		log.Fatal(err)
 	}
+
 }
