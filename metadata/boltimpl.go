@@ -229,7 +229,6 @@ func (m *boltMetadataImpl) Purge() error {
 
 	m.db = db
 	m.Node = root
-	m.base = m.base
 
 	return nil
 }
