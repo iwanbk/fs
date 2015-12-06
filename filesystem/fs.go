@@ -20,10 +20,7 @@ type FS struct {
 	cache    cache.CacheManager
 }
 
-func NewFS(mountpoint string, cache cache.CacheManager) *FS {
-
-	meta, _ := metadata.NewMetadata(mountpoint, nil)
-
+func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
 	return &FS{
 		metadata: meta,
 		cache:    cache,
