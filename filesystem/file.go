@@ -84,7 +84,7 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 
 	if f.opener > 0 {
 		f.opener++
-		return f, nil
+		return NewFileBuffer(f), nil
 	}
 
 	handleOpen := func(r io.ReadSeeker) error {
