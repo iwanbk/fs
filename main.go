@@ -3,22 +3,21 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/signal"
+	"path"
 	"path/filepath"
+	"syscall"
 
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
 
-	"path"
-
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/filesystem"
 	"github.com/op/go-logging"
-
-	"os/signal"
-	"syscall"
 )
 
 var (
@@ -40,7 +39,7 @@ func init() {
 	flag.BoolVar(&fVersion, "v", false, "show version")
 	flag.BoolVar(&fPprof, "pprof", false, "enable net pprof")
 
-	flag.StringVar(&fConfigPath, "config", "config.toml", "path to config file")
+	flag.StringVar(&fConfigPath, "config", "", "path to config file")
 	flag.BoolVar(&fAutoConfig, "auto", false, "enable auto configuration")
 	flag.StringVar(&fConfigPath, "c", "config.toml", "path to config file")
 	flag.IntVar(&fDebugLevel, "l", 4, "Debug leve (0 less verbose, to 5 most verbose) default to 4")
@@ -59,7 +58,7 @@ func configureLogging() {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
+func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
 	go func(path string, fs *filesystem.FS) {
@@ -74,12 +73,17 @@ func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
 			// Create New Metadata tree
 			if !auto && path != "" {
 				cfg := config.LoadConfig(path)
-				fs.DiscoverMetadata(cfg.Metadata)
+				fs.DiscoverMetadata(cfg.Main.Metadata)
 			} else {
 				fs.DiscoverMetadata("/etc/ays/local")
 			}
 		}
-	}(path, fs)
+	}(cfgPath, fs)
+}
+
+func writePidFile() error {
+	pid := fmt.Sprintf("%d", os.Getpid())
+	return ioutil.WriteFile("/tmp/aysfs.pid", []byte(pid), 0600)
 }
 
 func main() {
@@ -104,6 +108,8 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+
+	writePidFile()
 
 	mountPoint := path.Clean(flag.Arg(0))
 
