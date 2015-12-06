@@ -21,10 +21,7 @@ type FS struct {
 	cache      cache.CacheManager
 }
 
-func NewFS(mountpoint string, cache cache.CacheManager) *FS {
-
-	meta, _ := metadata.NewMetadata(mountpoint, nil)
-
+func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
 	return &FS{
 		mountpoint: mountpoint,
 		metadata:   meta,
@@ -54,9 +51,12 @@ func (f *FS) AttachFList(ID string) error {
 	return nil
 }
 
-func (f *FS) PurgeMetadata() {
-	meta, _ := metadata.NewMetadata(f.mountpoint, nil)
-	f.metadata = meta
+func (f *FS) PurgeMetadata() error {
+	err := f.metadata.Purge()
+	if err != nil {
+		log.Errorf("Error while purging metadata :%s", err)
+	}
+	return err
 }
 
 var _ = fs.FS(&FS{})

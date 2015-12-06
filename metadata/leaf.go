@@ -26,7 +26,7 @@ type leaf struct {
 	fuseNode fs.Node
 }
 
-func NewLeaf(name string, parent Node, hash string, size int64) Node {
+func newLeaf(name string, parent Node, hash string, size int64) Node {
 	return &leaf{
 		name:   name,
 		parent: parent,
