@@ -159,7 +159,7 @@ func (f *FS) searchDefaultCache() {
 
 	hostname := "ayscache"
 	if err := testListen(fmt.Sprintf("%s:9990", hostname)); err == nil {
-		httpAddr := fmt.Sprintf("http://%s/cache", hostname)
+		httpAddr := fmt.Sprintf("http://%s:9990/cache", hostname)
 		f.cache.AddLayer(cache.NewHTTPCache(httpAddr, "dedupe"))
 	}
 
