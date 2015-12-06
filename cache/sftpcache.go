@@ -29,7 +29,17 @@ func loadPrivateKeys() ssh.AuthMethod {
 	signers := make([]ssh.Signer, 0)
 
 	//Identity files lookup order is as defined by ssh manual
-	for _, key := range []string{"id_dsa", "id_ecdsa", "id_ed25519", "id_rsa"} {
+	f, err := os.Open(sshDir)
+	defer f.Close()
+	if err != nil {
+		log.Fatal("Error openin ssh dir: %s", err)
+	}
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		log.Fatal("Error openin ssh dir: %s", err)
+	}
+
+	for _, key := range names {
 		identityFilPath := path.Join(sshDir, key)
 		if _, err := os.Stat(identityFilPath); os.IsNotExist(err) {
 			continue
@@ -47,7 +57,8 @@ func loadPrivateKeys() ssh.AuthMethod {
 		}
 		signer, err := ssh.ParsePrivateKey(content)
 		if err != nil {
-			log.Error("Failed to parse identity file '%s': %s", identityFilPath, err)
+			log.Debug("Failed to parse identity file '%s': %s", identityFilPath, err)
+			continue
 		}
 
 		signers = append(signers, signer)
@@ -111,7 +122,7 @@ func (c *sftpCache) String() string {
 
 func (c *sftpCache) Open(path string) (io.ReadSeeker, error) {
 	chrootPath := chroot(c.root, filepath.Join(c.dedupe, path))
-	return os.Open(chrootPath)
+	return c.client.Open(chrootPath)
 }
 
 func (c *sftpCache) GetMetaData(id string) ([]string, error) {
