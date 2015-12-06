@@ -68,11 +68,9 @@ func (d *dirImpl) searchEntry(name string) (fs.Node, bool, error) {
 			fileNode.SetFuseNode(fsNode)
 		}
 		return fsNode, false, nil
-	} else {
-		return NewDir(d.fs, d, childNode), false, nil
 	}
 
-	return nil, false, fuse.ENOENT
+	return NewDir(d.fs, d, childNode), false, nil
 }
 
 var _ = fs.Node(&dirImpl{})

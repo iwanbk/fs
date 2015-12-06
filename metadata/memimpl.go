@@ -36,9 +36,9 @@ func (b *memBranch) Name() string {
 func (b *memBranch) Path() string {
 	if b.parent == nil {
 		return b.name
-	} else {
-		return path.Join(b.parent.Path(), b.name)
 	}
+
+	return path.Join(b.parent.Path(), b.name)
 }
 
 func (b *memBranch) Parent() Node {

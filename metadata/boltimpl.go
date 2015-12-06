@@ -194,13 +194,12 @@ func (m *boltMetadataImpl) Index(line string) error {
 				log.Debug("Bolt meta: creating leaf on '%s' '%s'", parts, data)
 				return bucket.Put([]byte(part), bytes)
 				//loop will break here.
-			} else {
-				//branch node
-				log.Debug("Bolt meta: creating branch on '%s'", parts[:i])
-				bucket, err = bucket.CreateBucketIfNotExists([]byte(part))
-				if err != nil {
-					return err
-				}
+			}
+			//branch node
+			log.Debug("Bolt meta: creating branch on '%s'", parts[:i])
+			bucket, err = bucket.CreateBucketIfNotExists([]byte(part))
+			if err != nil {
+				return err
 			}
 		}
 
