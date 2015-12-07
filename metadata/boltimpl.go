@@ -36,7 +36,11 @@ func (b *boltBranch) Name() string {
 }
 
 func (b *boltBranch) Path() string {
-	return path.Join(b.getPathParts()...)
+	if b.parent == nil {
+		return b.Name()
+	} else {
+		return path.Join(b.parent.Path(), b.Name())
+	}
 }
 
 func (b *boltBranch) Parent() Node {
@@ -50,6 +54,7 @@ func (b *boltBranch) getPathParts() []string {
 		parts = append(parts, node.Name())
 		node = node.Parent()
 	}
+
 	reversed := make([]string, len(parts))
 	for i := 0; i < len(parts); i++ {
 		reversed[i] = parts[len(parts)-i-1]
@@ -86,7 +91,7 @@ func (b *boltBranch) Children() map[string]Node {
 		cursor := bucket.Cursor()
 		for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
 			name := string(key)
-			if len(value) == 0 {
+			if value == nil {
 				//that's is a sub - bucket
 				node := newBoltBrach(name, b.db, b)
 				nodes[name] = node
@@ -182,7 +187,7 @@ func (m *boltMetadataImpl) Index(line string) error {
 				//loop will break here.
 			}
 			//branch node
-			log.Debug("Bolt meta: creating branch on '%s'", parts[:i])
+			log.Debug("Bolt meta: creating branch on '%s'", parts[:i+1])
 			bucket, err = bucket.CreateBucketIfNotExists([]byte(part))
 			if err != nil {
 				return err

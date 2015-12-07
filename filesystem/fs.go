@@ -19,6 +19,8 @@ type FS struct {
 	mountpoint string
 	metadata   metadata.Metadata
 	cache      cache.CacheManager
+
+	factory    FileFactory
 }
 
 func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
@@ -26,6 +28,7 @@ func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) 
 		mountpoint: mountpoint,
 		metadata:   meta,
 		cache:      cache,
+		factory:    NewFileFactory(),
 	}
 }
 

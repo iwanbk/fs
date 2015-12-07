@@ -60,14 +60,7 @@ func (d *dirImpl) searchEntry(name string) (fs.Node, bool, error) {
 	if childNode.IsLeaf() {
 		//file
 		fileNode := childNode.(metadata.Leaf)
-		fileNode.Lock()
-		defer fileNode.Unlock()
-
-		fsNode := fileNode.FuseNode()
-		if fsNode == nil {
-			fsNode = NewFile(d, fileNode)
-			fileNode.SetFuseNode(fsNode)
-		}
+		fsNode := d.fs.factory.Get(d, fileNode)
 		return fsNode, false, nil
 	}
 

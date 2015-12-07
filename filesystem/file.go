@@ -31,7 +31,7 @@ type fileImpl struct {
 	mu sync.Mutex
 }
 
-func NewFile(parent Dir, leaf metadata.Leaf) File {
+func newFile(parent Dir, leaf metadata.Leaf) File {
 	return &fileImpl{
 		parent: parent,
 		info:   leaf,
@@ -98,7 +98,6 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	if err == nil {
 		return NewFileBuffer(f), nil
 	}
-
 	return nil, fuse.ENOENT
 }
 
@@ -119,7 +118,7 @@ func (f *fileImpl) Release() {
 	f.mu.Unlock()
 	log.Debug("Release file '%v', still opened %d", f, f.opener-1)
 
-	f.opener--
+	f.opener -= 1
 	if f.opener <= 0 {
 		// Closing the file. we do that inside a go routine so
 		// cache manager can take it's time deduping this file to
@@ -132,5 +131,6 @@ func (f *fileImpl) Release() {
 		}(f.reader)
 
 		f.reader = nil
+		f.opener = 0
 	}
 }

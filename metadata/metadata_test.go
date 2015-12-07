@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"os"
+	"time"
 )
 
 var lines = []string{
@@ -11,15 +13,44 @@ var lines = []string{
 	"/opt/mongodb/bin/mongos|8e7100afca707b38c1d438a4be48d0b2|18354848",
 	"/opt/mongodb/bin/mongo|71ae6457a07eb4cc69bead58e497cb07|11875136",
 }
+const (
+	testDBFile = "/tmp/test.ays.db"
+)
+
+func getTestMetadata(prefix string, lines []string) (Metadata, error) {
+	meta, err := NewBoltMetadata(prefix, testDBFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, line := range lines {
+		log.Debug("Indexing line '%s'", line)
+		meta.Index(line)
+	}
+
+	time.Sleep(2*time.Second)
+	return meta, nil
+}
+
+func destroy(meta Metadata) {
+	if m, ok := meta.(*boltMetadataImpl); ok {
+		m.db.Close()
+	}
+
+	os.Remove(testDBFile)
+}
 
 func TestNewMetadata(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 	assert.Implements(t, (*Node)(nil), meta)
 }
 
 func TestRootNode(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "/", meta.Name())
@@ -28,11 +59,13 @@ func TestRootNode(t *testing.T) {
 }
 
 func TestRootNodeChildren(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
 
 	assert.NoError(t, err)
 	children := meta.Children()
 	assert.Len(t, children, 1)
+
 	child := children["opt"]
 
 	assert.NotNil(t, child)
@@ -41,7 +74,8 @@ func TestRootNodeChildren(t *testing.T) {
 }
 
 func TestRootNodeGrandChildren(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
 
 	assert.NoError(t, err)
 	children := meta.Children()
@@ -55,7 +89,9 @@ func TestRootNodeGrandChildren(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 
 	node := meta.Search("/opt/mongodb/bin")
@@ -65,7 +101,9 @@ func TestSearch(t *testing.T) {
 }
 
 func TestSearchChild(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 
 	node := meta.Search("/opt/mongodb")
@@ -78,7 +116,9 @@ func TestSearchChild(t *testing.T) {
 }
 
 func TestSearchSelf(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 
 	node := meta.Search("/")
@@ -88,7 +128,9 @@ func TestSearchSelf(t *testing.T) {
 }
 
 func TestLeaf(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
+	meta, err := getTestMetadata("", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 
 	node := meta.Search("/opt/mongodb/bin/mongod")
@@ -102,7 +144,9 @@ func TestLeaf(t *testing.T) {
 }
 
 func TestPrefixing(t *testing.T) {
-	meta, err := NewMemMetadata("/opt/mongodb", lines)
+	meta, err := getTestMetadata("/opt/mongodb", lines)
+	defer destroy(meta)
+
 	assert.NoError(t, err)
 
 	children := meta.Children()
@@ -118,14 +162,3 @@ func TestPrefixing(t *testing.T) {
 	assert.Equal(t, "d7ca41fbf8cb8a03fc70d773c32ec8d2", leaf.Hash())
 }
 
-func TestLeafLocking(t *testing.T) {
-	meta, err := NewMemMetadata("", lines)
-	assert.NoError(t, err)
-
-	node := meta.Search("/opt/mongodb/bin/mongod")
-
-	leaf := node.(Leaf)
-	defer leaf.Unlock()
-	leaf.Lock()
-
-}

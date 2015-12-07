@@ -191,6 +191,10 @@ func (m *kvMetadataImpl) set(k string, t string, o interface{}) error {
 	return m.store.Set(k, bytes)
 }
 
+func (m *kvMetadataImpl) Purge() error {
+	return nil
+}
+
 func (m *kvMetadataImpl) Index(line string) error {
 	entry, err := ParseLine(m.base, line)
 	if err == ignoreLine {
