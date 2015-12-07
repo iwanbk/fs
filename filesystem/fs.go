@@ -43,7 +43,10 @@ func (f *FS) AttachFList(ID string) error {
 	}
 
 	for _, line := range partialMetadata {
-		f.metadata.Index(line)
+		err := f.metadata.Index(line)
+		if err != nil {
+			log.Error("Failed to index: %s", err)
+		}
 	}
 
 	return nil

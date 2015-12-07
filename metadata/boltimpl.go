@@ -148,28 +148,14 @@ func NewBoltMetadata(base string, dbpath string) (Metadata, error) {
 }
 
 func (m *boltMetadataImpl) Index(line string) error {
-	lineParts := strings.Split(line, "|")
-	if len(lineParts) != 3 {
-		return fmt.Errorf("Wrong metadata line syntax '%s'", line)
-	}
-
-	path := lineParts[0]
-	if strings.HasPrefix(path, m.base) {
-		path = strings.TrimPrefix(path, m.base)
-	} else {
+	entry, err := ParseLine(m.base, line)
+	if err == ignoreLine {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
-	//remove perfix / if exists.
-	path = strings.TrimLeft(path, PathSep)
-	hash := lineParts[1]
-	var size int64
-	count, err := fmt.Sscanf(lineParts[2], "%d", &size)
-	if err != nil || count != 1 {
-		return fmt.Errorf("Invalid metadata line '%s' (%d, %s)", line, count, err)
-	}
-
-	parts := strings.Split(path, PathSep)
+	parts := strings.Split(entry.Path, PathSep)
 	go m.db.Batch(func(t *bolt.Tx) error {
 		bucket, err := t.CreateBucketIfNotExists([]byte(m.Name()))
 		if err != nil {
@@ -180,8 +166,8 @@ func (m *boltMetadataImpl) Index(line string) error {
 			if i == len(parts)-1 {
 				//add the leaf node.
 				data := map[string]interface{}{
-					"hash": hash,
-					"size": size,
+					"hash": entry.Hash,
+					"size": entry.Size,
 				}
 				bytes, err := json.Marshal(data)
 				if err != nil {

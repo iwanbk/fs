@@ -51,7 +51,8 @@ func (d *dirImpl) searchEntry(name string) (fs.Node, bool, error) {
 	log.Debug("Directory '%s' search entry '%s'", d.String(), name)
 
 	// look into the metadata for the entry
-	childNode := d.info.Children()[name]
+	childNode := d.info.Search(name)
+
 	if childNode == nil {
 		return nil, false, fuse.ENOENT
 	}

@@ -80,28 +80,14 @@ func NewMemMetadata(base string, lines []string) (Metadata, error) {
 }
 
 func (m *memMetadataImpl) Index(line string) error {
-	lineParts := strings.Split(line, "|")
-	if len(lineParts) != 3 {
-		return fmt.Errorf("Wrong metadata line syntax '%s'", line)
-	}
-
-	path := lineParts[0]
-	if strings.HasPrefix(path, m.base) {
-		path = strings.TrimPrefix(path, m.base)
-	} else {
+	entry, err := ParseLine(m.base, line)
+	if err == ignoreLine {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
-	//remove perfix / if exists.
-	path = strings.TrimLeft(path, PathSep)
-	hash := lineParts[1]
-	var size int64
-	count, err := fmt.Sscanf(lineParts[2], "%d", &size)
-	if err != nil || count != 1 {
-		return fmt.Errorf("Invalid metadata line '%s' (%d, %s)", line, count, err)
-	}
-
-	parts := strings.Split(path, PathSep)
+	parts := strings.Split(entry.Path, PathSep)
 	node := m.Node
 	for i, part := range parts {
 		if node.IsLeaf() {
@@ -111,7 +97,7 @@ func (m *memMetadataImpl) Index(line string) error {
 		children := node.Children()
 		if i == len(parts)-1 {
 			//add the leaf node.
-			children[part] = newLeaf(part, node, hash, size)
+			children[part] = newLeaf(part, node, entry.Hash, entry.Size)
 			//loop will break here.
 		} else {
 			//branch node
