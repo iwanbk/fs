@@ -3,6 +3,8 @@ package main
 /**
  * That's is an example KV store that can be used with the generic metadata key-value store.
  * Currently this one is not hooked in the aysfs by any mean. It's just for demonstration purposes.
+ * to use this
+ * meta := metadata.NewKVMetadata(mountpoint, newRedisStore("localhost:6379", ""))
  */
 import (
 	"github.com/Jumpscale/aysfs/metadata"
