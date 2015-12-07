@@ -1,14 +1,14 @@
 package metadata
 
 import (
+	"fmt"
 	"github.com/op/go-logging"
 	"strings"
-	"fmt"
 )
 
 var (
-	PathSep = "/"
-	log     = logging.MustGetLogger("metadata")
+	PathSep    = "/"
+	log        = logging.MustGetLogger("metadata")
 	ignoreLine = fmt.Errorf("Ignore Line")
 )
 

@@ -3,14 +3,14 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Jumpscale/aysfs/utils"
 	"path"
 	"strings"
-	"github.com/Jumpscale/aysfs/utils"
 )
 
 const (
-	kvNodeTypeDir = "DIR"
-	kvNodeTypeFile= "FILE"
+	kvNodeTypeDir  = "DIR"
+	kvNodeTypeFile = "FILE"
 )
 
 type KeyValueStore interface {
@@ -19,26 +19,26 @@ type KeyValueStore interface {
 }
 
 type kvNodeDescriptorWrapper struct {
-	Type string `json:"type"`
+	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
 }
 
 type kvNodeDirDescriptor struct {
-	Name string `json:"name"`
+	Name     string   `json:"name"`
 	Children []string `json:"children"`
 }
 
 type kvNodeFileDescriptor struct {
 	Name string `json:"name"`
-	Size int64 `json:"size"`
+	Size int64  `json:"size"`
 	Hash string `json:"hash"`
 }
 
 type kvBranch struct {
-	name string
-	path string
-	parent Node
-	store KeyValueStore
+	name     string
+	path     string
+	parent   Node
+	store    KeyValueStore
 	children []string
 }
 
@@ -47,7 +47,7 @@ func newKVBranch(store KeyValueStore, name string, path string, parent Node, chi
 		name:     name,
 		path:     path,
 		parent:   parent,
-		store: 	  store,
+		store:    store,
 		children: children,
 	}
 }
@@ -157,21 +157,21 @@ func (m *kvBranch) get(key string) (Node, error) {
 type kvMetadataImpl struct {
 	*kvBranch
 	store KeyValueStore
-	base string
+	base  string
 }
 
 func NewKVMetadata(base string, store KeyValueStore) Metadata {
 	branch := &kvBranch{
-		name: "/",
-		path: "/",
+		name:   "/",
+		path:   "/",
 		parent: nil,
-		store: store,
+		store:  store,
 	}
 
 	return &kvMetadataImpl{
 		kvBranch: branch,
-		store: store,
-		base: base,
+		store:    store,
+		base:     base,
 	}
 }
 
@@ -203,7 +203,7 @@ func (m *kvMetadataImpl) Index(line string) error {
 	//_path := ""
 	log.Debug("Indexing file '%s'", entry.Path)
 	for i, part := range parts {
-		_path := path.Join(parts[0:i+1]...)
+		_path := path.Join(parts[0 : i+1]...)
 		_parentPath := path.Join(parts[0:i]...)
 
 		log.Debug("Processing node '%s' parent '%s'", _path, _parentPath)
@@ -228,7 +228,7 @@ func (m *kvMetadataImpl) Index(line string) error {
 			if node == nil {
 				//just create the branch node.
 				descriptor := kvNodeDirDescriptor{
-					Name: part,
+					Name:     part,
 					Children: []string{},
 				}
 
@@ -253,7 +253,7 @@ func (m *kvMetadataImpl) Index(line string) error {
 			}
 
 			descriptor := kvNodeDirDescriptor{
-				Name: pnode.name,
+				Name:     pnode.name,
 				Children: append(pnode.children, part),
 			}
 			log.Debug("Updating parent node '%s'", _parentPath)
