@@ -54,7 +54,7 @@ func (f *FS) AttachFList(ID string) error {
 func (f *FS) PurgeMetadata() error {
 	err := f.metadata.Purge()
 	if err != nil {
-		log.Errorf("Error while purging metadata :%s", err)
+		log.Error("Error while purging metadata :%s", err)
 	}
 	return err
 }
