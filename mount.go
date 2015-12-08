@@ -7,7 +7,7 @@ import (
 )
 
 func mount(filesys fs.FS, mountpoint string) error {
-	c, err := fuse.Mount(mountpoint, fuse.MaxReadahead(filesystem.FileReadBuffer))
+	c, err := fuse.Mount(mountpoint, fuse.MaxReadahead(filesystem.FileReadBuffer), fuse.ReadOnly())
 	if err != nil {
 		return err
 	}

@@ -16,14 +16,19 @@ var (
 )
 
 type FS struct {
-	metadata metadata.Metadata
-	cache    cache.CacheManager
+	mountpoint string
+	metadata   metadata.Metadata
+	cache      cache.CacheManager
+
+	factory NodeFactory
 }
 
 func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
 	return &FS{
-		metadata: meta,
-		cache:    cache,
+		mountpoint: mountpoint,
+		metadata:   meta,
+		cache:      cache,
+		factory:    NewNodeFactory(),
 	}
 }
 
@@ -43,10 +48,21 @@ func (f *FS) AttachFList(ID string) error {
 	}
 
 	for _, line := range partialMetadata {
-		f.metadata.Index(line)
+		err := f.metadata.Index(line)
+		if err != nil {
+			log.Error("Failed to index: %s", err)
+		}
 	}
 
 	return nil
+}
+
+func (f *FS) PurgeMetadata() error {
+	err := f.metadata.Purge()
+	if err != nil {
+		log.Error("Error while purging metadata :%s", err)
+	}
+	return err
 }
 
 var _ = fs.FS(&FS{})
@@ -54,5 +70,5 @@ var _ = fs.FS(&FS{})
 func (f *FS) Root() (fs.Node, error) {
 	log.Debug("Accessing filesystem root")
 
-	return NewDir(f, nil, f.metadata), nil
+	return f.factory.GetDir(f, nil, f.metadata), nil
 }

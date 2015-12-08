@@ -3,23 +3,22 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/signal"
+	"path"
 	"path/filepath"
+	"syscall"
 
 	"net/http"
 	_ "net/http/pprof"
 	"net/url"
-
-	"path"
 
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/filesystem"
 	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/op/go-logging"
-
-	"os/signal"
-	"syscall"
 )
 
 const (
@@ -75,7 +74,7 @@ func configureLogging(options *Options) {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
+func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
 	go func(path string, fs *filesystem.FS) {
@@ -84,16 +83,26 @@ func watchReloadSignal(path string, auto bool, fs *filesystem.FS) {
 			<-channel
 			log.Info("Reloading ays mounts due to user signal")
 
+			// delete Metadata
+			fs.PurgeMetadata()
+
+			// Create New Metadata tree
 			if auto {
 				fs.DiscoverMetadata("/etc/ays/local")
-			} else if !auto && path != "" {
-				cfg := config.LoadConfig(path)
-				for _, a := range cfg.Ays {
-					fs.AttachFList(a.ID)
+			}
+			if path != "" {
+				if _, err := os.Stat(path); err == nil {
+					cfg := config.LoadConfig(path)
+					fs.DiscoverMetadata(cfg.Main.Metadata)
 				}
 			}
 		}
-	}(path, fs)
+	}(cfgPath, fs)
+}
+
+func writePidFile() error {
+	pid := fmt.Sprintf("%d", os.Getpid())
+	return ioutil.WriteFile("/tmp/aysfs.pid", []byte(pid), 0600)
 }
 
 func main() {
@@ -116,6 +125,8 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+
+	writePidFile()
 
 	mountPoint := path.Clean(flag.Arg(0))
 
@@ -141,13 +152,15 @@ func main() {
 	}
 
 	fs := filesystem.NewFS(mountPoint, meta, cacheMgr)
-	var cfg *config.Config
+	var metadataDir string
 
 	if opts.AutoConfig {
 		fs.AutoConfigCaches()
-		fs.DiscoverMetadata("/etc/ays/local")
-	} else {
-		cfg = config.LoadConfig(opts.ConfigPath)
+	}
+
+	if _, err := os.Stat(opts.ConfigPath); err == nil {
+		cfg := config.LoadConfig(opts.ConfigPath)
+		metadataDir = cfg.Main.Metadata
 		// attaching cache layers to the fs
 		for _, c := range cfg.Cache {
 			u, err := url.Parse(c.URL)
@@ -172,22 +185,21 @@ func main() {
 		}
 	}
 
-	fmt.Println(fs)
+	if metadataDir == "" {
+		// TODO Make portable
+		metadataDir = "/etc/ays/local"
+	}
 
 	//purge all purgable cache layers.
-	cacheMgr.Purge()
+	fs.DiscoverMetadata(metadataDir)
 
-	if !opts.AutoConfig && cfg != nil {
-		//now adding the AYS lists.
-		for _, a := range cfg.Ays {
-			fs.AttachFList(a.ID)
-		}
-	}
+	fmt.Println(fs)
 
 	watchReloadSignal(opts.ConfigPath, opts.AutoConfig, fs)
 
 	log.Info("Mounting Fuse File system")
-	if err := mount(fs, flag.Arg(0)); err != nil {
+	if err := mount(fs, mountPoint); err != nil {
 		log.Fatal(err)
 	}
+
 }

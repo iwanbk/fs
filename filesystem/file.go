@@ -31,7 +31,7 @@ type fileImpl struct {
 	mu sync.Mutex
 }
 
-func NewFile(parent Dir, leaf metadata.Leaf) File {
+func newFile(parent Dir, leaf metadata.Leaf) File {
 	return &fileImpl{
 		parent: parent,
 		info:   leaf,
@@ -80,7 +80,11 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	resp.Flags = fuse.OpenKeepCache | fuse.OpenNonSeekable
+	if !req.Flags.IsReadOnly() {
+		return nil, fuse.EPERM
+	}
+
+	resp.Flags = fuse.OpenKeepCache
 
 	if f.opener > 0 {
 		f.opener++
@@ -98,7 +102,6 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	if err == nil {
 		return NewFileBuffer(f), nil
 	}
-
 	return nil, fuse.ENOENT
 }
 
@@ -108,6 +111,7 @@ func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 
 	_, err := f.reader.Seek(seek, 0)
 	if err != nil {
+		log.Error("Error seeking file %v to %v: %v", f.String(), seek, err)
 		return 0, err
 	}
 	return f.reader.Read(buffer)
@@ -116,13 +120,13 @@ func (f *fileImpl) Read(seek int64, buffer []byte) (int, error) {
 func (f *fileImpl) Release() {
 	f.mu.Lock()
 	f.mu.Unlock()
-	log.Debug("Release file '%v'", f)
+	log.Debug("Release file '%v', still opened %d", f, f.opener-1)
 
-	f.opener--
+	f.opener -= 1
 	if f.opener <= 0 {
 		// Closing the file. we do that inside a go routine so
 		// cache manager can take it's time deduping this file to
-		// other writtable caches.
+		// other writable caches.
 		go func(reader io.ReadSeeker) {
 			log.Debug("Closing file '%s'", f)
 			if reader, ok := reader.(io.Closer); ok {
@@ -131,5 +135,6 @@ func (f *fileImpl) Release() {
 		}(f.reader)
 
 		f.reader = nil
+		f.opener = 0
 	}
 }

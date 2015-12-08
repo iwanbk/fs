@@ -13,13 +13,13 @@ var (
 
 type Config struct {
 	Main  Main
-	Ays   []AYS
 	Cache []Cache
 	Debug []Debug
 }
 
 type Main struct {
-	ID string
+	ID       string
+	Metadata string
 }
 
 type AYS struct {
@@ -57,5 +57,6 @@ func LoadConfig(path string) *Config {
 	if err != nil {
 		log.Fatalf("can't read config file at %s: %s\n", path, err)
 	}
+
 	return cfg
 }
