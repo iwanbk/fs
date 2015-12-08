@@ -120,17 +120,53 @@ func (b *boltBranch) IsLeaf() bool {
 
 func (b *boltBranch) Search(path string) Node {
 	path = strings.TrimLeft(path, PathSep)
-	var node Node = b
 	if path == "" {
-		return node
+		return b
 	}
-	for _, part := range strings.Split(path, PathSep) {
-		if child, ok := node.Children()[part]; ok {
-			node = child
-		} else {
-			return nil
+	var node Node = b
+
+	b.db.View(func(t *bolt.Tx) error {
+		bucket := b.getCurrentBucket(t)
+		if bucket == nil {
+			return fmt.Errorf("Invalid path")
 		}
-	}
+		parts := strings.Split(path, PathSep)
+		for i, name := range parts {
+			if i == len(parts) - 1 {
+				//end node can be a leaf or a branch
+				//last element
+				value := bucket.Get([]byte(name))
+				if value == nil {
+					if _bucket := bucket.Bucket([]byte(name)); _bucket != nil {
+						node = newBoltBrach(name, b.db, node)
+					} else {
+						node = nil
+					}
+				} else {
+					//try loading this into map
+					var leafData map[string]interface{}
+					err := json.Unmarshal(value, &leafData)
+					if err != nil {
+						log.Error("Failed to load leaf data '%s/%s': %s", b.Path(), name, err)
+						return err
+					}
+					node = newLeaf(name, node, leafData["hash"].(string), int64(leafData["size"].(float64)))
+				}
+
+				return nil
+			}
+
+			//this must be a branch
+			bucket = bucket.Bucket([]byte(name))
+			if bucket == nil {
+				node = nil
+				break
+			}
+
+			node = newBoltBrach(name, b.db, node)
+		}
+		return nil
+	})
 
 	return node
 }
