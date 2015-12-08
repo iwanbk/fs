@@ -132,7 +132,7 @@ func (b *boltBranch) Search(path string) Node {
 		}
 		parts := strings.Split(path, PathSep)
 		for i, name := range parts {
-			if i == len(parts) - 1 {
+			if i == len(parts)-1 {
 				//end node can be a leaf or a branch
 				//last element
 				value := bucket.Get([]byte(name))

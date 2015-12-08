@@ -126,7 +126,7 @@ func (f *fileImpl) Release() {
 	if f.opener <= 0 {
 		// Closing the file. we do that inside a go routine so
 		// cache manager can take it's time deduping this file to
-		// other writtable caches.
+		// other writable caches.
 		go func(reader io.ReadSeeker) {
 			log.Debug("Closing file '%s'", f)
 			if reader, ok := reader.(io.Closer); ok {

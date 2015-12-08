@@ -13,6 +13,7 @@ var lines = []string{
 	"/opt/mongodb/bin/mongos|8e7100afca707b38c1d438a4be48d0b2|18354848",
 	"/opt/mongodb/bin/mongo|71ae6457a07eb4cc69bead58e497cb07|11875136",
 }
+
 const (
 	testDBFile = "/tmp/test.ays.db"
 )
@@ -28,7 +29,7 @@ func getTestMetadata(prefix string, lines []string) (Metadata, error) {
 		meta.Index(line)
 	}
 
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 	return meta, nil
 }
 
@@ -161,4 +162,3 @@ func TestPrefixing(t *testing.T) {
 	assert.Equal(t, int64(23605576), leaf.Size())
 	assert.Equal(t, "d7ca41fbf8cb8a03fc70d773c32ec8d2", leaf.Hash())
 }
-

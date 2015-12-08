@@ -20,7 +20,7 @@ type FS struct {
 	metadata   metadata.Metadata
 	cache      cache.CacheManager
 
-	factory    FileFactory
+	factory NodeFactory
 }
 
 func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
@@ -28,7 +28,7 @@ func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) 
 		mountpoint: mountpoint,
 		metadata:   meta,
 		cache:      cache,
-		factory:    NewFileFactory(),
+		factory:    NewNodeFactory(),
 	}
 }
 
@@ -70,5 +70,5 @@ var _ = fs.FS(&FS{})
 func (f *FS) Root() (fs.Node, error) {
 	log.Debug("Accessing filesystem root")
 
-	return NewDir(f, nil, f.metadata), nil
+	return f.factory.GetDir(f, nil, f.metadata), nil
 }

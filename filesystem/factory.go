@@ -1,39 +1,66 @@
 package filesystem
 
 import (
-	"sync"
 	"github.com/Jumpscale/aysfs/metadata"
 	"path"
+	"sync"
 )
 
-type FileFactory interface {
-	Get(parent Dir, leaf metadata.Leaf) File
+type NodeFactory interface {
+	GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File
+	GetDir(fs *FS, parent Dir, branch metadata.Node) Dir
 }
 
-type fileFactoryImpl struct {
-	store map[string]File
-	m sync.Mutex
+type nodeFactoryImpl struct {
+	fileStore map[string]File
+	dirStore  map[string]Dir
+	m         sync.Mutex
 }
 
-func NewFileFactory() FileFactory {
-	return &fileFactoryImpl{
-		store: make(map[string]File),
+func NewNodeFactory() NodeFactory {
+	return &nodeFactoryImpl{
+		fileStore: make(map[string]File),
+		dirStore:  make(map[string]Dir),
 	}
 }
 
-func (s *fileFactoryImpl) Get(parent Dir, leaf metadata.Leaf) File {
+func (s *nodeFactoryImpl) getPath(parent Dir, node metadata.Node) string {
+	if parent == nil {
+		return node.Name()
+	} else {
+		return path.Join(parent.String(), node.Name())
+	}
+}
+
+func (s *nodeFactoryImpl) GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File {
 	s.m.Lock()
 	defer s.m.Unlock()
 
-	path := path.Join(parent.String(), leaf.Name())
+	path := s.getPath(parent, leaf)
 
-	if file, ok := s.store[path]; ok {
+	if file, ok := s.fileStore[path]; ok {
 		log.Notice("File '%s' is loaded from cache", path)
 		return file
 	}
 
-	log.Notice("File '%s' is loaded", path)
 	file := newFile(parent, leaf)
-	s.store[path] = file
+	s.fileStore[path] = file
 	return file
+}
+
+func (s *nodeFactoryImpl) GetDir(fs *FS, parent Dir, branch metadata.Node) Dir {
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	path := s.getPath(parent, branch)
+
+	if dir, ok := s.dirStore[path]; ok {
+		log.Notice("Dir '%s' is loaded from cache", path)
+		return dir
+	}
+
+	dir := newDir(fs, parent, branch)
+	s.dirStore[path] = dir
+
+	return dir
 }

@@ -27,7 +27,7 @@ type dirImpl struct {
 	info   metadata.Node
 }
 
-func NewDir(fs *FS, parent Dir, node metadata.Node) Dir {
+func newDir(fs *FS, parent Dir, node metadata.Node) Dir {
 	return &dirImpl{
 		fs:     fs,
 		parent: parent,
@@ -60,11 +60,11 @@ func (d *dirImpl) searchEntry(name string) (fs.Node, bool, error) {
 	if childNode.IsLeaf() {
 		//file
 		fileNode := childNode.(metadata.Leaf)
-		fsNode := d.fs.factory.Get(d, fileNode)
+		fsNode := d.fs.factory.GetFile(d.fs, d, fileNode)
 		return fsNode, false, nil
+	} else {
+		return d.fs.factory.GetDir(d.fs, d, childNode), false, nil
 	}
-
-	return NewDir(d.fs, d, childNode), false, nil
 }
 
 var _ = fs.Node(&dirImpl{})
