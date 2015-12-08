@@ -80,7 +80,11 @@ func (f *fileImpl) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.O
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	resp.Flags = fuse.OpenKeepCache | fuse.OpenNonSeekable
+	if !req.Flags.IsReadOnly() {
+		return nil, fuse.EPERM
+	}
+
+	resp.Flags = fuse.OpenKeepCache
 
 	if f.opener > 0 {
 		f.opener++
