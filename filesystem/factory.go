@@ -39,7 +39,7 @@ func (s *nodeFactoryImpl) GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File {
 	path := s.getPath(parent, leaf)
 
 	if file, ok := s.fileStore[path]; ok {
-		log.Notice("File '%s' is loaded from cache", path)
+		log.Debug("File '%s' is loaded from cache", path)
 		return file
 	}
 
@@ -55,7 +55,7 @@ func (s *nodeFactoryImpl) GetDir(fs *FS, parent Dir, branch metadata.Node) Dir {
 	path := s.getPath(parent, branch)
 
 	if dir, ok := s.dirStore[path]; ok {
-		log.Notice("Dir '%s' is loaded from cache", path)
+		log.Debug("Dir '%s' is loaded from cache", path)
 		return dir
 	}
 
