@@ -1,3 +1,5 @@
+![Build Status](https://travis-ci.org/Jumpscale/aysfs.svg?branch=master)
+
 # aysfs
 caching filesystem which will be used by ays, mainly used to deploy applications in a grid
 
