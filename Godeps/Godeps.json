@@ -7,6 +7,23 @@
 			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
 		},
 		{
+			"ImportPath": "github.com/boltdb/bolt",
+			"Comment": "v1.1.0-22-g6e1ca38",
+			"Rev": "6e1ca38c6a73025366cd8705553b404746ee6e63"
+		},
+		{
+			"ImportPath": "github.com/dsnet/compress/brotli",
+			"Rev": "ba093074f09ee73cea12653790f132e3ed8abfbe"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/internal",
+			"Rev": "8b1d80a45a732e6d95e22dcc2e067312c664936c"
+		},
+		{
+			"ImportPath": "github.com/garyburd/redigo/redis",
+			"Rev": "8b1d80a45a732e6d95e22dcc2e067312c664936c"
+		},
+		{
 			"ImportPath": "github.com/kr/fs",
 			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
 		},
