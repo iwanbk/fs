@@ -2,3 +2,10 @@ language: go
 
 go:
   - 1.5
+
+before_install:
+  - go install github.com/tools/godep
+
+install:
+  - godep restore
+  - go test -v ./...
