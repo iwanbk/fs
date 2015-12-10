@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/Jumpscale/aysfs/utils"
+	"github.com/dsnet/compress/brotli"
 )
 
 type httpCache struct {
@@ -28,16 +29,21 @@ func (f *httpCache) String() string {
 }
 
 func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
-	url := fmt.Sprintf("%s/%s/%s", f.url, f.dedupe, path)
-	resp, err := http.Get(url)
-	if err != nil {
-		// log.Printf("can't get file from %s: %v\n", url, err)
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("can't get file from %s: http status code is %d\n", url, resp.StatusCode)
+	url := fmt.Sprintf("%s/%s/%s.bro", f.url, f.dedupe, path)
+
+	resp, err := http.Get(url) // trying compressed file
+	if err == nil {
+		log.Debug("Open compressed file %s", url)
+		return utils.NewReadSeeker(brotli.NewReader(resp.Body)), nil
+	} else if err != nil || resp.StatusCode != http.StatusOK {
+		log.Debugf("can't get file from %s:  ERR:%v Status:%s\n", url, err, resp.StatusCode)
+		resp.Body.Close()
 	}
 
+	resp, err = http.Get(url[:len(url)-4]) // trying plain file
+	if err != nil || resp.StatusCode != http.StatusOK {
+		log.Debugf("can't get file from %s:  ERR:%v Status:%s\n", url[:len(url)-4], err, resp.StatusCode)
+	}
 	return utils.NewReadSeeker(resp.Body), nil
 }
 

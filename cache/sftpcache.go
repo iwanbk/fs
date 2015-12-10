@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Jumpscale/aysfs/utils"
+	"github.com/dsnet/compress/brotli"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -121,8 +123,17 @@ func (c *sftpCache) String() string {
 }
 
 func (c *sftpCache) Open(path string) (io.ReadSeeker, error) {
-	chrootPath := chroot(c.root, filepath.Join(c.dedupe, path))
-	return c.client.Open(chrootPath)
+	chrootPath := chroot(c.root, filepath.Join(c.dedupe, path+".bro"))
+
+	var r io.ReadSeeker
+	var err error
+	r, err = c.client.Open(chrootPath) // try compressed file
+	if err == nil {
+		log.Debug("Can't open compressed file %s", chrootPath)
+		return utils.NewReadSeeker(brotli.NewReader(r)), nil
+	}
+
+	return c.client.Open(chrootPath[:len(chrootPath)-4]) // try plain file
 }
 
 func (c *sftpCache) GetMetaData(id string) ([]string, error) {

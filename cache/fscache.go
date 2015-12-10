@@ -7,6 +7,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/Jumpscale/aysfs/utils"
+	"github.com/dsnet/compress/brotli"
 )
 
 type fsCache struct {
@@ -85,8 +88,19 @@ func (f *fsCache) SetMetaData([]string) error {
 }
 
 func (f *fsCache) Open(path string) (io.ReadSeeker, error) {
-	chrootPath := chroot(f.root, filepath.Join(f.dedupe, path))
-	return os.Open(chrootPath)
+	chrootPath := chroot(f.root, filepath.Join(f.dedupe, path+".bro"))
+
+	var r io.ReadSeeker
+	var err error
+	r, err = os.Open(chrootPath) //try compressed file
+	if err == nil {
+		r = utils.NewReadSeeker(brotli.NewReader(r))
+	} else {
+		log.Debugf("Compressed file not available, try plain file. (%s)", chrootPath)
+		r, err = os.Open(chrootPath[:len(chrootPath)-4])
+	}
+
+	return r, err
 }
 
 func (f *fsCache) GetMetaData(id string) ([]string, error) {

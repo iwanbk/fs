@@ -77,7 +77,7 @@ func configureLogging(options *Options) {
 func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
-	go func(path string, fs *filesystem.FS) {
+	go func(cfgPath string, fs *filesystem.FS) {
 		defer close(channel)
 		for {
 			<-channel
@@ -90,10 +90,12 @@ func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 			if auto {
 				fs.DiscoverMetadata("/etc/ays/local")
 			}
-			if path != "" {
-				if _, err := os.Stat(path); err == nil {
-					cfg := config.LoadConfig(path)
-					fs.DiscoverMetadata(cfg.Main.Metadata)
+			if cfgPath != "" {
+				if _, err := os.Stat(cfgPath); err == nil {
+					cfg := config.LoadConfig(cfgPath)
+					if cfg.Main.Metadata != "" {
+						fs.DiscoverMetadata(cfg.Main.Metadata)
+					}
 				}
 			}
 		}
