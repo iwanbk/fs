@@ -7,14 +7,16 @@ import (
 )
 
 type NodeFactory interface {
+	sync.Locker
 	GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File
 	GetDir(fs *FS, parent Dir, branch metadata.Node) Dir
+	Purge()
 }
 
 type nodeFactoryImpl struct {
+	sync.Mutex
 	fileStore map[string]File
 	dirStore  map[string]Dir
-	m         sync.Mutex
 }
 
 func NewNodeFactory() NodeFactory {
@@ -33,8 +35,8 @@ func (s *nodeFactoryImpl) getPath(parent Dir, node metadata.Node) string {
 }
 
 func (s *nodeFactoryImpl) GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	path := s.getPath(parent, leaf)
 
@@ -49,8 +51,8 @@ func (s *nodeFactoryImpl) GetFile(fs *FS, parent Dir, leaf metadata.Leaf) File {
 }
 
 func (s *nodeFactoryImpl) GetDir(fs *FS, parent Dir, branch metadata.Node) Dir {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.Lock()
+	defer s.Unlock()
 
 	path := s.getPath(parent, branch)
 
@@ -63,4 +65,11 @@ func (s *nodeFactoryImpl) GetDir(fs *FS, parent Dir, branch metadata.Node) Dir {
 	s.dirStore[path] = dir
 
 	return dir
+}
+
+//Purge, cleans up factory cache. This method is not protected by the lock
+//so you have to manually lock the factory before calling purge
+func (s *nodeFactoryImpl) Purge() {
+	s.fileStore = make(map[string]File)
+	s.dirStore = make(map[string]Dir)
 }

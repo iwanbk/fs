@@ -83,21 +83,30 @@ func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 			<-channel
 			log.Info("Reloading ays mounts due to user signal")
 
-			// delete Metadata
-			fs.PurgeMetadata()
+			func (){
+				//locking the node factory will prevent any access to the file system
+				//until the factory is unlocked again.
+				fs.Factory().Lock()
+				defer fs.Factory().Unlock()
 
-			// Create New Metadata tree
-			if auto {
-				fs.DiscoverMetadata("/etc/ays/local")
-			}
-			if cfgPath != "" {
-				if _, err := os.Stat(cfgPath); err == nil {
-					cfg := config.LoadConfig(cfgPath)
-					if cfg.Main.Metadata != "" {
-						fs.DiscoverMetadata(cfg.Main.Metadata)
+				fs.Factory().Purge()
+
+				// delete Metadata
+				fs.PurgeMetadata()
+
+				// Create New Metadata tree
+				if auto {
+					fs.DiscoverMetadata("/etc/ays/local")
+				}
+				if cfgPath != "" {
+					if _, err := os.Stat(cfgPath); err == nil {
+						cfg := config.LoadConfig(cfgPath)
+						if cfg.Main.Metadata != "" {
+							fs.DiscoverMetadata(cfg.Main.Metadata)
+						}
 					}
 				}
-			}
+			}()
 		}
 	}(cfgPath, fs)
 }

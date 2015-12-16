@@ -32,6 +32,10 @@ func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) 
 	}
 }
 
+func (f *FS) Factory() NodeFactory {
+	return f.factory
+}
+
 func (f *FS) String() string {
 	buffer := &bytes.Buffer{}
 	fmt.Fprintf(buffer, "Caches:\n")
