@@ -74,7 +74,7 @@ func configureLogging(options *Options) {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
+func watchReloadSignal(cfgPath string, fs *filesystem.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
 	go func(cfgPath string, fs *filesystem.FS) {
@@ -89,23 +89,25 @@ func watchReloadSignal(cfgPath string, auto bool, fs *filesystem.FS) {
 				fs.Factory().Lock()
 				defer fs.Factory().Unlock()
 
+				log.Debug("Purging factory")
 				fs.Factory().Purge()
 
+				log.Debug("Puring metadata")
 				// delete Metadata
 				fs.PurgeMetadata()
 
-				// Create New Metadata tree
-				if auto {
-					fs.DiscoverMetadata("/etc/ays/local")
+				var metadataDir string
+
+				if _, err := os.Stat(cfgPath); err == nil {
+					cfg := config.LoadConfig(cfgPath)
+					metadataDir = cfg.Main.Metadata
 				}
-				if cfgPath != "" {
-					if _, err := os.Stat(cfgPath); err == nil {
-						cfg := config.LoadConfig(cfgPath)
-						if cfg.Main.Metadata != "" {
-							fs.DiscoverMetadata(cfg.Main.Metadata)
-						}
-					}
+
+				if metadataDir == "" {
+					metadataDir = "/etc/ays/local"
 				}
+
+				fs.DiscoverMetadata(metadataDir)
 			}()
 		}
 	}(cfgPath, fs)
@@ -206,7 +208,7 @@ func main() {
 
 	fmt.Println(fs)
 
-	watchReloadSignal(opts.ConfigPath, opts.AutoConfig, fs)
+	watchReloadSignal(opts.ConfigPath, fs)
 
 	log.Info("Mounting Fuse File system")
 	if err := mount(fs, mountPoint); err != nil {
