@@ -48,7 +48,7 @@ func ParseLine(base string, line string) (*Entry, error) {
 		return nil, ignoreLine
 	}
 
-	//remove perfix / if exists.
+	//remove prefix / if exists.
 	entry.Path = strings.TrimLeft(path, PathSep)
 	entry.Hash = lineParts[1]
 	count, err := fmt.Sscanf(lineParts[2], "%d", &entry.Size)

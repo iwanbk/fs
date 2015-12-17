@@ -9,6 +9,7 @@ import (
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/metadata"
+	"sync"
 )
 
 var (
@@ -20,20 +21,28 @@ type FS struct {
 	metadata   metadata.Metadata
 	cache      cache.CacheManager
 
-	factory NodeFactory
+	factory    NodeFactory
+
+	m 		   sync.Mutex
+	state      bool
+	terminator chan int
+	generator  chan int
 }
 
 func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) *FS {
-	return &FS{
+	fs := &FS{
 		mountpoint: mountpoint,
 		metadata:   meta,
 		cache:      cache,
 		factory:    NewNodeFactory(),
+		terminator: make(chan int),
+		generator: make(chan int),
 	}
-}
 
-func (f *FS) Factory() NodeFactory {
-	return f.factory
+	//make sure to initially put factory in locked state.
+	fs.factory.Lock()
+
+	return fs
 }
 
 func (f *FS) String() string {
@@ -75,4 +84,43 @@ func (f *FS) Root() (fs.Node, error) {
 	log.Debug("Accessing filesystem root")
 
 	return f.factory.GetDir(f, nil, f.metadata), nil
+}
+
+func (f *FS) Up() {
+	defer f.factory.Unlock()
+
+	f.m.Lock()
+	defer f.m.Unlock()
+	if !f.state {
+		f.state = true
+		go f.serve()
+	}
+}
+
+func (f *FS) Down() {
+	f.factory.Lock()
+
+	f.m.Lock()
+	defer f.m.Unlock()
+
+	if f.state {
+		f.state = false
+		f.terminator <- 1
+	}
+}
+
+func (f *FS) serve() {
+	loop:
+	for {
+		select {
+		case <- f.terminator:
+			break loop
+		case f.generator <-1:
+		}
+	}
+}
+
+//waits until the filesystem is accessible.
+func (f *FS) access() {
+	<- f.generator
 }

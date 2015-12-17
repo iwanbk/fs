@@ -79,6 +79,9 @@ var _ = fs.HandleReadDirAller(&dirImpl{})
 func (d *dirImpl) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	log.Debug("ReadDirAll '%s' entries", d)
 
+	//block until fs allows routine to access.
+	d.fs.access()
+
 	var (
 		results []fuse.Dirent
 	)
@@ -117,6 +120,9 @@ var _ = fs.NodeStringLookuper(&dirImpl{})
 
 func (d *dirImpl) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	log.Debug("Directory '%v' lookup on '%s'", d, name)
+
+	d.fs.access()
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Fatal(r)

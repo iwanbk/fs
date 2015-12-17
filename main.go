@@ -84,13 +84,9 @@ func watchReloadSignal(cfgPath string, fs *filesystem.FS) {
 			log.Info("Reloading ays mounts due to user signal")
 
 			func (){
-				//locking the node factory will prevent any access to the file system
-				//until the factory is unlocked again.
-				fs.Factory().Lock()
-				defer fs.Factory().Unlock()
-
-				log.Debug("Purging factory")
-				fs.Factory().Purge()
+				//Put the fs down to prevent any access to filesystem
+				fs.Down()
+				defer fs.Up()
 
 				log.Debug("Puring metadata")
 				// delete Metadata
@@ -209,6 +205,9 @@ func main() {
 	fmt.Println(fs)
 
 	watchReloadSignal(opts.ConfigPath, fs)
+
+	//bring fileystem UP
+	fs.Up()
 
 	log.Info("Mounting Fuse File system")
 	if err := mount(fs, mountPoint); err != nil {
