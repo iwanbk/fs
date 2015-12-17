@@ -3,7 +3,6 @@ package metadata
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"strings"
 
@@ -237,25 +236,8 @@ func (m *boltMetadataImpl) Index(line string) error {
 }
 
 func (m *boltMetadataImpl) Purge() error {
-	if err := m.db.Close(); err != nil {
-		return err
-	}
-	if err := os.Remove(m.dbPath); err != nil {
-		return err
-	}
-
-	db, err := bolt.Open(m.dbPath, 0600, nil)
-	if err != nil {
-		return err
-	}
-
-	root := &boltBranch{
-		name: "/",
-		db:   db,
-	}
-
-	m.db = db
-	m.Node = root
-
-	return nil
+	return m.db.Update(func (t *bolt.Tx) error {
+		//delete root bucket
+		return t.DeleteBucket([]byte(m.Name()))
+	})
 }
