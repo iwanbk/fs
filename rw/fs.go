@@ -11,14 +11,19 @@ var (
 )
 
 type FS struct {
+	root       *fsDir
+	mountpoint string
 }
 
 func NewFS(mountpoint string, backendCfg config.Backend, storCfg config.Aydostor) *FS {
-	return nil
+	return &FS{
+		root:       newDir(backendCfg.Path, nil),
+		mountpoint: mountpoint,
+	}
 }
 
 func (f *FS) Root() (fs.Node, error) {
 	log.Debug("Accessing filesystem root")
 
-	return nil, nil
+	return f.root, nil
 }
