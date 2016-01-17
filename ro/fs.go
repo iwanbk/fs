@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	log = logging.MustGetLogger("filesystem")
+	log = logging.MustGetLogger("ro")
 )
 
 type FS struct {

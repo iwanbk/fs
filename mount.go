@@ -11,10 +11,18 @@ import (
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/Jumpscale/aysfs/ro"
+	"github.com/Jumpscale/aysfs/rw"
 )
 
-func mountROFS(filesys fs.FS, mountpoint string) error {
-	c, err := fuse.Mount(mountpoint, fuse.MaxReadahead(ro.FileReadBuffer), fuse.ReadOnly())
+func mountFuse(filesys fs.FS, mountpoint string, readOnly bool) error {
+	var c *fuse.Conn
+	var err error
+
+	if readOnly {
+		c, err = fuse.Mount(mountpoint, fuse.MaxReadahead(ro.FileReadBuffer), fuse.ReadOnly())
+	} else {
+		c, err = fuse.Mount(mountpoint, fuse.MaxReadahead(ro.FileReadBuffer))
+	}
 
 	if err != nil {
 		return err
@@ -132,32 +140,20 @@ func MountROFS(mountCfg config.Mount, opts Options) error {
 	fs.Up()
 
 	log.Info("Mounting Fuse File system")
-	if err := mountROFS(fs, mountCfg.Path); err != nil {
+	if err := mountFuse(fs, mountCfg.Path, true); err != nil {
 		log.Fatal(err)
 	}
 
 	return nil
 }
 
-//func MountRWFS(mountCfg config.Mount, backendCfg config.Backend, storCfg config.Aydostor, opts Options) error {
-//	fs := rw.NewFS(mountCfg.Path, meta, cacheMgr, false)
-//
-//	// TODO download Flist from stor based on namespace
-//	// flist, err := readFlistFile(mountCfg.Flist)
-//	// if err != nil {
-//	// 	return err
-//	// }
-//	fs.AttachFList([]string{})
-//
-//	fmt.Println(fs)
-//
-//	//bring fileystem UP
-//	fs.Up()
-//
-//	log.Info("Mounting Fuse File system")
-//	if err := mountROFS(fs, mountCfg.Path); err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	return nil
-//}
+func MountRWFS(mountCfg config.Mount, backendCfg config.Backend, storCfg config.Aydostor) error {
+	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg)
+
+	log.Info("Mounting Fuse File system")
+	if err := mountFuse(fs, mountCfg.Path, false); err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
+}

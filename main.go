@@ -159,7 +159,7 @@ func main() {
 
 			wg.Add(1)
 			go func(mountCfg config.Mount, backend config.Backend, stor config.Aydostor, opts Options) {
-				//MountRWFS(mountCfg, backend, stor, opts)
+				MountRWFS(mountCfg, backend, stor)
 				wg.Done()
 			}(mountCfg, backend, stor, opts)
 		}
