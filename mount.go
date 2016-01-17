@@ -1,16 +1,25 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/cache"
+	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/Jumpscale/aysfs/ro"
 )
 
-func mount(filesys fs.FS, mountpoint string) error {
+func mountROFS(filesys fs.FS, mountpoint string) error {
 	c, err := fuse.Mount(mountpoint, fuse.MaxReadahead(ro.FileReadBuffer), fuse.ReadOnly())
+
 	if err != nil {
 		return err
 	}
+
 	defer c.Close()
 
 	if err := fs.Serve(c, filesys); err != nil {
@@ -25,3 +34,130 @@ func mount(filesys fs.FS, mountpoint string) error {
 
 	return nil
 }
+
+func readFlistFile(path string) ([]string, error) {
+	flistFile, err := os.Open(path)
+	defer flistFile.Close()
+	if err != nil {
+		log.Errorf("Error opening flist %s :%v", path, err)
+		return nil, err
+	}
+	metadata := []string{}
+	scanner := bufio.NewScanner(flistFile)
+	var line string
+	for scanner.Scan() {
+		line = scanner.Text()
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+		metadata = append(metadata, line)
+	}
+	return metadata, nil
+}
+
+func MountROFS(mountCfg config.Mount, opts Options) error {
+
+	cacheMgr := cache.NewCacheManager()
+	var meta metadata.Metadata
+
+	switch opts.MetaEngine {
+	case MetaEngineBolt:
+		os.Remove(boltdb)
+		if m, err := metadata.NewBoltMetadata(mountCfg.Path, boltdb); err != nil {
+			log.Fatal("Failed to intialize metaengine", err)
+		} else {
+			meta = m
+		}
+	case MetaEngineMem:
+		if m, err := metadata.NewMemMetadata(mountCfg.Path, nil); err != nil {
+			log.Fatal("Failed to intialize metaengine", err)
+		} else {
+			meta = m
+		}
+	default:
+		log.Fatal("Unknown metadata engine '%s'", opts.MetaEngine)
+	}
+
+	fs := ro.NewFS(mountCfg.Path, meta, cacheMgr)
+	var metadataDir string
+
+	fs.AutoConfigCaches()
+
+	// if _, err := os.Stat(opts.ConfigPath); err == nil {
+	// 	cfg := config.LoadConfig(opts.ConfigPath)
+	// 	metadataDir = cfg.Main.Metadata
+	// 	// attaching cache layers to the fs
+	// 	for _, c := range cfg.Cache {
+	// 		u, err := url.Parse(c.URL)
+	// 		if err != nil {
+	// 			log.Fatalf("Invalid URL for cache '%s'", c.URL)
+	// 		}
+	// 		if u.Scheme == "" || u.Scheme == "file" {
+	// 			//add FS layer
+	// 			cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
+	// 		} else if u.Scheme == "http" || u.Scheme == "https" {
+	// 			if c.Purge {
+	// 				log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
+	// 			}
+	// 			cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
+	// 		} else if u.Scheme == "ssh" {
+	// 			layer, err := cache.NewSFTPCache(c.URL, "dedupe")
+	// 			if err != nil {
+	// 				log.Fatalf("Failed to intialize cach layer '%s': %s", c.URL, err)
+	// 			}
+	// 			cacheMgr.AddLayer(layer)
+	// 		}
+	// }
+	// }
+
+	if metadataDir == "" {
+		// TODO Make portable
+		metadataDir = "/etc/ays/local"
+	}
+
+	//purge all purgable cache layers.
+	// fs.DiscoverMetadata(metadataDir)
+
+	flist, err := readFlistFile(mountCfg.Flist)
+	if err != nil {
+		return err
+	}
+	fs.AttachFList(flist)
+
+	fmt.Println(fs)
+
+	//watchReloadSignal(opts.ConfigPath, fs)
+
+	//bring fileystem UP
+	fs.Up()
+
+	log.Info("Mounting Fuse File system")
+	if err := mountROFS(fs, mountCfg.Path); err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
+}
+
+//func MountRWFS(mountCfg config.Mount, backendCfg config.Backend, storCfg config.Aydostor, opts Options) error {
+//	fs := rw.NewFS(mountCfg.Path, meta, cacheMgr, false)
+//
+//	// TODO download Flist from stor based on namespace
+//	// flist, err := readFlistFile(mountCfg.Flist)
+//	// if err != nil {
+//	// 	return err
+//	// }
+//	fs.AttachFList([]string{})
+//
+//	fmt.Println(fs)
+//
+//	//bring fileystem UP
+//	fs.Up()
+//
+//	log.Info("Mounting Fuse File system")
+//	if err := mountROFS(fs, mountCfg.Path); err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	return nil
+//}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/naoina/toml"
@@ -12,40 +13,82 @@ var (
 )
 
 type Config struct {
-	Main  Main
-	Cache []Cache
-	Debug []Debug
+	Mount    []Mount
+	Backend  []Backend
+	Aydostor []Aydostor
 }
 
-type Main struct {
-	ID       string
-	Metadata string
+type Mount struct {
+	Path    string
+	Flist   string
+	Backend string
+	ACL     string
 }
 
-type AYS struct {
-	ID string
-
-	//	PrefetchCacheGrid  bool
-	//	PrefetchCacheLocal bool
-	//	CacheLocal         bool
-	//	CacheGrid          bool
+type Backend struct {
+	Name           string
+	Path           string
+	Stor           string
+	Namespace      string
+	AydostorPeriod int
+	BackupPeriod   int
 }
 
-type Cache struct {
-	URL   string
-	Purge bool
+type Aydostor struct {
+	Name   string
+	Addr   string
+	Login  string
+	Passwd string
 }
 
-type Debug struct {
-	DebugFilter []string
-	Redis       Redis
+func (c *Config) GetBackend(name string) (Backend, error) {
+	for _, b := range c.Backend {
+		if b.Name == name {
+			return b, nil
+		}
+	}
+	return Backend{}, fmt.Errorf("backend not found")
 }
 
-type Redis struct {
-	Addr     string
-	Port     int
-	Password string
+func (c *Config) GetStor(name string) (Aydostor, error) {
+	for _, s := range c.Aydostor {
+		if s.Name == name {
+			return s, nil
+		}
+	}
+	return Aydostor{}, fmt.Errorf("backend not found")
 }
+
+//
+// type Main struct {
+// 	ID       string
+// 	Metadata string
+// }
+//
+// type AYS struct {
+// 	ID string
+//
+// 	//	PrefetchCacheGrid  bool
+// 	//	PrefetchCacheLocal bool
+// 	//	CacheLocal         bool
+// 	//	CacheGrid          bool
+// }
+//
+// type Cache struct {
+// 	URL   string
+// 	Purge bool
+// }
+//
+// type Debug struct {
+// 	DebugFilter []string
+// 	Redis       Redis
+// }
+//
+// type Redis struct {
+// 	Addr     string
+// 	Port     int
+// 	Password string
+// }
 
 func LoadConfig(path string) *Config {
 	cfg := &Config{}

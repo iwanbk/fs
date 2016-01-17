@@ -54,16 +54,11 @@ func (f *FS) String() string {
 	return buffer.String()
 }
 
-func (f *FS) AttachFList(ID string) error {
-	partialMetadata, err := f.cache.GetMetaData(ID)
-	if err != nil {
-		return err
-	}
-
-	for _, line := range partialMetadata {
+func (f *FS) AttachFList(flist []string) error {
+	for _, line := range flist {
 		err := f.metadata.Index(line)
 		if err != nil {
-			log.Error("Failed to index: %s", err)
+			log.Errorf("Failed to index: %s", err)
 		}
 	}
 
