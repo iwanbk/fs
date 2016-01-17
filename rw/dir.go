@@ -26,7 +26,7 @@ func newDir(path string, parent *fsDir) *fsDir {
 func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	files, err := ioutil.ReadDir(n.path)
 	if err != nil {
-		return nil, err
+		return nil, ErrnoFromPathError(err)
 	}
 
 	entries := make([]fuse.Dirent, 0)
@@ -55,7 +55,7 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, ErrnoFromPathError(err)
 	}
 
 	if stat.IsDir() {
@@ -63,4 +63,25 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	} else {
 		return newFile(fullPath, n), nil
 	}
+}
+
+func (n *fsDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
+	fullPath := path.Join(n.path, req.Name)
+	err := os.Mkdir(fullPath, req.Mode)
+	if err != nil {
+		return nil, ErrnoFromPathError(err)
+	}
+
+	return newDir(fullPath, n), nil
+}
+
+func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
+	fullPath := path.Join(n.path, req.Name)
+
+	err := os.Remove(fullPath)
+	if err != nil {
+		return ErrnoFromPathError(err)
+	}
+
+	return err
 }
