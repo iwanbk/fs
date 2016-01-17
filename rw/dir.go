@@ -3,47 +3,24 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"fmt"
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
 	"path"
-	"syscall"
 )
 
 type fsDir struct {
-	path   string
+	fsBase
 	parent *fsDir
 }
 
 func newDir(path string, parent *fsDir) *fsDir {
 	return &fsDir{
-		path:   path,
+		fsBase: fsBase{
+			path: path,
+		},
 		parent: parent,
 	}
-}
-
-func (n *fsDir) Attr(ctx context.Context, attr *fuse.Attr) error {
-	stat, err := os.Stat(n.path)
-
-	if err != nil {
-		return err
-	}
-
-	attr.Mtime = stat.ModTime()
-	attr.Mode = stat.Mode()
-	attr.Size = uint64(stat.Size())
-	if sys_stat := stat.Sys(); sys_stat != nil {
-		if stat, ok := sys_stat.(*syscall.Stat_t); ok {
-			attr.Inode = stat.Ino
-		} else {
-			log.Warning("Invalid system stat struct returned")
-		}
-	} else {
-		log.Warning("Underlying fs stat is not available")
-	}
-
-	return nil
 }
 
 func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
@@ -73,6 +50,10 @@ func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	fullPath := path.Join(n.path, name)
 	stat, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		return nil, fuse.ENOENT
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +61,6 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	if stat.IsDir() {
 		return newDir(fullPath, n), nil
 	} else {
-		return nil, fmt.Errorf("Not implemented")
+		return newFile(fullPath, n), nil
 	}
 }
