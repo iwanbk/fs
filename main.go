@@ -16,7 +16,7 @@ import (
 
 	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/filesystem"
+	"github.com/Jumpscale/aysfs/ro"
 	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/op/go-logging"
 )
@@ -74,10 +74,10 @@ func configureLogging(options *Options) {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(cfgPath string, fs *filesystem.FS) {
+func watchReloadSignal(cfgPath string, fs *ro.FS) {
 	channel := make(chan os.Signal)
 	signal.Notify(channel, syscall.SIGUSR1)
-	go func(cfgPath string, fs *filesystem.FS) {
+	go func(cfgPath string, fs *ro.FS) {
 		defer close(channel)
 		for {
 			<-channel
@@ -160,7 +160,7 @@ func main() {
 		log.Fatal("Unknown metadata engine '%s'", opts.MetaEngine)
 	}
 
-	fs := filesystem.NewFS(mountPoint, meta, cacheMgr)
+	fs := ro.NewFS(mountPoint, meta, cacheMgr)
 	var metadataDir string
 
 	if opts.AutoConfig {

@@ -1,4 +1,4 @@
-package filesystem
+package ro
 
 import (
 	"bytes"
@@ -21,9 +21,9 @@ type FS struct {
 	metadata   metadata.Metadata
 	cache      cache.CacheManager
 
-	factory    NodeFactory
+	factory NodeFactory
 
-	m 		   sync.Mutex
+	m          sync.Mutex
 	state      bool
 	terminator chan int
 	generator  chan int
@@ -36,7 +36,7 @@ func NewFS(mountpoint string, meta metadata.Metadata, cache cache.CacheManager) 
 		cache:      cache,
 		factory:    NewNodeFactory(),
 		terminator: make(chan int),
-		generator: make(chan int),
+		generator:  make(chan int),
 	}
 
 	//make sure to initially put factory in locked state.
@@ -110,17 +110,17 @@ func (f *FS) Down() {
 }
 
 func (f *FS) serve() {
-	loop:
+loop:
 	for {
 		select {
-		case <- f.terminator:
+		case <-f.terminator:
 			break loop
-		case f.generator <-1:
+		case f.generator <- 1:
 		}
 	}
 }
 
 //waits until the filesystem is accessible.
 func (f *FS) access() {
-	<- f.generator
+	<-f.generator
 }

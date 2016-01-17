@@ -1,4 +1,4 @@
-package filesystem
+package ro
 
 import (
 	"github.com/stretchr/testify/assert"
