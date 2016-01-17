@@ -26,17 +26,25 @@ func newFile(path string, parent *fsDir) *fsFile {
 	}
 }
 
-func (n *fsFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
-	log.Debugf("Opening file '%s' (%s)", n.path, req.Flags)
+func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
+	log.Debugf("Opening file '%s' (%s)", n.path, flags)
 
-	file, err := os.OpenFile(n.path, int(uint32(req.Flags)), os.ModePerm)
+	file, err := os.OpenFile(n.path, int(uint32(flags)), os.ModePerm)
 	if err != nil {
-		return nil, err
+		return nil, ErrnoFromPathError(err)
 	}
 
 	return &fsFileHandle{
 		file: file,
 	}, nil
+}
+
+func (n *fsFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
+	return n.open(req.Flags)
+}
+
+func (n *fsFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	return nil
 }
 
 func (h *fsFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
@@ -48,6 +56,16 @@ func (h *fsFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fu
 	}
 
 	resp.Data = buffer[:n]
+	return nil
+}
+
+func (h *fsFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	n, err := h.file.WriteAt(req.Data, req.Offset)
+	if err != nil {
+		return err
+	}
+
+	resp.Size = n
 	return nil
 }
 

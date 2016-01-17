@@ -75,6 +75,14 @@ func (n *fsDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, err
 	return newDir(fullPath, n), nil
 }
 
+func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
+	fullPath := path.Join(n.path, req.Name)
+	node := newFile(fullPath, n)
+	handle, err := node.open(req.Flags)
+
+	return node, handle, err
+}
+
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
 
