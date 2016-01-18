@@ -3,6 +3,7 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
@@ -66,10 +67,12 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	fullPath := path.Join(n.path, name)
 	stat, err := os.Stat(fullPath)
 	if os.IsNotExist(err) {
-		return nil, fuse.ENOENT
-	}
-
-	if err != nil {
+		metaPath := fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix)
+		stat, err = os.Stat(metaPath)
+		if err != nil {
+			return nil, utils.ErrnoFromPathError(err)
+		}
+	} else if err != nil {
 		return nil, utils.ErrnoFromPathError(err)
 	}
 
