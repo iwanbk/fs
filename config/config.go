@@ -26,12 +26,12 @@ type Mount struct {
 }
 
 type Backend struct {
-	Name           string
-	Path           string
-	Stor           string
-	Namespace      string
-	AydostorPeriod int
-	BackupPeriod   int
+	Name             string
+	Path             string
+	Stor             string
+	Namespace        string
+	AydostorPushCron string
+	CleanupCron      string
 }
 
 type Aydostor struct {
@@ -58,37 +58,6 @@ func (c *Config) GetStor(name string) (Aydostor, error) {
 	}
 	return Aydostor{}, fmt.Errorf("backend not found")
 }
-
-//
-// type Main struct {
-// 	ID       string
-// 	Metadata string
-// }
-//
-// type AYS struct {
-// 	ID string
-//
-// 	//	PrefetchCacheGrid  bool
-// 	//	PrefetchCacheLocal bool
-// 	//	CacheLocal         bool
-// 	//	CacheGrid          bool
-// }
-//
-// type Cache struct {
-// 	URL   string
-// 	Purge bool
-// }
-//
-// type Debug struct {
-// 	DebugFilter []string
-// 	Redis       Redis
-// }
-//
-// type Redis struct {
-// 	Addr     string
-// 	Port     int
-// 	Password string
-// }
 
 func LoadConfig(path string) *Config {
 	cfg := &Config{}
