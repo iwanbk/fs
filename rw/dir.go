@@ -29,16 +29,11 @@ func newDir(fs *FS, path string, parent *fsDir) *fsDir {
 	}
 }
 
-func (n *fsDir) getDirent(entry os.FileInfo) fuse.Dirent {
+func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 	name := entry.Name()
 
 	dirEntry := fuse.Dirent{
 		Name: name,
-	}
-
-	if !entry.IsDir() && strings.HasSuffix(name, meta.MetaSuffix) {
-		name = strings.TrimSuffix(name, meta.MetaSuffix)
-		dirEntry.Name = name
 	}
 
 	if entry.IsDir() {
@@ -47,7 +42,16 @@ func (n *fsDir) getDirent(entry os.FileInfo) fuse.Dirent {
 		dirEntry.Type = fuse.DT_File
 	}
 
-	return dirEntry
+	if !entry.IsDir() && strings.HasSuffix(name, meta.MetaSuffix) {
+		name = strings.TrimSuffix(name, meta.MetaSuffix)
+		if utils.Exists(path.Join(n.path, name)) {
+			return dirEntry, false
+		}
+
+		dirEntry.Name = name
+	}
+
+	return dirEntry, true
 }
 
 func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
@@ -59,7 +63,9 @@ func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	entries := make([]fuse.Dirent, 0)
 
 	for _, entry := range files {
-		entries = append(entries, n.getDirent(entry))
+		if ent, ok := n.getDirent(entry); ok {
+			entries = append(entries, ent)
+		}
 	}
 
 	return entries, nil
