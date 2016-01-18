@@ -3,10 +3,17 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"fmt"
+	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
+	"syscall"
 )
 
 type fsFile struct {
@@ -29,11 +36,76 @@ func newFile(fs *FS, path string, parent *fsDir) *fsFile {
 	}
 }
 
+func (n *fsFile) MetaPath() string {
+	return fmt.Sprintf("%s%s", n.path, meta.MetaSuffix)
+}
+
+func (n *fsFile) Meta() (*meta.MetaFile, error) {
+	return meta.Load(n.MetaPath())
+}
+
+func (n *fsFile) url(hash string) (string, error) {
+	u, err := url.Parse(n.fs.Stor().Addr)
+	if err != nil {
+		return "", err
+	}
+	u.Path = path.Join(u.Path, n.fs.Backend().Namespace, hash)
+
+	return u.String(), nil
+}
+
+func (n *fsFile) download() error {
+	log.Infof("Downloading file '%s'", n.path)
+	meta, err := n.Meta()
+	if err != nil {
+		log.Errorf("Failed to download due to metadata loading failed: %s", err)
+		return err
+	}
+
+	url, err := n.url(meta.Hash)
+	if err != nil {
+		log.Errorf("Failed to build file url: %s", err)
+		return err
+	}
+
+	log.Info("Downloading: %s", url)
+
+	response, err := http.Get(url)
+	if err != nil {
+		log.Errorf("Failed to download file from stor: %s", err)
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(response.Body)
+		log.Errorf("Invalid response from stor: %s", body)
+		return syscall.EEXIST
+	}
+
+	file, err := os.OpenFile(n.path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	_, err = io.Copy(file, response.Body)
+	return err
+}
+
 func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
 	log.Debugf("Opening file '%s' (%s)", n.path, flags)
 
 	file, err := os.OpenFile(n.path, int(uint32(flags)), os.ModePerm)
-	if err != nil {
+	if os.IsNotExist(err) {
+		//probably ReadOnly mode. if meta exist, get the file from stor.
+		if err := n.download(); err != nil {
+			return nil, err
+		} else {
+			return n.open(flags)
+		}
+	} else if err != nil {
 		return nil, utils.ErrnoFromPathError(err)
 	}
 
