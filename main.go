@@ -7,13 +7,16 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/op/go-logging"
 	"sync"
+
+	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/watcher"
+	"github.com/op/go-logging"
 )
 
 const (
@@ -161,6 +164,12 @@ func main() {
 			os.MkdirAll(backend.Path, 0775)
 			go func(mountCfg config.Mount, backend config.Backend, stor config.Aydostor, opts Options) {
 				MountRWFS(mountCfg, &backend, &stor)
+
+				watcher.SetIntervals(time.Minute, time.Hour)
+				watcher.SetBackend(&backend)
+				watcher.SetStore(&stor)
+				watcher.Start()
+
 				wg.Done()
 			}(mountCfg, backend, stor, opts)
 		}
