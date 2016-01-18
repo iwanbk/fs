@@ -111,8 +111,16 @@ func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
+	fullMetaPath := fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix)
 
 	err := os.Remove(fullPath)
+	if merr := os.Remove(fullMetaPath); merr == nil {
+		if os.IsNotExist(err) {
+			//the file itself doesn't exist but the meta does.
+			return nil
+		}
+	}
+
 	if err != nil {
 		return utils.ErrnoFromPathError(err)
 	}
