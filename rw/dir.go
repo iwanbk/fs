@@ -111,6 +111,7 @@ func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
+	os.RemoveAll(fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix))
 
 	err := os.Remove(fullPath)
 	if err != nil {

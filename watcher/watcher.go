@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/jeffail/tunny"
 	"github.com/op/go-logging"
@@ -26,32 +27,41 @@ var (
 	log = logging.MustGetLogger("watcher")
 )
 
-func Start() {
-
-}
-
 type backenWatcher struct {
 	backend *config.Backend
 	stor    *config.Aydostor
 	pool    *tunny.WorkPool
+
+	url string
 }
 
-func NewWatcher(backend *config.Backend, stor *config.Aydostor) cron.Job {
+func NewWatcher(backend *config.Backend, stor *config.Aydostor) (cron.Job, error) {
 	watcher := &backenWatcher{
 		backend: backend,
 		stor:    stor,
 	}
 
-	watcher.pool = tunny.CreatePool(MaxWorkers, watcher.process)
-	return watcher
+	url, err := watcher.getUrl()
+	if err != nil {
+		return nil, err
+	}
+	watcher.url = url
+
+	pool, err := tunny.CreatePool(MaxWorkers, watcher.process).Open()
+	if err != nil {
+		return nil, err
+	}
+	watcher.pool = pool
+
+	return watcher, nil
 }
 
-func (w *backenWatcher) url(hash string) (string, error) {
+func (w *backenWatcher) getUrl() (string, error) {
 	u, err := url.Parse(w.stor.Addr)
 	if err != nil {
 		return "", err
 	}
-	u.Path = path.Join(u.Path, w.backend.Namespace, hash)
+	u.Path = path.Join(u.Path, w.backend.Namespace)
 
 	return u.String(), nil
 }
@@ -68,6 +78,9 @@ func (w *backenWatcher) process(nameI interface{}) interface{} {
 	log.Info("Processing file '%s'", name)
 	if err := w.processFile(name); err != nil {
 		log.Errorf("Failed to process file '%s'", err)
+	} else {
+		log.Info("File '%s' processing completed successfully", name)
+		tracker.Forget(name)
 	}
 	return nil
 }
@@ -86,6 +99,11 @@ func (w *backenWatcher) processFile(name string) error {
 	}
 	defer file.Close()
 
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
 	fileHash, err := w.hash(file)
 	if err != nil {
 		return err
@@ -93,12 +111,18 @@ func (w *backenWatcher) processFile(name string) error {
 	file.Seek(0, os.SEEK_SET)
 
 	//TODO: Write MetaFile
-	url, err := w.url(fileHash)
+	m := &meta.MetaFile{
+		Path: fmt.Sprintf("%s%s", name, meta.MetaSuffix),
+		Hash: fileHash,
+		Size: uint64(stat.Size()),
+	}
+
+	err = meta.Save(m)
 	if err != nil {
 		return err
 	}
 
-	return w.put(url, file)
+	return w.put(file)
 }
 
 // backup copy the pointed by name to name_{timestamp}.aydo
@@ -136,8 +160,8 @@ func (w *backenWatcher) hash(r io.Reader) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-func (s *backenWatcher) put(url string, r io.Reader) error {
-	response, err := http.Post(url, "application/octet-stream", r)
+func (w *backenWatcher) put(r io.Reader) error {
+	response, err := http.Post(w.url, "application/octet-stream", r)
 	if err != nil {
 		log.Errorf("Error during uploading of file: %v", err)
 		return err
