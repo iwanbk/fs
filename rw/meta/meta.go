@@ -32,7 +32,7 @@ func Save(meta *MetaFile) error {
 	if meta.Path == "" {
 		return fmt.Errorf("Meta path is not set")
 	}
-	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, 0444)
+	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}

@@ -76,12 +76,13 @@ func (w *backenWatcher) Run() {
 func (w *backenWatcher) process(nameI interface{}) interface{} {
 	name, _ := nameI.(string)
 	log.Info("Processing file '%s'", name)
-	if err := w.processFile(name); err != nil {
-		log.Errorf("Failed to process file '%s'", err)
-	} else {
+	if err := w.processFile(name); err == nil || os.IsNotExist(err) {
 		log.Info("File '%s' processing completed successfully", name)
 		tracker.Forget(name)
+	} else {
+		log.Errorf("Failed to process file '%s'", err)
 	}
+
 	return nil
 }
 
