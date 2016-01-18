@@ -147,7 +147,7 @@ func MountROFS(mountCfg config.Mount, opts Options) error {
 	return nil
 }
 
-func MountRWFS(mountCfg config.Mount, backendCfg config.Backend, storCfg config.Aydostor) error {
+func MountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor) error {
 	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg)
 
 	log.Info("Mounting Fuse File system")

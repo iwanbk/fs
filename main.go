@@ -160,7 +160,7 @@ func main() {
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
 			go func(mountCfg config.Mount, backend config.Backend, stor config.Aydostor, opts Options) {
-				MountRWFS(mountCfg, backend, stor)
+				MountRWFS(mountCfg, &backend, &stor)
 				wg.Done()
 			}(mountCfg, backend, stor, opts)
 		}

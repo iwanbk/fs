@@ -11,6 +11,7 @@ import (
 
 type fsFile struct {
 	fsBase
+	fs     *FS
 	parent *fsDir
 }
 
@@ -18,11 +19,12 @@ type fsFileHandle struct {
 	file *os.File
 }
 
-func newFile(path string, parent *fsDir) *fsFile {
+func newFile(fs *FS, path string, parent *fsDir) *fsFile {
 	return &fsFile{
 		fsBase: fsBase{
 			path: path,
 		},
+		fs:     fs,
 		parent: parent,
 	}
 }

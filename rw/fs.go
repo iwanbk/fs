@@ -13,13 +13,27 @@ var (
 type FS struct {
 	root       *fsDir
 	mountpoint string
+	backend    *config.Backend
+	stor       *config.Aydostor
 }
 
-func NewFS(mountpoint string, backendCfg config.Backend, storCfg config.Aydostor) *FS {
-	return &FS{
-		root:       newDir(backendCfg.Path, nil),
+func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor) *FS {
+	fs := &FS{
 		mountpoint: mountpoint,
+		backend:    backend,
+		stor:       stor,
 	}
+
+	fs.root = newDir(fs, fs.backend.Path, nil)
+	return fs
+}
+
+func (f *FS) Backend() *config.Backend {
+	return f.backend
+}
+
+func (f *FS) Stor() *config.Aydostor {
+	return f.stor
 }
 
 func (f *FS) Root() (fs.Node, error) {

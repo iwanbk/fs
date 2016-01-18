@@ -15,14 +15,16 @@ import (
 
 type fsDir struct {
 	fsBase
+	fs     *FS
 	parent *fsDir
 }
 
-func newDir(path string, parent *fsDir) *fsDir {
+func newDir(fs *FS, path string, parent *fsDir) *fsDir {
 	return &fsDir{
 		fsBase: fsBase{
 			path: path,
 		},
+		fs:     fs,
 		parent: parent,
 	}
 }
@@ -77,9 +79,9 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	}
 
 	if stat.IsDir() {
-		return newDir(fullPath, n), nil
+		return newDir(n.fs, fullPath, n), nil
 	} else {
-		return newFile(fullPath, n), nil
+		return newFile(n.fs, fullPath, n), nil
 	}
 }
 
@@ -90,12 +92,12 @@ func (n *fsDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, err
 		return nil, utils.ErrnoFromPathError(err)
 	}
 
-	return newDir(fullPath, n), nil
+	return newDir(n.fs, fullPath, n), nil
 }
 
 func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.CreateResponse) (fs.Node, fs.Handle, error) {
 	fullPath := path.Join(n.path, req.Name)
-	node := newFile(fullPath, n)
+	node := newFile(n.fs, fullPath, n)
 	handle, err := node.open(req.Flags)
 
 	return node, handle, err
