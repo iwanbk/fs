@@ -1,4 +1,4 @@
-package rw
+package utils
 
 import (
 	"bazil.org/fuse"

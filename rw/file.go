@@ -3,6 +3,7 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
 	"io"
 	"os"
@@ -31,7 +32,7 @@ func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
 
 	file, err := os.OpenFile(n.path, int(uint32(flags)), os.ModePerm)
 	if err != nil {
-		return nil, ErrnoFromPathError(err)
+		return nil, utils.ErrnoFromPathError(err)
 	}
 
 	return &fsFileHandle{

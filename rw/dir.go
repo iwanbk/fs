@@ -3,10 +3,13 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 )
 
 type fsDir struct {
@@ -23,25 +26,37 @@ func newDir(path string, parent *fsDir) *fsDir {
 	}
 }
 
+func (n *fsDir) getDirent(entry os.FileInfo) fuse.Dirent {
+	name := entry.Name()
+
+	dirEntry := fuse.Dirent{
+		Name: name,
+	}
+
+	if !entry.IsDir() && strings.HasSuffix(name, meta.MetaSuffix) {
+		name = strings.TrimSuffix(name, meta.MetaSuffix)
+		dirEntry.Name = name
+	}
+
+	if entry.IsDir() {
+		dirEntry.Type = fuse.DT_Dir
+	} else {
+		dirEntry.Type = fuse.DT_File
+	}
+
+	return dirEntry
+}
+
 func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 	files, err := ioutil.ReadDir(n.path)
 	if err != nil {
-		return nil, ErrnoFromPathError(err)
+		return nil, utils.ErrnoFromPathError(err)
 	}
 
 	entries := make([]fuse.Dirent, 0)
 
 	for _, entry := range files {
-		dirEntry := fuse.Dirent{
-			Name: entry.Name(),
-		}
-
-		if entry.IsDir() {
-			dirEntry.Type = fuse.DT_Dir
-		} else {
-			dirEntry.Type = fuse.DT_File
-		}
-		entries = append(entries, dirEntry)
+		entries = append(entries, n.getDirent(entry))
 	}
 
 	return entries, nil
@@ -55,7 +70,7 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	}
 
 	if err != nil {
-		return nil, ErrnoFromPathError(err)
+		return nil, utils.ErrnoFromPathError(err)
 	}
 
 	if stat.IsDir() {
@@ -69,7 +84,7 @@ func (n *fsDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, err
 	fullPath := path.Join(n.path, req.Name)
 	err := os.Mkdir(fullPath, req.Mode)
 	if err != nil {
-		return nil, ErrnoFromPathError(err)
+		return nil, utils.ErrnoFromPathError(err)
 	}
 
 	return newDir(fullPath, n), nil
@@ -88,7 +103,7 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 
 	err := os.Remove(fullPath)
 	if err != nil {
-		return ErrnoFromPathError(err)
+		return utils.ErrnoFromPathError(err)
 	}
 
 	return err

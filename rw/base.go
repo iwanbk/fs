@@ -14,6 +14,10 @@ type fsBase struct {
 func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	stat, err := os.Stat(n.path)
 
+	if os.IsNotExist(err) {
+
+	}
+
 	if err != nil {
 		return err
 	}
