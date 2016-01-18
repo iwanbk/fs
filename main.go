@@ -7,16 +7,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"time"
+	"sync"
 
 	"net/http"
 	_ "net/http/pprof"
 
-	"sync"
-
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/op/go-logging"
+	"github.com/robfig/cron"
 )
 
 const (
@@ -137,6 +136,9 @@ func main() {
 
 	cfg := config.LoadConfig(opts.ConfigPath)
 
+	scheduler := cron.New()
+	scheduler.Start()
+
 	wg := sync.WaitGroup{}
 
 	for _, mountCfg := range cfg.Mount {
@@ -163,12 +165,11 @@ func main() {
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
 			go func(mountCfg config.Mount, backend config.Backend, stor config.Aydostor, opts Options) {
-				MountRWFS(mountCfg, &backend, &stor)
+				//start the files watcher
+				job := watcher.NewWatcher(&backend, &stor)
+				scheduler.AddJob("@every 1m", job)
 
-				watcher.SetIntervals(time.Minute, time.Hour)
-				watcher.SetBackend(&backend)
-				watcher.SetStore(&stor)
-				watcher.Start()
+				MountRWFS(mountCfg, &backend, &stor)
 
 				wg.Done()
 			}(mountCfg, backend, stor, opts)

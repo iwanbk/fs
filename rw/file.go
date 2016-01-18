@@ -5,6 +5,7 @@ import (
 	"bazil.org/fuse/fs"
 	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
 	"io"
@@ -135,6 +136,8 @@ func (h *fsFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fu
 }
 
 func (h *fsFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
+	defer tracker.Touch(h.file.Name())
+
 	n, err := h.file.WriteAt(req.Data, req.Offset)
 	if err != nil {
 		return err
@@ -146,5 +149,6 @@ func (h *fsFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *
 
 func (h *fsFileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	log.Debugf("Closing file descriptor")
+	defer tracker.Close(h.file.Name())
 	return h.file.Close()
 }

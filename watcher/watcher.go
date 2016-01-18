@@ -5,9 +5,21 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
 
+	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/tracker"
+	"github.com/jeffail/tunny"
 	"github.com/op/go-logging"
+	"github.com/robfig/cron"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
+	"time"
+)
+
+const (
+	MaxWorkers = 10
 )
 
 var (
@@ -15,114 +27,106 @@ var (
 )
 
 func Start() {
-	log.Info("Start watcher")
-	go startWatching()
+
 }
 
-func startWatching() {
-	ticker := time.NewTicker(cfg.StoreInterval)
-
-	for range ticker.C {
-		dir, err := os.Open(cfg.Backend.Path)
-		if err != nil {
-			log.Errorf("Error opening backend root: %v", err)
-			dir.Close()
-			continue
-		}
-
-		names, err := dir.Readdirnames(-1)
-		if err != nil {
-			log.Errorf("Error reading files in backend root: %v", err)
-			dir.Close()
-			continue
-		}
-
-		for _, name := range names {
-			err = processFile(name)
-			if err != nil {
-				log.Errorf("Error processing backend: %v", err)
-				dir.Close()
-				continue
-			}
-		}
-
-		dir.Close()
-	}
+type backenWatcher struct {
+	backend *config.Backend
+	stor    *config.Aydostor
+	pool    *tunny.WorkPool
 }
 
-func processFile(name string) error {
-
-	if err := copy(name); err != nil {
-		log.Errorf("Error copying %s to %s_ :%v", name, name, err)
-		return err
+func NewWatcher(backend *config.Backend, stor *config.Aydostor) cron.Job {
+	watcher := &backenWatcher{
+		backend: backend,
+		stor:    stor,
 	}
 
-	f, err := os.Open(name + "_")
-	defer f.Close()
+	watcher.pool = tunny.CreatePool(MaxWorkers, watcher.process)
+	return watcher
+}
+
+func (w *backenWatcher) url(hash string) (string, error) {
+	u, err := url.Parse(w.stor.Addr)
 	if err != nil {
-		log.Errorf("Error opening file %s_ :%v", name, err)
-		return err
+		return "", err
 	}
+	u.Path = path.Join(u.Path, w.backend.Namespace, hash)
 
-	// h, err := hash(f)
-	// if err != nil {
-	// 	log.Errorf("Error hashing file %s_ :%v", name, err)
-	// 	return err
-	// }
+	return u.String(), nil
+}
 
-	// tlog := &TLog{
-	// 	Hash:  h,
-	// 	Path:  name,
-	// 	Epoch: time.Now(),
-	// }
-	// TODO append to Tlog
-
-	if err := storeClient.PutFile(cfg.Backend.Namespace, f); err != nil {
-		log.Errorf("Error uploading %s to store %s: %v", name, storeClient.Addr, err)
-		return err
+func (w *backenWatcher) Run() {
+	log.Debugf("Watcher is awake, checking tracker file...")
+	for name := range tracker.IterReady() {
+		w.pool.SendWorkAsync(name, nil)
 	}
+}
 
-	// TODO write Meta
-
-	if err := os.Remove(name + "_"); err != nil {
-		log.Errorf("Error deleting %s_ :%v", name, err)
-		return err
+func (w *backenWatcher) process(nameI interface{}) interface{} {
+	name, _ := nameI.(string)
+	log.Info("Processing file '%s'", name)
+	if err := w.processFile(name); err != nil {
+		log.Errorf("Failed to process file '%s'", err)
 	}
-
 	return nil
 }
 
-// Copy copy the pointed by name to name_
-func copy(name string) error {
-	// TODO lock write on the file
-	src, err := os.Open(name)
-	defer src.Close()
+func (w *backenWatcher) processFile(name string) error {
+	backup, err := w.backup(name)
 	if err != nil {
 		return err
 	}
 
-	dst, err := os.OpenFile(name+"_", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-	defer dst.Close()
+	defer os.RemoveAll(backup)
+
+	file, err := os.Open(backup)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	fileHash, err := w.hash(file)
 	if err != nil {
 		return err
 	}
+	file.Seek(0, os.SEEK_SET)
+
+	//TODO: Write MetaFile
+	url, err := w.url(fileHash)
+	if err != nil {
+		return err
+	}
+
+	return w.put(url, file)
+}
+
+// backup copy the pointed by name to name_{timestamp}.aydo
+func (w *backenWatcher) backup(name string) (string, error) {
+	// TODO lock write on the file
+
+	src, err := os.Open(name)
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+
+	backup := fmt.Sprintf("%s_%d.aydo", name, time.Now().UnixNano())
+	dst, err := os.OpenFile(backup, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		return "", err
+	}
+	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return backup, nil
 }
 
 //Hash compute the md5sum of the reader r
-func hash(r io.Reader) (string, error) {
-	s, ok := r.(io.Seeker)
-	if ok {
-		if _, err := s.Seek(0, os.SEEK_SET); err != nil {
-			return "", err
-		}
-	}
-
+func (w *backenWatcher) hash(r io.Reader) (string, error) {
 	h := md5.New()
 	_, err := io.Copy(h, r)
 	if err != nil {
@@ -130,4 +134,21 @@ func hash(r io.Reader) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+func (s *backenWatcher) put(url string, r io.Reader) error {
+	response, err := http.Post(url, "application/octet-stream", r)
+	if err != nil {
+		log.Errorf("Error during uploading of file: %v", err)
+		return err
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(response.Body)
+		return fmt.Errorf("Failed to upload file. Invalid response from stor (%d): %s", response.StatusCode, body)
+	}
+
+	return nil
 }
