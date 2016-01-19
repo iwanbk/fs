@@ -1,10 +1,15 @@
 {
 	"ImportPath": "github.com/Jumpscale/aysfs",
-	"GoVersion": "go1.5.1",
+	"GoVersion": "go1.5.2",
 	"Deps": [
 		{
 			"ImportPath": "bazil.org/fuse",
 			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
+		},
+		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.1.0-23-g5c4df71",
+			"Rev": "5c4df71dfe9ac89ef6287afc05e4c1b16ae65a1e"
 		},
 		{
 			"ImportPath": "github.com/boltdb/bolt",
@@ -22,6 +27,10 @@
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
 			"Rev": "8b1d80a45a732e6d95e22dcc2e067312c664936c"
+		},
+		{
+			"ImportPath": "github.com/jeffail/tunny",
+			"Rev": "863db275f4f2273d031c2ce4f4834714e8c10606"
 		},
 		{
 			"ImportPath": "github.com/kr/fs",
@@ -44,6 +53,11 @@
 			"Rev": "e09e01e6e10971840f7639df3dd747e6fd2dff3a"
 		},
 		{
+			"ImportPath": "github.com/robfig/cron",
+			"Comment": "v1-2-g67823cd",
+			"Rev": "67823cd24dece1b04cced3a0a0b3ca2bc84d875e"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/ssh",
 			"Rev": "1e856cbfdf9bc25eefca75f83f25d55e35ae72e0"
 		},
@@ -54,6 +68,11 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+		},
+		{
+			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",
+			"Comment": "v1.0-18-g600ceb4",
+			"Rev": "600ceb4523e5b7ff745f91083c8a023c2bf73af5"
 		}
 	]
 }
