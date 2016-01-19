@@ -1,7 +1,6 @@
 package watcher
 
 import (
-	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -36,6 +35,13 @@ type backenWatcher struct {
 	pool    *tunny.WorkPool
 
 	url string
+}
+
+type encrypted struct {
+	file      io.ReadCloser
+	hash      string
+	userKey   string
+	globalKey string
 }
 
 func NewWatcher(backend *config.Backend, stor *config.Aydostor) (cron.Job, error) {
@@ -89,6 +95,50 @@ func (w *backenWatcher) process(nameI interface{}) interface{} {
 	return nil
 }
 
+func (w *backenWatcher) encrypt(fileHash string, file io.Reader) (*encrypted, error) {
+	// encrypt file
+	enc := &encrypted{}
+
+	buff, err := ioutil.TempFile(os.TempDir(), "aydofs.enc.")
+	if err != nil {
+		return nil, err
+	}
+
+	sessionKey := crypto.CreateSessionKey(fileHash)
+
+	if err := crypto.EncryptSym(sessionKey, file, buff); err != nil {
+		return nil, err
+	}
+
+	encryptedKey, err := crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
+	if err != nil {
+		log.Errorf("Error encrypted session with client key:%v", err)
+		return nil, err
+	}
+
+	enc.userKey = fmt.Sprintf("%x", encryptedKey)
+
+	encryptedKey, err = crypto.EncryptAsym(&w.backend.GlobalKey.PublicKey, sessionKey)
+	if err != nil {
+		log.Errorf("Error encrypted session with store key:%v", err)
+		return nil, err
+	}
+	enc.globalKey = fmt.Sprintf("%x", encryptedKey)
+
+	// compute new hash base on encrypted file
+	buff.Seek(0, os.SEEK_SET)
+	efileHash, err := w.hash(buff)
+	if err != nil {
+		return nil, err
+	}
+
+	buff.Seek(0, os.SEEK_SET)
+	enc.hash = efileHash
+	enc.file = buff
+
+	return enc, nil
+}
+
 func (w *backenWatcher) processFile(name string) error {
 	backup, err := w.backup(name)
 	if err != nil {
@@ -97,11 +147,14 @@ func (w *backenWatcher) processFile(name string) error {
 
 	defer os.RemoveAll(backup)
 
+	var reader io.ReadCloser
+
 	file, err := os.Open(backup)
 	if err != nil {
 		return nil
 	}
 	defer file.Close()
+	reader = file
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -114,55 +167,23 @@ func (w *backenWatcher) processFile(name string) error {
 	}
 	file.Seek(0, os.SEEK_SET)
 
-	var (
-		fileReader io.Reader
-		userKey    string
-		storeKey   string
-	)
-	if w.backend.Encrypted {
-		// encrypt file
-		buff := &bytes.Buffer{}
-		sessionKey := crypto.CreateSessionKey(fileHash)
-
-		if err := crypto.EncryptSym(sessionKey, file, buff); err != nil {
-			log.Errorf("Error encrypting file %v :%v", name, err)
-			return err
-		}
-
-		encryptedKey, err := crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
-		if err != nil {
-			log.Errorf("Error encrypted session with client key:%v", err)
-			return err
-		}
-		userKey = fmt.Sprintf("%x", encryptedKey)
-
-		encryptedKey, err = crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
-		if err != nil {
-			log.Errorf("Error encrypted session with store key:%v", err)
-			return err
-		}
-		storeKey = fmt.Sprintf("%x", encryptedKey)
-
-		// compute new hash base on encrypted file
-		rd := bytes.NewReader(buff.Bytes())
-		fileHash, err = w.hash(rd)
-		if err != nil {
-			return err
-		}
-
-		rd.Seek(0, os.SEEK_SET)
-		fileReader = rd
-	} else {
-		fileReader = file
-		userKey = "" //no key for non encrypted file
+	m := &meta.MetaFile{
+		Path: fmt.Sprintf("%s%s", name, meta.MetaSuffix),
+		Hash: fileHash,
+		Size: uint64(stat.Size()),
 	}
 
-	m := &meta.MetaFile{
-		Path:     fmt.Sprintf("%s%s", name, meta.MetaSuffix),
-		Hash:     fileHash,
-		Size:     uint64(stat.Size()),
-		UserKey:  userKey,
-		StoreKey: storeKey,
+	if w.backend.Encrypted {
+		enc, err := w.encrypt(fileHash, file)
+		if err != nil {
+			return err
+		}
+		defer enc.file.Close()
+
+		m.Hash = enc.hash
+		m.UserKey = enc.userKey
+		m.StoreKey = enc.globalKey
+		reader = enc.file
 	}
 
 	err = meta.Save(m)
@@ -170,7 +191,7 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
-	return w.put(fileReader)
+	return w.put(reader)
 }
 
 // backup copy the pointed by name to name_{timestamp}.aydo

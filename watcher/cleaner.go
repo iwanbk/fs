@@ -1,8 +1,10 @@
 package watcher
 
 import (
+	"fmt"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/utils"
 	"github.com/robfig/cron"
 	"os"
 	"path/filepath"
@@ -37,6 +39,10 @@ func (c *backenCleaner) walkFN(name string, info os.FileInfo, err error) error {
 	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
 		atime := time.Unix(sys.Atim.Unix())
 		if c.now.Sub(atime) > time.Duration(c.backend.CleanupOlderThan)*time.Hour {
+			if !utils.Exists(fmt.Sprintf("%s%s", name, meta.MetaSuffix)) {
+				return nil
+			}
+
 			log.Debugf("Cleaner: removing file '%s'", name)
 			err := os.Remove(name)
 			if err != nil {
