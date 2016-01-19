@@ -161,7 +161,7 @@ func main() {
 			os.MkdirAll(backend.Path, 0775)
 			go func(mountCfg config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
 				//start the files watcher
-				job, err := watcher.NewWatcher(backend, stor)
+				watcherJob, err := watcher.NewWatcher(backend, stor)
 				if err != nil {
 					log.Errorf("Failed to create backend watcher")
 				} else {
@@ -169,9 +169,17 @@ func main() {
 					if cron == "" {
 						cron = "@every 60m"
 					}
-					scheduler.AddJob(cron, job)
+					scheduler.AddJob(cron, watcherJob)
 				}
 
+				cleanerJob := watcher.NewCleaner(backend)
+				cron := backend.CleanupCron
+				if cron == "" {
+					cron = "@every 1d"
+				}
+				scheduler.AddJob(cron, cleanerJob)
+
+				//Mount file system
 				MountRWFS(mountCfg, backend, stor)
 
 				wg.Done()

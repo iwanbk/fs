@@ -123,6 +123,7 @@ func (w *backenWatcher) processFile(name string) error {
 		// encrypt file
 		buff := &bytes.Buffer{}
 		sessionKey := crypto.CreateSessionKey(fileHash)
+
 		if err := crypto.EncryptSym(sessionKey, file, buff); err != nil {
 			log.Errorf("Error encrypting file %v :%v", name, err)
 			return err
@@ -156,7 +157,6 @@ func (w *backenWatcher) processFile(name string) error {
 		userKey = "" //no key for non encrypted file
 	}
 
-	//TODO: Write MetaFile
 	m := &meta.MetaFile{
 		Path:     fmt.Sprintf("%s%s", name, meta.MetaSuffix),
 		Hash:     fileHash,
