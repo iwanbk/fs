@@ -95,13 +95,13 @@ func (n *fsFile) download() error {
 	defer file.Close()
 
 	if n.fs.Backend().Encrypted {
-		if meta.Key == "" {
+		if meta.UserKey == "" {
 			err := fmt.Errorf("encryption key is empty, can't decrypt file %v", n.path)
 			log.Error(err.Error())
 			return err
 		}
 
-		r := bytes.NewBuffer([]byte(meta.Key))
+		r := bytes.NewBuffer([]byte(meta.UserKey))
 		bKey := []byte{}
 		fmt.Fscanf(r, "%x", &bKey)
 

@@ -127,11 +127,6 @@ func main() {
 		}()
 	}
 
-	if flag.NArg() != 1 {
-		usage()
-		os.Exit(2)
-	}
-
 	writePidFile()
 
 	cfg := config.LoadConfig(opts.ConfigPath)

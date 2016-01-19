@@ -114,8 +114,11 @@ func (w *backenWatcher) processFile(name string) error {
 	}
 	file.Seek(0, os.SEEK_SET)
 
-	var fileReader io.Reader
-	var key string
+	var (
+		fileReader io.Reader
+		userKey    string
+		storeKey   string
+	)
 	if w.backend.Encrypted {
 		// encrypt file
 		buff := &bytes.Buffer{}
@@ -127,10 +130,17 @@ func (w *backenWatcher) processFile(name string) error {
 
 		encryptedKey, err := crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
 		if err != nil {
-			log.Errorf("Error encrypted session key:%v", err)
+			log.Errorf("Error encrypted session with client key:%v", err)
 			return err
 		}
-		key = fmt.Sprintf("%x", encryptedKey)
+		userKey = fmt.Sprintf("%x", encryptedKey)
+
+		encryptedKey, err = crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
+		if err != nil {
+			log.Errorf("Error encrypted session with store key:%v", err)
+			return err
+		}
+		storeKey = fmt.Sprintf("%x", encryptedKey)
 
 		// compute new hash base on encrypted file
 		rd := bytes.NewReader(buff.Bytes())
@@ -143,15 +153,16 @@ func (w *backenWatcher) processFile(name string) error {
 		fileReader = rd
 	} else {
 		fileReader = file
-		key = "" //no key for non encrypted file
+		userKey = "" //no key for non encrypted file
 	}
 
 	//TODO: Write MetaFile
 	m := &meta.MetaFile{
-		Path: fmt.Sprintf("%s%s", name, meta.MetaSuffix),
-		Hash: fileHash,
-		Size: uint64(stat.Size()),
-		Key:  key,
+		Path:     fmt.Sprintf("%s%s", name, meta.MetaSuffix),
+		Hash:     fileHash,
+		Size:     uint64(stat.Size()),
+		UserKey:  userKey,
+		StoreKey: storeKey,
 	}
 
 	err = meta.Save(m)

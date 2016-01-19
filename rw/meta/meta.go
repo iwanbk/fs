@@ -12,10 +12,11 @@ const (
 )
 
 type MetaFile struct {
-	Path string `toml:"-"`
-	Hash string
-	Size uint64
-	Key  string
+	Path     string `toml:"-"`
+	Hash     string
+	Size     uint64
+	UserKey  string
+	StoreKey string
 }
 
 func Load(name string) (*MetaFile, error) {
