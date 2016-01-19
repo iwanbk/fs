@@ -1,9 +1,12 @@
 package config
 
 import (
+	"crypto/rsa"
 	"fmt"
+	"io/ioutil"
 	"os"
 
+	"github.com/Jumpscale/aysfs/crypto"
 	"github.com/naoina/toml"
 	"github.com/op/go-logging"
 )
@@ -32,6 +35,13 @@ type Backend struct {
 	Namespace      string
 	AydostorPeriod int
 	BackupPeriod   int
+
+	Encrypted bool
+	UserRsa   string
+	StoreRsa  string
+
+	ClientKey *rsa.PrivateKey `toml:"-"`
+	GlobalKey *rsa.PrivateKey `toml:"-"`
 }
 
 type Aydostor struct {
@@ -41,22 +51,57 @@ type Aydostor struct {
 	Passwd string
 }
 
-func (c *Config) GetBackend(name string) (Backend, error) {
-	for _, b := range c.Backend {
+func (c *Config) GetBackend(name string) (*Backend, error) {
+	for i, b := range c.Backend {
 		if b.Name == name {
-			return b, nil
+			return &c.Backend[i], nil
 		}
 	}
-	return Backend{}, fmt.Errorf("backend not found")
+	return nil, fmt.Errorf("backend not found")
 }
 
-func (c *Config) GetStor(name string) (Aydostor, error) {
-	for _, s := range c.Aydostor {
+func (c *Config) GetStor(name string) (*Aydostor, error) {
+	for i, s := range c.Aydostor {
 		if s.Name == name {
-			return s, nil
+			return &c.Aydostor[i], nil
 		}
 	}
-	return Aydostor{}, fmt.Errorf("backend not found")
+	return nil, fmt.Errorf("backend not found")
+}
+
+func (b *Backend) LoadRSAKeys() error {
+	if b.Encrypted {
+		if _, err := os.Stat(b.UserRsa); err == nil {
+			content, err := ioutil.ReadFile(b.UserRsa)
+			if err != nil {
+				err := fmt.Errorf("Error reading rsa key at %v: %v", b.UserRsa, err)
+				log.Errorf(err.Error())
+				return err
+			}
+			b.ClientKey, err = crypto.ReadPrivateKey(content)
+			if err != nil {
+				err := fmt.Errorf("Error reading rsa key at %v: %v", b.UserRsa, err)
+				log.Errorf(err.Error())
+				return err
+			}
+		}
+
+		if _, err := os.Stat(b.StoreRsa); err == nil {
+			content, err := ioutil.ReadFile(b.StoreRsa)
+			if err != nil {
+				err := fmt.Errorf("Error reading rsa key at %v: %v", b.StoreRsa, err)
+				log.Errorf(err.Error())
+				return err
+			}
+			b.GlobalKey, err = crypto.ReadPrivateKey(content)
+			if err != nil {
+				err := fmt.Errorf("Error reading rsa key at %v: %v", b.StoreRsa, err)
+				log.Errorf(err.Error())
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 //
@@ -99,6 +144,12 @@ func LoadConfig(path string) *Config {
 	err = toml.NewDecoder(f).Decode(cfg)
 	if err != nil {
 		log.Fatalf("can't read config file at %s: %s\n", path, err)
+	}
+
+	for i := range cfg.Backend {
+		if err := cfg.Backend[i].LoadRSAKeys(); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	return cfg

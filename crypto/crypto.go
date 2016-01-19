@@ -1,4 +1,4 @@
-package watcher
+package crypto
 
 import (
 	"bytes"
@@ -10,13 +10,19 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+
+	"github.com/op/go-logging"
 )
 
-func createSessionKey(hash string) []byte {
+var (
+	log = logging.MustGetLogger("crypto")
+)
+
+func CreateSessionKey(hash string) []byte {
 	return []byte(hash[:32])
 }
 
-func readPrivateKey(b []byte) (*rsa.PrivateKey, error) {
+func ReadPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 
 	// Extract the PEM-encoded data block
 	block, _ := pem.Decode(b)
@@ -33,15 +39,15 @@ func readPrivateKey(b []byte) (*rsa.PrivateKey, error) {
 	return priv, nil
 }
 
-func encryptAsym(key *rsa.PublicKey, msg []byte) ([]byte, error) {
+func EncryptAsym(key *rsa.PublicKey, msg []byte) ([]byte, error) {
 	return rsa.EncryptPKCS1v15(rand.Reader, key, msg)
 }
 
-func decryptAsym(key *rsa.PrivateKey, msg []byte) ([]byte, error) {
+func DecryptAsym(key *rsa.PrivateKey, msg []byte) ([]byte, error) {
 	return rsa.DecryptPKCS1v15(rand.Reader, key, msg)
 }
 
-func encryptSym(key []byte, in io.Reader, out io.Writer) error {
+func EncryptSym(key []byte, in io.Reader, out io.Writer) error {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err
@@ -70,7 +76,7 @@ func encryptSym(key []byte, in io.Reader, out io.Writer) error {
 	return nil
 }
 
-func decryptSym(key []byte, in io.Reader, out io.Writer) error {
+func DecryptSym(key []byte, in io.Reader, out io.Writer) error {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err

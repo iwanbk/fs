@@ -2,8 +2,9 @@ package meta
 
 import (
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"os"
+
+	"github.com/BurntSushi/toml"
 )
 
 const (
@@ -14,6 +15,7 @@ type MetaFile struct {
 	Path string `toml:"-"`
 	Hash string
 	Size uint64
+	Key  string
 }
 
 func Load(name string) (*MetaFile, error) {

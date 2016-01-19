@@ -1,4 +1,4 @@
-package watcher
+package crypto
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 
 func TestCreateKey(t *testing.T) {
 	hash := "ee71b697dc3cd771d13508cd1781ab83"
-	key := createSessionKey(hash)
+	key := CreateSessionKey(hash)
 	assert.Equal(t, 32, len(key))
 }
 
@@ -20,9 +20,9 @@ func TestSymetricEncryption(t *testing.T) {
 	outputEncrypt := &bytes.Buffer{}
 
 	hash := "ee71b697dc3cd771d13508cd1781ab83"
-	key := createSessionKey(hash)
+	key := CreateSessionKey(hash)
 
-	err := encryptSym(key, inputEncrypt, outputEncrypt)
+	err := EncryptSym(key, inputEncrypt, outputEncrypt)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -33,7 +33,7 @@ func TestSymetricEncryption(t *testing.T) {
 
 	outputDecrypt := &bytes.Buffer{}
 	inputDecrypt := bytes.NewBuffer(outputEncrypt.Bytes())
-	err = decryptSym(key, inputDecrypt, outputDecrypt)
+	err = DecryptSym(key, inputDecrypt, outputDecrypt)
 	if !assert.NoError(t, err) {
 		t.FailNow()
 	}
@@ -45,7 +45,7 @@ func TestSymetricEncryption(t *testing.T) {
 
 func TestAsymectricEncryption(t *testing.T) {
 	hash := "ee71b697dc3cd771d13508cd1781ab83"
-	sessionKey := createSessionKey(hash)
+	sessionKey := CreateSessionKey(hash)
 
 	privateKey := []byte(`-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAsUweFjQUDjQjBZOXLbdDTiczKSndO3A5Z5P2TAAK3uzICsNn
@@ -75,17 +75,17 @@ iGvWog1P6Ekz7ZL3vW/AvokvOfgvN2jFW2nJhEyrgTeIVy24slsZ2H57hFwcI67G
 OauPYiMoveEIny40isq7UoKsoC9vRYzGwX2836JjynqSdI4csy6U
 -----END RSA PRIVATE KEY-----`)
 
-	privKey, err := readPrivateKey(privateKey)
+	privKey, err := ReadPrivateKey(privateKey)
 	if err != nil {
 		t.Fatalf("Error reading private key: %v", err)
 	}
 
-	encryptedSessionKey, err := encryptAsym(&privKey.PublicKey, sessionKey)
+	encryptedSessionKey, err := EncryptAsym(&privKey.PublicKey, sessionKey)
 	if err != nil {
 		t.Fatalf("Error encrypting session key: %v", err)
 	}
 
-	sessionKey2, err := decryptAsym(privKey, encryptedSessionKey)
+	sessionKey2, err := DecryptAsym(privKey, encryptedSessionKey)
 	if err != nil {
 		t.Fatalf("Error decrypting session key: %v", err)
 	}

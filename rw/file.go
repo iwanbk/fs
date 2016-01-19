@@ -1,13 +1,9 @@
 package rw
 
 import (
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	"bytes"
 	"fmt"
-	"github.com/Jumpscale/aysfs/rw/meta"
-	"github.com/Jumpscale/aysfs/tracker"
-	"github.com/Jumpscale/aysfs/utils"
-	"golang.org/x/net/context"
+
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,6 +11,14 @@ import (
 	"os"
 	"path"
 	"syscall"
+
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	"github.com/Jumpscale/aysfs/crypto"
+	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/tracker"
+	"github.com/Jumpscale/aysfs/utils"
+	"golang.org/x/net/context"
 )
 
 type fsFile struct {
@@ -88,10 +92,36 @@ func (n *fsFile) download() error {
 	if err != nil {
 		return err
 	}
-
 	defer file.Close()
 
-	_, err = io.Copy(file, response.Body)
+	if n.fs.Backend().Encrypted {
+		if meta.Key == "" {
+			err := fmt.Errorf("encryption key is empty, can't decrypt file %v", n.path)
+			log.Error(err.Error())
+			return err
+		}
+
+		r := bytes.NewBuffer([]byte(meta.Key))
+		bKey := []byte{}
+		fmt.Fscanf(r, "%x", &bKey)
+
+		sessionKey, err := crypto.DecryptAsym(n.fs.backend.ClientKey, bKey)
+		if err != nil {
+			log.Errorf("Error decrypting session key: %v", err)
+			return err
+		}
+
+		if err := crypto.DecryptSym(sessionKey, response.Body, file); err != nil {
+			log.Errorf("Error decrypting data: %v", err)
+			return err
+		}
+	} else {
+		if _, err = io.Copy(file, response.Body); err != nil {
+			log.Errorf("Error downloading data: %v", err)
+			return err
+		}
+	}
+
 	return err
 }
 
