@@ -170,7 +170,11 @@ func main() {
 				if err != nil {
 					log.Errorf("Failed to create backend watcher")
 				} else {
-					scheduler.AddJob("@every 60m", job)
+					cron := backend.AydostorPushCron
+					if cron == "" {
+						cron = "@every 60m"
+					}
+					scheduler.AddJob(cron, job)
 				}
 
 				MountRWFS(mountCfg, backend, stor)

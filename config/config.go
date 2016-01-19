@@ -33,8 +33,8 @@ type Backend struct {
 	Path           string
 	Stor           string
 	Namespace      string
-	AydostorPeriod int
-	BackupPeriod   int
+	AydostorPushCron string
+	CleanupCron      string
 
 	Encrypted bool
 	UserRsa   string
@@ -103,37 +103,6 @@ func (b *Backend) LoadRSAKeys() error {
 	}
 	return nil
 }
-
-//
-// type Main struct {
-// 	ID       string
-// 	Metadata string
-// }
-//
-// type AYS struct {
-// 	ID string
-//
-// 	//	PrefetchCacheGrid  bool
-// 	//	PrefetchCacheLocal bool
-// 	//	CacheLocal         bool
-// 	//	CacheGrid          bool
-// }
-//
-// type Cache struct {
-// 	URL   string
-// 	Purge bool
-// }
-//
-// type Debug struct {
-// 	DebugFilter []string
-// 	Redis       Redis
-// }
-//
-// type Redis struct {
-// 	Addr     string
-// 	Port     int
-// 	Password string
-// }
 
 func LoadConfig(path string) *Config {
 	cfg := &Config{}

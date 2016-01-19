@@ -2,11 +2,13 @@ package rw
 
 import (
 	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
 	"os"
+	"path"
 	"syscall"
 )
 
@@ -52,4 +54,23 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	}
 
 	return nil
+}
+
+func (b *fsBase) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.Node) error {
+	if dir, ok := newDir.(*fsDir); ok {
+		log.Debugf("Rename (%s/%s) to (%s/%s)'", b.path, req.OldName, dir.path, req.NewName)
+		err := os.Rename(path.Join(b.path, req.OldName),
+			path.Join(dir.path, req.NewName))
+		if err != nil {
+			return utils.ErrnoFromPathError(err)
+		}
+		//rename meta if exists
+		os.Rename(path.Join(b.path, fmt.Sprintf("%s%s", req.OldName, meta.MetaSuffix)),
+			path.Join(dir.path, fmt.Sprintf("%s%s", req.NewName, meta.MetaSuffix)))
+		return nil
+	} else {
+		log.Errorf("Not the expected directory type")
+		return fuse.EIO
+	}
+
 }
