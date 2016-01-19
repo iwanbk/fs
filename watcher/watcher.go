@@ -38,7 +38,7 @@ type backenWatcher struct {
 }
 
 type encrypted struct {
-	file      io.ReadCloser
+	file      *os.File
 	hash      string
 	userKey   string
 	globalKey string
@@ -147,14 +147,11 @@ func (w *backenWatcher) processFile(name string) error {
 
 	defer os.RemoveAll(backup)
 
-	var reader io.ReadCloser
-
 	file, err := os.Open(backup)
 	if err != nil {
 		return nil
 	}
 	defer file.Close()
-	reader = file
 
 	stat, err := file.Stat()
 	if err != nil {
@@ -178,12 +175,13 @@ func (w *backenWatcher) processFile(name string) error {
 		if err != nil {
 			return err
 		}
+		defer os.Remove(enc.file.Name())
 		defer enc.file.Close()
 
 		m.Hash = enc.hash
 		m.UserKey = enc.userKey
 		m.StoreKey = enc.globalKey
-		reader = enc.file
+		file = enc.file
 	}
 
 	err = meta.Save(m)
@@ -191,7 +189,7 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
-	return w.put(reader)
+	return w.put(file)
 }
 
 // backup copy the pointed by name to name_{timestamp}.aydo
