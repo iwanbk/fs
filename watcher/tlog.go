@@ -13,21 +13,28 @@ type TLogger interface {
 
 type tlogger struct {
 	logger *logging.Logger
+	writer *lumberjack.Logger
 }
 
 func NewTLogger(name string) TLogger {
-	logger := logging.New(
-		&lumberjack.Logger{
-			Filename:   name,
-			MaxSize:    5, //Megabytes
-			MaxBackups: 1,
-			MaxAge:     1, //Days
-			LocalTime:  true,
-		},
-		"", 0)
+	writer := &lumberjack.Logger{
+		Filename:   name,
+		MaxSize:    5, //Megabytes
+		MaxBackups: 3,
+		MaxAge:     3, //Days
+		LocalTime:  true,
+	}
+	logger := logging.New(writer, "", 0)
+
+	go func(t *time.Ticker) {
+		for _ = range t.C {
+			writer.Rotate()
+		}
+	}(time.NewTicker(24 * time.Hour))
 
 	return &tlogger{
 		logger: logger,
+		writer: writer,
 	}
 }
 
