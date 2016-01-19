@@ -29,14 +29,17 @@ type Mount struct {
 }
 
 type Backend struct {
-	Name             string
-	Path             string
-	Stor             string
+	Name string
+	Path string
+	Stor string
+
 	Upload           bool
 	Namespace        string
 	AydostorPushCron string
 	CleanupCron      string
 	CleanupOlderThan int
+
+	Log string
 
 	Encrypted bool
 	UserRsa   string

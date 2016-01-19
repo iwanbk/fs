@@ -35,6 +35,8 @@ type backenWatcher struct {
 	pool    *tunny.WorkPool
 
 	url string
+
+	logger TLogger
 }
 
 type encrypted struct {
@@ -45,9 +47,15 @@ type encrypted struct {
 }
 
 func NewWatcher(backend *config.Backend, stor *config.Aydostor) (cron.Job, error) {
+	logFile := backend.Log
+	if logFile == "" {
+		logFile = path.Join(os.TempDir(), fmt.Sprintf("aydofs.%s.log", backend.Name))
+	}
+
 	watcher := &backenWatcher{
 		backend: backend,
 		stor:    stor,
+		logger:  NewTLogger(logFile),
 	}
 
 	url, err := watcher.getUrl()
@@ -189,7 +197,12 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
-	return w.put(file)
+	if err := w.put(file); err != nil {
+		return err
+	} else {
+		w.logger.Log(name, m.Hash)
+	}
+	return nil
 }
 
 // backup copy the pointed by name to name_{timestamp}.aydo
