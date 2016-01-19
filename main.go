@@ -127,11 +127,6 @@ func main() {
 		}()
 	}
 
-	if flag.NArg() != 1 {
-		usage()
-		os.Exit(2)
-	}
-
 	writePidFile()
 
 	cfg := config.LoadConfig(opts.ConfigPath)
@@ -164,9 +159,9 @@ func main() {
 
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go func(mountCfg config.Mount, backend config.Backend, stor config.Aydostor, opts Options) {
+			go func(mountCfg config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
 				//start the files watcher
-				job, err := watcher.NewWatcher(&backend, &stor)
+				job, err := watcher.NewWatcher(backend, stor)
 				if err != nil {
 					log.Errorf("Failed to create backend watcher")
 				} else {
@@ -177,7 +172,7 @@ func main() {
 					scheduler.AddJob(cron, job)
 				}
 
-				MountRWFS(mountCfg, &backend, &stor)
+				MountRWFS(mountCfg, backend, stor)
 
 				wg.Done()
 			}(mountCfg, backend, stor, opts)

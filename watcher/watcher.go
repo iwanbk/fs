@@ -1,22 +1,25 @@
 package watcher
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/rw/meta"
-	"github.com/Jumpscale/aysfs/tracker"
-	"github.com/jeffail/tunny"
-	"github.com/op/go-logging"
-	"github.com/robfig/cron"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
 	"time"
+
+	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/crypto"
+	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/tracker"
+	"github.com/jeffail/tunny"
+	"github.com/op/go-logging"
+	"github.com/robfig/cron"
 )
 
 const (
@@ -111,11 +114,55 @@ func (w *backenWatcher) processFile(name string) error {
 	}
 	file.Seek(0, os.SEEK_SET)
 
+	var (
+		fileReader io.Reader
+		userKey    string
+		storeKey   string
+	)
+	if w.backend.Encrypted {
+		// encrypt file
+		buff := &bytes.Buffer{}
+		sessionKey := crypto.CreateSessionKey(fileHash)
+		if err := crypto.EncryptSym(sessionKey, file, buff); err != nil {
+			log.Errorf("Error encrypting file %v :%v", name, err)
+			return err
+		}
+
+		encryptedKey, err := crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
+		if err != nil {
+			log.Errorf("Error encrypted session with client key:%v", err)
+			return err
+		}
+		userKey = fmt.Sprintf("%x", encryptedKey)
+
+		encryptedKey, err = crypto.EncryptAsym(&w.backend.ClientKey.PublicKey, sessionKey)
+		if err != nil {
+			log.Errorf("Error encrypted session with store key:%v", err)
+			return err
+		}
+		storeKey = fmt.Sprintf("%x", encryptedKey)
+
+		// compute new hash base on encrypted file
+		rd := bytes.NewReader(buff.Bytes())
+		fileHash, err = w.hash(rd)
+		if err != nil {
+			return err
+		}
+
+		rd.Seek(0, os.SEEK_SET)
+		fileReader = rd
+	} else {
+		fileReader = file
+		userKey = "" //no key for non encrypted file
+	}
+
 	//TODO: Write MetaFile
 	m := &meta.MetaFile{
-		Path: fmt.Sprintf("%s%s", name, meta.MetaSuffix),
-		Hash: fileHash,
-		Size: uint64(stat.Size()),
+		Path:     fmt.Sprintf("%s%s", name, meta.MetaSuffix),
+		Hash:     fileHash,
+		Size:     uint64(stat.Size()),
+		UserKey:  userKey,
+		StoreKey: storeKey,
 	}
 
 	err = meta.Save(m)
@@ -123,7 +170,7 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
-	return w.put(file)
+	return w.put(fileReader)
 }
 
 // backup copy the pointed by name to name_{timestamp}.aydo
