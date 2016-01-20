@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -66,7 +68,35 @@ func readFlistFile(path string) ([]string, error) {
 	return metadata, nil
 }
 
-func mountROFS(mountCfg config.Mount, opts Options) error {
+func watchReloadSignal(metadataDir string, flists [][]string, fs *ro.FS) {
+	channel := make(chan os.Signal)
+	signal.Notify(channel, syscall.SIGUSR1)
+	go func(cfgPath string, fs *ro.FS) {
+		defer close(channel)
+		for {
+			<-channel
+			log.Info("Reloading ays mounts due to user signal")
+
+			func() {
+				//Put the fs down to prevent any access to filesystem
+				fs.Down()
+				defer fs.Up()
+
+				log.Debug("Puring metadata")
+				// delete Metadata
+				fs.PurgeMetadata()
+
+				fs.DiscoverMetadata(metadataDir)
+				for _, flist := range flists {
+					fs.AttachFList(flist)
+				}
+
+			}()
+		}
+	}(metadataDir, fs)
+}
+
+func mountROFS(mountCfg config.Mount, stor *config.Aydostor, opts Options) error {
 	cacheMgr := cache.NewCacheManager()
 	var meta metadata.Metadata
 
@@ -85,40 +115,17 @@ func mountROFS(mountCfg config.Mount, opts Options) error {
 			meta = m
 		}
 	default:
-		log.Fatal("Unknown metadata engine '%s'", opts.MetaEngine)
+		log.Fatalf("Unknown metadata engine '%s'", opts.MetaEngine)
 	}
 
 	fs := ro.NewFS(mountCfg.Path, meta, cacheMgr)
 	var metadataDir string
 
+	//auto discover local caches
 	fs.AutoConfigCaches()
 
-	// if _, err := os.Stat(opts.ConfigPath); err == nil {
-	// 	cfg := config.LoadConfig(opts.ConfigPath)
-	// 	metadataDir = cfg.Main.Metadata
-	// 	// attaching cache layers to the fs
-	// 	for _, c := range cfg.Cache {
-	// 		u, err := url.Parse(c.URL)
-	// 		if err != nil {
-	// 			log.Fatalf("Invalid URL for cache '%s'", c.URL)
-	// 		}
-	// 		if u.Scheme == "" || u.Scheme == "file" {
-	// 			//add FS layer
-	// 			cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
-	// 		} else if u.Scheme == "http" || u.Scheme == "https" {
-	// 			if c.Purge {
-	// 				log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
-	// 			}
-	// 			cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
-	// 		} else if u.Scheme == "ssh" {
-	// 			layer, err := cache.NewSFTPCache(c.URL, "dedupe")
-	// 			if err != nil {
-	// 				log.Fatalf("Failed to intialize cach layer '%s': %s", c.URL, err)
-	// 			}
-	// 			cacheMgr.AddLayer(layer)
-	// 		}
-	// }
-	// }
+	//add stor from config
+	cacheMgr.AddLayer(cache.NewHTTPCache(stor.Addr, "dedupe"))
 
 	if metadataDir == "" {
 		// TODO Make portable
@@ -126,7 +133,7 @@ func mountROFS(mountCfg config.Mount, opts Options) error {
 	}
 
 	//purge all purgable cache layers.
-	// fs.DiscoverMetadata(metadataDir)
+	fs.DiscoverMetadata(metadataDir)
 
 	flist, err := readFlistFile(mountCfg.Flist)
 	if err != nil {
@@ -136,7 +143,7 @@ func mountROFS(mountCfg config.Mount, opts Options) error {
 
 	fmt.Println(fs)
 
-	//watchReloadSignal(opts.ConfigPath, fs)
+	watchReloadSignal(metadataDir, [][]string{flist}, fs)
 
 	//bring fileystem UP
 	fs.Up()
@@ -149,8 +156,8 @@ func mountROFS(mountCfg config.Mount, opts Options) error {
 	return nil
 }
 
-func MountROFS(wg *sync.WaitGroup, mount config.Mount, opts Options) {
-	mountROFS(mount, opts)
+func MountROFS(wg *sync.WaitGroup, mount config.Mount, stor *config.Aydostor, opts Options) {
+	mountROFS(mount, stor, opts)
 	wg.Done()
 }
 
