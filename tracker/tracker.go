@@ -110,6 +110,7 @@ func NewPurgeTracker() Tracker {
 
 func (t *metaPurgeTracker) Touch(name string) {
 	os.Remove(fmt.Sprintf("%s%s", name, meta.MetaSuffix))
+	os.Remove(fmt.Sprintf("%s%s", name, meta.OverlayDeletedSuffix))
 }
 
 func (t *metaPurgeTracker) Forget(name string) {

@@ -14,14 +14,10 @@ import (
 	"strings"
 )
 
-const (
-	OverlayDeletedSuffix = "_###"
-)
-
 var (
 	SkipPattern = []*regexp.Regexp{
 		regexp.MustCompile(`_\d+\.aydo$`), //backup extension before fs push.
-		regexp.MustCompile(OverlayDeletedSuffix + "$"),
+		regexp.MustCompile(meta.OverlayDeletedSuffix + "$"),
 	}
 )
 
@@ -136,9 +132,25 @@ func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 	return node, handle, err
 }
 
+func (n *fsDir) touchDeleted(name string) {
+	markPath := fmt.Sprintf("%s%s", name, meta.OverlayDeletedSuffix)
+
+	mark, err := os.Create(markPath)
+	if err == nil {
+		mark.Close()
+	}
+}
+
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
 	fullMetaPath := fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix)
+
+	defer func() {
+		if n.fs.overlay {
+			//Set delete mark
+			n.touchDeleted(fullPath)
+		}
+	}()
 
 	err := os.Remove(fullPath)
 	if merr := os.Remove(fullMetaPath); merr == nil {
@@ -172,6 +184,15 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 				d.fs.factory.Forget(oldPath)
 			}()
 		}
+
+		defer func() {
+			//make sure we mark the new path as changed.
+			d.fs.tracker.Touch(newPath)
+			if d.fs.overlay {
+				//touch old path as deleted
+				d.touchDeleted(oldPath)
+			}
+		}()
 
 		err := os.Rename(oldPath, newPath)
 		if err != nil {

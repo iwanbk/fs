@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	MetaSuffix = ".meta"
+	MetaSuffix           = ".meta"
+	OverlayDeletedSuffix = "_###"
 )
 
 type MetaFile struct {
@@ -63,6 +64,11 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 
 		fPath := path.Join(backend.Path, entity.Path)
 		mPath := fmt.Sprintf("%s%s", fPath, MetaSuffix)
+
+		if utils.Exists(fmt.Sprintf("%s%s", fPath, OverlayDeletedSuffix)) {
+			//file was deleted locally, completely ignore
+			continue
+		}
 
 		fExists := utils.Exists(fPath)
 		mExists := utils.Exists(mPath)
