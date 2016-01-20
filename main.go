@@ -71,41 +71,6 @@ func configureLogging(options *Options) {
 	logging.SetFormatter(formatter)
 }
 
-//func watchReloadSignal(cfgPath string, fs *ro.FS) {
-//	channel := make(chan os.Signal)
-//	signal.Notify(channel, syscall.SIGUSR1)
-//	go func(cfgPath string, fs *ro.FS) {
-//		defer close(channel)
-//		for {
-//			<-channel
-//			log.Info("Reloading ays mounts due to user signal")
-//
-//			func (){
-//				//Put the fs down to prevent any access to filesystem
-//				fs.Down()
-//				defer fs.Up()
-//
-//				log.Debug("Puring metadata")
-//				// delete Metadata
-//				fs.PurgeMetadata()
-//
-//				var metadataDir string
-//
-//				if _, err := os.Stat(cfgPath); err == nil {
-//					cfg := config.LoadConfig(cfgPath)
-//					metadataDir = cfg.Main.Metadata
-//				}
-//
-//				if metadataDir == "" {
-//					metadataDir = "/etc/ays/local"
-//				}
-//
-//				fs.DiscoverMetadata(metadataDir)
-//			}()
-//		}
-//	}(cfgPath, fs)
-//}
-
 func writePidFile() error {
 	pid := fmt.Sprintf("%d", os.Getpid())
 	return ioutil.WriteFile("/tmp/aysfs.pid", []byte(pid), 0600)
@@ -140,11 +105,16 @@ func main() {
 		if mountCfg.Flist != "" {
 			log.Infof("Mount Read only FS on %s", mountCfg.Path)
 
+			stor, err := cfg.GetStor(mountCfg.Stor)
+			if err != nil {
+				log.Fatalf("Definition of ayostor %s not found in config, but required for RO mount %s", mountCfg.Stor, mountCfg.Path)
+			}
+
 			wg.Add(1)
-			go func(mountCfg config.Mount, opts Options) {
-				MountROFS(mountCfg, opts)
+			go func(mountCfg config.Mount, stor *config.Aydostor, opts Options) {
+				MountROFS(mountCfg, stor, opts)
 				wg.Done()
-			}(mountCfg, opts)
+			}(mountCfg, stor, opts)
 		} else {
 			log.Infof("Mount Read write FS on %s", mountCfg.Path)
 

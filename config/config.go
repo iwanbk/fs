@@ -26,13 +26,14 @@ type Mount struct {
 	Flist   string
 	Backend string
 	ACL     string
+	Stor    string
 }
 
 type Backend struct {
-	Name           string
-	Path           string
-	Stor           string
-	Namespace      string
+	Name             string
+	Path             string
+	Stor             string
+	Namespace        string
 	AydostorPushCron string
 	CleanupCron      string
 
