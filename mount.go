@@ -15,6 +15,7 @@ import (
 	"github.com/Jumpscale/aysfs/ro"
 	"github.com/Jumpscale/aysfs/rw"
 	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/Jumpscale/aysfs/utils"
 	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/robfig/cron"
@@ -142,8 +143,8 @@ func MountROFS(wg *sync.WaitGroup, mount config.Mount, stor *config.Aydostor, op
 	wg.Done()
 }
 
-func mountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor) error {
-	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg)
+func mountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor, tracker tracker.Tracker) error {
+	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker)
 
 	log.Info("Mounting Fuse File system")
 	if err := mountFuse(fs, mountCfg.Path, false); err != nil {
@@ -155,8 +156,9 @@ func mountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *confi
 
 func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
 	//start the files watcher
+	tracker := tracker.NewTracker()
 	if backend.Upload {
-		job, err := watcher.NewWatcher(backend, stor)
+		job, err := watcher.NewWatcher(backend, stor, tracker)
 		if err != nil {
 			log.Errorf("Failed to create backend watcher")
 		} else {
@@ -176,7 +178,7 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//Mount file system
-	mountRWFS(mount, backend, stor)
+	mountRWFS(mount, backend, stor, tracker)
 
 	wg.Done()
 }
@@ -196,6 +198,7 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//TODO: 3- start RWFS with overlay compatibility.
-	mountRWFS(mount, backend, stor)
+	tracker := tracker.NewDummyTracker()
+	mountRWFS(mount, backend, stor, tracker)
 	wg.Done()
 }

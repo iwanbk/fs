@@ -10,13 +10,8 @@ var (
 )
 
 var (
-	log   = logging.MustGetLogger("tracker")
-	cache map[string]State
+	log = logging.MustGetLogger("tracker")
 )
-
-func init() {
-	cache = make(map[string]State)
-}
 
 type State interface {
 	Ready() bool
@@ -24,40 +19,53 @@ type State interface {
 	Close()
 }
 
-func get(name string) State {
-	if state, ok := cache[name]; !ok {
+type Tracker interface {
+	Touch(name string)
+	Forget(name string)
+	Close(name string)
+	IterReady() <-chan string
+}
+
+type trackerImpl struct {
+	cache map[string]State
+}
+
+func NewTracker() Tracker {
+	return &trackerImpl{
+		cache: make(map[string]State),
+	}
+}
+
+func (t *trackerImpl) get(name string) State {
+	if state, ok := t.cache[name]; !ok {
 		state = newState()
-		cache[name] = state
+		t.cache[name] = state
 		return state
 	} else {
 		return state
 	}
 }
 
-func Touch(name string) {
+func (t *trackerImpl) Touch(name string) {
 	log.Debugf("Touching file '%s'", name)
-	get(name).Touch()
+	t.get(name).Touch()
 }
 
-func Ready(name string) bool {
-	return get(name).Ready()
+func (t *trackerImpl) Forget(name string) {
+	delete(t.cache, name)
 }
 
-func Forget(name string) {
-	delete(cache, name)
-}
-
-func Close(name string) {
+func (t *trackerImpl) Close(name string) {
 	log.Debugf("Closing file '%s'", name)
-	get(name).Close()
+	t.get(name).Close()
 }
 
-func IterReady() <-chan string {
+func (t *trackerImpl) IterReady() <-chan string {
 	ch := make(chan string)
 
 	go func(ch chan string) {
 		defer close(ch)
-		for path, state := range cache {
+		for path, state := range t.cache {
 			if state.Ready() {
 				ch <- path
 			}
@@ -88,4 +96,30 @@ func (s *state) Close() {
 
 func (s *state) Ready() bool {
 	return s.closed || time.Now().Sub(s.time) > FileTimeout
+}
+
+type dummyTracker struct{}
+
+func NewDummyTracker() Tracker {
+	return &dummyTracker{}
+}
+
+//Touch(name string)
+//Forget(name string)
+//Close(name string)
+//IterReady() <-chan string
+func (t *dummyTracker) Touch(name string) {
+
+}
+
+func (t *dummyTracker) Forget(name string) {
+
+}
+
+func (t *dummyTracker) Close(name string) {
+
+}
+
+func (t *dummyTracker) IterReady() <-chan string {
+	return nil
 }

@@ -33,6 +33,7 @@ type backenWatcher struct {
 	backend *config.Backend
 	stor    *config.Aydostor
 	pool    *tunny.WorkPool
+	tracker tracker.Tracker
 
 	url string
 
@@ -46,7 +47,7 @@ type encrypted struct {
 	globalKey string
 }
 
-func NewWatcher(backend *config.Backend, stor *config.Aydostor) (cron.Job, error) {
+func NewWatcher(backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker) (cron.Job, error) {
 	logFile := backend.Log
 	if logFile == "" {
 		logFile = path.Join(os.TempDir(), fmt.Sprintf("aydofs.%s.log", backend.Name))
@@ -56,6 +57,7 @@ func NewWatcher(backend *config.Backend, stor *config.Aydostor) (cron.Job, error
 		backend: backend,
 		stor:    stor,
 		logger:  NewTLogger(logFile),
+		tracker: tracker,
 	}
 
 	url, err := watcher.getUrl()
@@ -85,7 +87,7 @@ func (w *backenWatcher) getUrl() (string, error) {
 
 func (w *backenWatcher) Run() {
 	log.Debugf("Watcher is awake, checking tracker file...")
-	for name := range tracker.IterReady() {
+	for name := range w.tracker.IterReady() {
 		w.pool.SendWorkAsync(name, nil)
 	}
 }
@@ -95,7 +97,7 @@ func (w *backenWatcher) process(nameI interface{}) interface{} {
 	log.Info("Processing file '%s'", name)
 	if err := w.processFile(name); err == nil || os.IsNotExist(err) {
 		log.Info("File '%s' processing completed successfully", name)
-		tracker.Forget(name)
+		w.tracker.Forget(name)
 	} else {
 		log.Errorf("Failed to process file '%s'", err)
 	}

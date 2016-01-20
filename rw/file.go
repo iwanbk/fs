@@ -27,7 +27,8 @@ type fsFile struct {
 }
 
 type fsFileHandle struct {
-	file *os.File
+	file    *os.File
+	tracker tracker.Tracker
 }
 
 func newFile(fs *FS, path string, parent *fsDir) *fsFile {
@@ -140,7 +141,8 @@ func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
 	}
 
 	return &fsFileHandle{
-		file: file,
+		file:    file,
+		tracker: n.fs.tracker,
 	}, nil
 }
 
@@ -165,7 +167,7 @@ func (h *fsFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fu
 }
 
 func (h *fsFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *fuse.WriteResponse) error {
-	defer tracker.Touch(h.file.Name())
+	defer h.tracker.Touch(h.file.Name())
 
 	n, err := h.file.WriteAt(req.Data, req.Offset)
 	if err != nil {
@@ -178,6 +180,6 @@ func (h *fsFileHandle) Write(ctx context.Context, req *fuse.WriteRequest, resp *
 
 func (h *fsFileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) error {
 	log.Debugf("Closing file descriptor")
-	defer tracker.Close(h.file.Name())
+	defer h.tracker.Close(h.file.Name())
 	return h.file.Close()
 }

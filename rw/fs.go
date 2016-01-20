@@ -3,6 +3,7 @@ package rw
 import (
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/op/go-logging"
 )
 
@@ -16,14 +17,16 @@ type FS struct {
 	backend    *config.Backend
 	stor       *config.Aydostor
 	factory    Factory
+	tracker    tracker.Tracker
 }
 
-func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor) *FS {
+func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker) *FS {
 	fs := &FS{
 		mountpoint: mountpoint,
 		backend:    backend,
 		stor:       stor,
 		factory:    NewFactory(),
+		tracker:    tracker,
 	}
 
 	fs.root = fs.factory.Dir(fs, fs.backend.Path, nil).(*fsDir)
