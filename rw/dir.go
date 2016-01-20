@@ -10,7 +10,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"strings"
+)
+
+const (
+	OverlayDeletedSuffix = "_###"
+)
+
+var (
+	SkipPattern = []*regexp.Regexp{
+		regexp.MustCompile(`_\d+\.aydo$`), //backup extension before fs push.
+		regexp.MustCompile(OverlayDeletedSuffix + "$"),
+	}
 )
 
 type fsDir struct {
@@ -29,11 +41,24 @@ func newDir(fs *FS, path string, parent *fsDir) *fsDir {
 	}
 }
 
+func (n *fsDir) skip(name string) bool {
+	for _, r := range SkipPattern {
+		if r.MatchString(name) {
+			return true
+		}
+	}
+
+	return false
+}
 func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 	name := entry.Name()
 
 	dirEntry := fuse.Dirent{
 		Name: name,
+	}
+
+	if n.skip(name) {
+		return dirEntry, false
 	}
 
 	if entry.IsDir() {

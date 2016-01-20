@@ -18,15 +18,23 @@ type FS struct {
 	stor       *config.Aydostor
 	factory    Factory
 	tracker    tracker.Tracker
+	overlay    bool
 }
 
-func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker) *FS {
+func NewFS(
+	mountpoint string,
+	backend *config.Backend,
+	stor *config.Aydostor,
+	tracker tracker.Tracker,
+	overlay bool) *FS {
+
 	fs := &FS{
 		mountpoint: mountpoint,
 		backend:    backend,
 		stor:       stor,
 		factory:    NewFactory(),
 		tracker:    tracker,
+		overlay:    overlay,
 	}
 
 	fs.root = fs.factory.Dir(fs, fs.backend.Path, nil).(*fsDir)

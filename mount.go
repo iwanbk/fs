@@ -143,8 +143,14 @@ func MountROFS(wg *sync.WaitGroup, mount config.Mount, stor *config.Aydostor, op
 	wg.Done()
 }
 
-func mountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor, tracker tracker.Tracker) error {
-	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker)
+func mountRWFS(
+	mountCfg config.Mount,
+	backendCfg *config.Backend,
+	storCfg *config.Aydostor,
+	tracker tracker.Tracker,
+	overlay bool) error {
+
+	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay)
 
 	log.Info("Mounting Fuse File system")
 	if err := mountFuse(fs, mountCfg.Path, false); err != nil {
@@ -178,7 +184,7 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//Mount file system
-	mountRWFS(mount, backend, stor, tracker)
+	mountRWFS(mount, backend, stor, tracker, false)
 
 	wg.Done()
 }
@@ -199,6 +205,6 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 
 	//TODO: 3- start RWFS with overlay compatibility.
 	tracker := tracker.NewPurgeTracker()
-	mountRWFS(mount, backend, stor, tracker)
+	mountRWFS(mount, backend, stor, tracker, true)
 	wg.Done()
 }
