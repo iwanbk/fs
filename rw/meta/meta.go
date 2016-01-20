@@ -61,7 +61,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			return err
 		}
 
-		fPath := path.Join(backend.Path, entity.Path, MetaSuffix)
+		fPath := path.Join(backend.Path, entity.Path)
 		mPath := fmt.Sprintf("%s%s", fPath, MetaSuffix)
 
 		fExists := utils.Exists(fPath)
