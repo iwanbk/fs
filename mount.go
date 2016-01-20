@@ -198,7 +198,7 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//TODO: 3- start RWFS with overlay compatibility.
-	tracker := tracker.NewDummyTracker()
+	tracker := tracker.NewPurgeTracker()
 	mountRWFS(mount, backend, stor, tracker)
 	wg.Done()
 }

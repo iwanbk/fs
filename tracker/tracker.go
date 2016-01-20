@@ -1,7 +1,10 @@
 package tracker
 
 import (
+	"fmt"
+	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/op/go-logging"
+	"os"
 	"time"
 )
 
@@ -98,28 +101,25 @@ func (s *state) Ready() bool {
 	return s.closed || time.Now().Sub(s.time) > FileTimeout
 }
 
-type dummyTracker struct{}
+type metaPurgeTracker struct{}
 
-func NewDummyTracker() Tracker {
-	return &dummyTracker{}
+//NewPurgeTracker creates a tracker that mark file changes by deleting the meta file.
+func NewPurgeTracker() Tracker {
+	return &metaPurgeTracker{}
 }
 
-//Touch(name string)
-//Forget(name string)
-//Close(name string)
-//IterReady() <-chan string
-func (t *dummyTracker) Touch(name string) {
-
+func (t *metaPurgeTracker) Touch(name string) {
+	os.Remove(fmt.Sprintf("%s%s", name, meta.MetaSuffix))
 }
 
-func (t *dummyTracker) Forget(name string) {
+func (t *metaPurgeTracker) Forget(name string) {
 
 }
 
-func (t *dummyTracker) Close(name string) {
+func (t *metaPurgeTracker) Close(name string) {
 
 }
 
-func (t *dummyTracker) IterReady() <-chan string {
+func (t *metaPurgeTracker) IterReady() <-chan string {
 	return nil
 }
