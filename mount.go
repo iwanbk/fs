@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sync"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -12,6 +13,8 @@ import (
 	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/Jumpscale/aysfs/ro"
 	"github.com/Jumpscale/aysfs/rw"
+	"github.com/Jumpscale/aysfs/watcher"
+	"github.com/robfig/cron"
 )
 
 func mountFuse(filesys fs.FS, mountpoint string, readOnly bool) error {
@@ -63,8 +66,7 @@ func readFlistFile(path string) ([]string, error) {
 	return metadata, nil
 }
 
-func MountROFS(mountCfg config.Mount, opts Options) error {
-
+func mountROFS(mountCfg config.Mount, opts Options) error {
 	cacheMgr := cache.NewCacheManager()
 	var meta metadata.Metadata
 
@@ -147,7 +149,12 @@ func MountROFS(mountCfg config.Mount, opts Options) error {
 	return nil
 }
 
-func MountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor) error {
+func MountROFS(wg *sync.WaitGroup, mount config.Mount, opts Options) {
+	mountROFS(mount, opts)
+	wg.Done()
+}
+
+func mountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *config.Aydostor) error {
 	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg)
 
 	log.Info("Mounting Fuse File system")
@@ -156,4 +163,32 @@ func MountRWFS(mountCfg config.Mount, backendCfg *config.Backend, storCfg *confi
 	}
 
 	return nil
+}
+
+func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
+	//start the files watcher
+	if backend.Upload {
+		job, err := watcher.NewWatcher(backend, stor)
+		if err != nil {
+			log.Errorf("Failed to create backend watcher")
+		} else {
+			cron := backend.AydostorPushCron
+			if cron == "" {
+				cron = "@every 60m"
+			}
+			scheduler.AddJob(cron, job)
+		}
+	}
+
+	job := watcher.NewCleaner(backend)
+	cron := backend.CleanupCron
+	if cron == "" {
+		cron = "@every 1d"
+	}
+	scheduler.AddJob(cron, job)
+
+	//Mount file system
+	mountRWFS(mount, backend, stor)
+
+	wg.Done()
 }

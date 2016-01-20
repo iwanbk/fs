@@ -13,7 +13,6 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
 )
@@ -136,21 +135,21 @@ func main() {
 
 	wg := sync.WaitGroup{}
 
-	for _, mountCfg := range cfg.Mount {
-		if mountCfg.Flist != "" {
-			log.Infof("Mount Read only FS on %s", mountCfg.Path)
+	for _, mount := range cfg.Mount {
+		if mount.Flist != "" && mount.Backend != "" {
+			log.Infof("Mount Overlay FS on %s", mount.Path)
+
+		} else if mount.Flist != "" {
+			log.Infof("Mount Read only FS on %s", mount.Path)
 
 			wg.Add(1)
-			go func(mountCfg config.Mount, opts Options) {
-				MountROFS(mountCfg, opts)
-				wg.Done()
-			}(mountCfg, opts)
-		} else {
-			log.Infof("Mount Read write FS on %s", mountCfg.Path)
+			MountROFS(&wg, mount, opts)
+		} else if mount.Backend != "" {
+			log.Infof("Mount Read write FS on %s", mount.Path)
 
-			backend, err := cfg.GetBackend(mountCfg.Backend)
+			backend, err := cfg.GetBackend(mount.Backend)
 			if err != nil {
-				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mountCfg.Backend, mountCfg.Path)
+				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
 			}
 			stor, err := cfg.GetStor(backend.Stor)
 			if err != nil {
@@ -159,33 +158,7 @@ func main() {
 
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go func(mountCfg config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
-				//start the files watcher
-				if backend.Upload {
-					job, err := watcher.NewWatcher(backend, stor)
-					if err != nil {
-						log.Errorf("Failed to create backend watcher")
-					} else {
-						cron := backend.AydostorPushCron
-						if cron == "" {
-							cron = "@every 60m"
-						}
-						scheduler.AddJob(cron, job)
-					}
-				}
-
-				job := watcher.NewCleaner(backend)
-				cron := backend.CleanupCron
-				if cron == "" {
-					cron = "@every 1d"
-				}
-				scheduler.AddJob(cron, job)
-
-				//Mount file system
-				MountRWFS(mountCfg, backend, stor)
-
-				wg.Done()
-			}(mountCfg, backend, stor, opts)
+			go MountRWFS(&wg, scheduler, mount, backend, stor, opts)
 		}
 	}
 
