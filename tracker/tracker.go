@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const (
+var (
 	FileTimeout = 15 * time.Minute
 )
 

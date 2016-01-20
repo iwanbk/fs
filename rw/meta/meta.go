@@ -61,14 +61,34 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			return err
 		}
 
-		mPath := path.Join(backend.Path, fmt.Sprintf("%s%s", entity.Path, MetaSuffix))
-		m := MetaFile{
+		fPath := path.Join(backend.Path, entity.Path, MetaSuffix)
+		mPath := fmt.Sprintf("%s%s", fPath, MetaSuffix)
+
+		fExists := utils.Exists(fPath)
+		mExists := utils.Exists(mPath)
+
+		m := &MetaFile{
 			Hash: entity.Hash,
 			Size: uint64(entity.Size),
 			Path: mPath,
 		}
 
-		if err := Save(&m); err != nil {
+		if fExists && mExists {
+			//both meta and file exists. This file wasn't modified we can
+			//just now place the meta and delete the file ONLY if file was changed.
+			oldMeta, err := Load(mPath)
+			if err != nil {
+				return err
+			}
+			if oldMeta.Hash != entity.Hash {
+				os.Remove(fPath)
+			}
+		} else if fExists && !mExists {
+			//Modified file locally, just ignore meta placement
+			continue
+		}
+
+		if err := Save(m); err != nil {
 			return err
 		}
 	}
