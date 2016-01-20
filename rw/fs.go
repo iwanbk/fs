@@ -15,6 +15,7 @@ type FS struct {
 	mountpoint string
 	backend    *config.Backend
 	stor       *config.Aydostor
+	factory    Factory
 }
 
 func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor) *FS {
@@ -22,9 +23,10 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor) *F
 		mountpoint: mountpoint,
 		backend:    backend,
 		stor:       stor,
+		factory:    NewFactory(),
 	}
 
-	fs.root = newDir(fs, fs.backend.Path, nil)
+	fs.root = fs.factory.Dir(fs, fs.backend.Path, nil).(*fsDir)
 	return fs
 }
 

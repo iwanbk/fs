@@ -1,23 +1,43 @@
 package watcher
 
 import (
-	"bufio"
 	"fmt"
-	"io"
+	"gopkg.in/natefinch/lumberjack.v2"
+	logging "log"
 	"time"
 )
 
-type TLog struct {
-	Hash  string
-	Path  string
-	Epoch time.Time
+type TLogger interface {
+	Log(path, hash string)
 }
 
-func (t *TLog) String() string {
-	return fmt.Sprintf("%s : %s | %s\n", t.Epoch.Format(time.RFC822), t.Path, t.Hash)
+type tlogger struct {
+	logger *logging.Logger
+	writer *lumberjack.Logger
 }
 
-func (t *TLog) Write(w io.Writer) error {
-	_, err := bufio.NewWriter(w).WriteString(t.String())
-	return err
+func NewTLogger(name string) TLogger {
+	writer := &lumberjack.Logger{
+		Filename:   name,
+		MaxSize:    5, //Megabytes
+		MaxBackups: 3,
+		MaxAge:     3, //Days
+		LocalTime:  true,
+	}
+	logger := logging.New(writer, "", 0)
+
+	go func(t *time.Ticker) {
+		for _ = range t.C {
+			writer.Rotate()
+		}
+	}(time.NewTicker(24 * time.Hour))
+
+	return &tlogger{
+		logger: logger,
+		writer: writer,
+	}
+}
+
+func (l *tlogger) Log(path, hash string) {
+	l.logger.Println(fmt.Sprintf("%s|%s|%d", path, hash, time.Now().Unix()))
 }
