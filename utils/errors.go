@@ -6,14 +6,14 @@ import (
 	"syscall"
 )
 
-func ErrnoFromPathError(err error) fuse.Errno {
-	if err, ok := err.(*os.PathError); ok {
+func ErrnoFromPathError(base error) error {
+	if err, ok := base.(*os.PathError); ok {
 		if errno, ok := err.Err.(syscall.Errno); ok {
 			return fuse.Errno(errno)
 		} else {
-			return fuse.EIO
+			return base
 		}
 	} else {
-		return fuse.EIO
+		return base
 	}
 }

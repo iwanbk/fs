@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,6 +14,8 @@ import (
 	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/Jumpscale/aysfs/ro"
 	"github.com/Jumpscale/aysfs/rw"
+	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/Jumpscale/aysfs/utils"
 	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/robfig/cron"
 )
@@ -46,26 +47,6 @@ func mountFuse(filesys fs.FS, mountpoint string, readOnly bool) error {
 	}
 
 	return nil
-}
-
-func readFlistFile(path string) ([]string, error) {
-	flistFile, err := os.Open(path)
-	defer flistFile.Close()
-	if err != nil {
-		log.Errorf("Error opening flist %s :%v", path, err)
-		return nil, err
-	}
-	metadata := []string{}
-	scanner := bufio.NewScanner(flistFile)
-	var line string
-	for scanner.Scan() {
-		line = scanner.Text()
-		if err := scanner.Err(); err != nil {
-			return nil, err
-		}
-		metadata = append(metadata, line)
-	}
-	return metadata, nil
 }
 
 func watchReloadSignal(metadataDir string, flists [][]string, fs *ro.FS) {
@@ -135,7 +116,7 @@ func mountROFS(mountCfg config.Mount, stor *config.Aydostor, opts Options) error
 	//purge all purgable cache layers.
 	fs.DiscoverMetadata(metadataDir)
 
-	flist, err := readFlistFile(mountCfg.Flist)
+	flist, err := utils.ReadFlistFile(mountCfg.Flist)
 	if err != nil {
 		return err
 	}
@@ -197,5 +178,24 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	//Mount file system
 	mountRWFS(mount, backend, stor)
 
+	wg.Done()
+}
+
+func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
+	//1- generate the metadata
+	if err := meta.PopulateFromPList(backend, mount.Path, mount.Flist); err != nil {
+		log.Errorf("Failed to mount overllay fs '%s': %s", mount, err)
+	}
+
+	//2- Start the cleaner worker, but never the watcher since we don't push ever to stor in OL mode
+	job := watcher.NewCleaner(backend)
+	cron := backend.CleanupCron
+	if cron == "" {
+		cron = "@every 1d"
+	}
+	scheduler.AddJob(cron, job)
+
+	//TODO: 3- start RWFS with overlay compatibility.
+	mountRWFS(mount, backend, stor)
 	wg.Done()
 }

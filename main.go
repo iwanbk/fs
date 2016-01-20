@@ -104,6 +104,18 @@ func main() {
 		if mount.Flist != "" && mount.Backend != "" {
 			log.Infof("Mount Overlay FS on %s", mount.Path)
 
+			backend, err := cfg.GetBackend(mount.Backend)
+			if err != nil {
+				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
+			}
+			stor, err := cfg.GetStor(backend.Stor)
+			if err != nil {
+				log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
+			}
+
+			wg.Add(1)
+			os.MkdirAll(backend.Path, 0775)
+			go MountOLFS(&wg, scheduler, mount, backend, stor, opts)
 		} else if mount.Flist != "" {
 			log.Infof("Mount Read only FS on %s", mount.Path)
 			stor, err := cfg.GetStor(mount.Stor)

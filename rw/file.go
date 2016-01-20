@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"syscall"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
@@ -84,8 +83,8 @@ func (n *fsFile) download() error {
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(response.Body)
-		log.Errorf("Invalid response from stor: %s", body)
-		return syscall.EEXIST
+		log.Errorf("Invalid response from stor(%d): %s", response.StatusCode, body)
+		return fuse.ENOENT
 	}
 
 	file, err := os.OpenFile(n.path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
@@ -132,7 +131,7 @@ func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
 	if os.IsNotExist(err) {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := n.download(); err != nil {
-			return nil, err
+			return nil, utils.ErrnoFromPathError(err)
 		} else {
 			return n.open(flags)
 		}

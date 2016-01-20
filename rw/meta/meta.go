@@ -5,6 +5,10 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Jumpscale/aysfs/config"
+	"github.com/Jumpscale/aysfs/metadata"
+	"github.com/Jumpscale/aysfs/utils"
+	"path"
 )
 
 const (
@@ -35,10 +39,39 @@ func Save(meta *MetaFile) error {
 	if meta.Path == "" {
 		return fmt.Errorf("Meta path is not set")
 	}
+	dir := path.Dir(meta.Path)
+	os.MkdirAll(dir, os.ModePerm)
 	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	encoder := toml.NewEncoder(file)
 	return encoder.Encode(meta)
+}
+
+func PopulateFromPList(backend *config.Backend, base string, plist string) error {
+	iter, err := utils.IterFlistFile(plist)
+	if err != nil {
+		return err
+	}
+
+	for line := range iter {
+		entity, err := metadata.ParseLine(base, line)
+		if err != nil {
+			return err
+		}
+
+		mPath := path.Join(backend.Path, fmt.Sprintf("%s%s", entity.Path, MetaSuffix))
+		m := MetaFile{
+			Hash: entity.Hash,
+			Size: uint64(entity.Size),
+			Path: mPath,
+		}
+
+		if err := Save(&m); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
