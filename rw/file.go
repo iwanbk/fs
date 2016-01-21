@@ -154,6 +154,13 @@ func (n *fsFile) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 	return nil
 }
 
+func (n *fsFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
+	if req.Valid.Size() {
+		os.Truncate(n.path, int64(req.Size))
+	}
+	return nil
+}
+
 func (h *fsFileHandle) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
 	buffer := make([]byte, req.Size)
 	n, err := h.file.ReadAt(buffer, req.Offset)

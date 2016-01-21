@@ -10,6 +10,10 @@ import (
 	"syscall"
 )
 
+const (
+	DefaultFileMode os.FileMode = 0755
+)
+
 type fsBase struct {
 	path string
 }
@@ -44,7 +48,7 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	}
 
 	attr.Mtime = stat.ModTime()
-	attr.Mode = stat.Mode()
+	attr.Mode = DefaultFileMode
 	attr.Size = size
 	if sys_stat := stat.Sys(); sys_stat != nil {
 		if stat, ok := sys_stat.(*syscall.Stat_t); ok {
