@@ -39,9 +39,7 @@ func (c *backenCleaner) walkFN(name string, info os.FileInfo, err error) error {
 	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
 		atime := time.Unix(sys.Atim.Unix())
 		if c.now.Sub(atime) > time.Duration(c.backend.CleanupOlderThan)*time.Hour {
-			mfile := fmt.Sprintf("%s%s", name, meta.MetaSuffix)
-			if !utils.Exists(mfile) || !utils.IsWritable(mfile) {
-				//meta doesn't exist or meta is not writable (file has been modified from original version)
+			if !utils.Exists(fmt.Sprintf("%s%s", name, meta.MetaSuffix)) {
 				return nil
 			}
 

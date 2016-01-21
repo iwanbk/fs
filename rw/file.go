@@ -146,14 +146,6 @@ func (n *fsFile) open(flags fuse.OpenFlags) (fs.Handle, error) {
 	}, nil
 }
 
-func (n *fsFile) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) error {
-	if req.Valid.Size() {
-		os.Truncate(n.path, int64(req.Size))
-	}
-
-	return nil
-}
-
 func (n *fsFile) Open(ctx context.Context, req *fuse.OpenRequest, resp *fuse.OpenResponse) (fs.Handle, error) {
 	return n.open(req.Flags)
 }

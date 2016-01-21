@@ -109,9 +109,7 @@ func NewPurgeTracker() Tracker {
 }
 
 func (t *metaPurgeTracker) Touch(name string) {
-	m := fmt.Sprintf("%s%s", name, meta.MetaSuffix)
-	os.Chmod(m, 0555)
-
+	os.Remove(fmt.Sprintf("%s%s", name, meta.MetaSuffix))
 	os.Remove(fmt.Sprintf("%s%s", name, meta.OverlayDeletedSuffix))
 }
 

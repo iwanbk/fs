@@ -27,17 +27,3 @@ func Exists(name string) bool {
 
 	return !os.IsNotExist(err)
 }
-
-func IsWritable(name string) bool {
-	stat, err := os.Stat(name)
-	if err != nil {
-		//on error we assume file doesn't exist and it
-		//can be written
-		return true
-	}
-
-	perm := stat.Mode().Perm()
-	return perm&0222 != 0
-}
-
-//TODO implement an ExistsAndWritable call
