@@ -24,6 +24,9 @@ type MetaFile struct {
 	StoreKey string
 }
 
+type MetaState struct {
+}
+
 func Load(name string) (*MetaFile, error) {
 	meta := MetaFile{
 		Path: name,
@@ -42,7 +45,7 @@ func Save(meta *MetaFile) error {
 	}
 	dir := path.Dir(meta.Path)
 	os.MkdirAll(dir, os.ModePerm)
-	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, 0700)
 	if err != nil {
 		return err
 	}
