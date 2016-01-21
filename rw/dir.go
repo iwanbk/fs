@@ -173,6 +173,8 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 		oldPath := path.Join(d.path, req.OldName)
 		newPath := path.Join(dir.path, req.NewName)
 
+		oldPathMeta := fmt.Sprintf("%s%s", oldPath, meta.MetaSuffix)
+		newPathMeta := fmt.Sprintf("%s%s", newPath, meta.MetaSuffix)
 		oldNode, ok := d.fs.factory.Get(oldPath)
 		if ok {
 			defer func() {
@@ -195,12 +197,18 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 		}()
 
 		err := os.Rename(oldPath, newPath)
+		if rerr := os.Rename(oldPathMeta, newPathMeta); rerr == nil {
+			if os.IsNotExist(err) {
+				log.Debugf("Rename file wasn't existing but the meta did.")
+				//the file itself doesn't exist but the meta does.
+				return nil
+			}
+		}
+
 		if err != nil {
 			return utils.ErrnoFromPathError(err)
 		}
 
-		//rename meta if exists
-		os.Rename(fmt.Sprintf("%s%s", oldPath, meta.MetaSuffix), fmt.Sprintf("%s%s", newPath, meta.MetaSuffix))
 		return nil
 	} else {
 		log.Errorf("Not the expected directory type")
