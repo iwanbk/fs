@@ -25,15 +25,15 @@ type MetaFile struct {
 }
 
 func Load(name string) (*MetaFile, error) {
-	meta := MetaFile{
+	meta := &MetaFile{
 		Path: name,
 	}
 	_, err := toml.DecodeFile(name, &meta)
 	if err != nil {
-		return nil, err
+		return meta, err
 	}
 
-	return &meta, nil
+	return meta, nil
 }
 
 func Save(meta *MetaFile) error {
@@ -70,8 +70,10 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			continue
 		}
 
-		fExists := utils.Exists(fPath)
-		mExists := utils.Exists(mPath)
+		if !utils.IsWritable(mPath) {
+			//ReadOnly meta means file has changed. We don't override meta of content
+			continue
+		}
 
 		m := &MetaFile{
 			Hash: entity.Hash,
@@ -79,23 +81,21 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			Path: mPath,
 		}
 
-		if fExists && mExists {
-			//both meta and file exists. This file wasn't modified we can
-			//just now place the meta and delete the file ONLY if file was changed.
-			oldMeta, err := Load(mPath)
-			if err != nil {
-				return err
-			}
-			if oldMeta.Hash != entity.Hash {
-				os.Remove(fPath)
-			}
-		} else if fExists && !mExists {
-			//Modified file locally, just ignore meta placement
-			continue
+		oldMeta, err := Load(mPath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
 		}
 
 		if err := Save(m); err != nil {
 			return err
+		}
+
+		if utils.Exists(fPath) {
+			//both meta and file exists. This file wasn't modified we can
+			//just now place the meta and delete the file ONLY if file was changed.
+			if oldMeta.Hash != entity.Hash {
+				os.Remove(fPath)
+			}
 		}
 	}
 
