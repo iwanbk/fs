@@ -1,10 +1,8 @@
 package tracker
 
 import (
-	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/op/go-logging"
-	"os"
 	"time"
 )
 
@@ -109,8 +107,11 @@ func NewPurgeTracker() Tracker {
 }
 
 func (t *metaPurgeTracker) Touch(name string) {
-	os.Remove(fmt.Sprintf("%s%s", name, meta.MetaSuffix))
-	os.Remove(fmt.Sprintf("%s%s", name, meta.OverlayDeletedSuffix))
+	m := meta.GetMeta(name)
+	stat := m.Stat()
+	stat = stat.SetModified(true)
+	stat = stat.SetDeleted(false)
+	m.SetStat(stat)
 }
 
 func (t *metaPurgeTracker) Forget(name string) {

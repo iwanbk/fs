@@ -2,7 +2,6 @@ package rw
 
 import (
 	"bazil.org/fuse"
-	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
@@ -24,16 +23,7 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	var size uint64 = 0
 
 	if os.IsNotExist(err) {
-		log.Debugf("Attr: File does not exist '%s'", n.path)
-		metaPath := fmt.Sprintf("%s%s", n.path, meta.MetaSuffix)
-
-		stat, err = os.Stat(metaPath)
-		if err != nil {
-			log.Debugf("Attr: File meta does not exist '%s.meta'", n.path)
-			return utils.ErrnoFromPathError(err)
-		}
-
-		meta, err := meta.Load(metaPath)
+		meta, err := meta.GetMeta(n.path).Load()
 		if err != nil {
 			log.Debugf("Attr: Meta failed to load '%s.meta'", n.path)
 			return utils.ErrnoFromPathError(err)

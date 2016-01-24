@@ -46,7 +46,8 @@ func (n *fsFile) MetaPath() string {
 }
 
 func (n *fsFile) Meta() (*meta.MetaFile, error) {
-	return meta.Load(n.MetaPath())
+	m := meta.GetMeta(n.path)
+	return m.Load()
 }
 
 func (n *fsFile) url(hash string) (string, error) {

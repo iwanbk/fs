@@ -17,7 +17,6 @@ const (
 )
 
 type MetaFile struct {
-	Path     string `toml:"-"`
 	Hash     string
 	Size     uint64
 	UserKey  string
@@ -27,20 +26,11 @@ type MetaFile struct {
 type MetaState uint32
 
 const (
-	MetaInitial  MetaState = 0500
-	MetaModified MetaState = 0200
-	MetaDeleted  MetaState = 0100
+	MetaStateMask MetaState = 0500
+	MetaInitial   MetaState = 0000
+	MetaModified  MetaState = 0200
+	MetaDeleted   MetaState = 0100
 )
-
-func GetMetaState(name string) MetaState {
-	stat, err := os.Stat(name)
-	if err != nil {
-		return 0
-	}
-
-	//mask out everything except the USER perm bits
-	return MetaState(stat.Mode()) & MetaInitial
-}
 
 func (s MetaState) Modified() bool {
 	return s&MetaModified != 0
@@ -66,11 +56,34 @@ func (s MetaState) SetDeleted(m bool) MetaState {
 	}
 }
 
-func Load(name string) (*MetaFile, error) {
-	meta := MetaFile{
-		Path: name,
+type Meta string
+
+//MetaPath get meta path for given file name
+func GetMeta(name string) Meta {
+	return Meta(fmt.Sprintf("%s%s", name, MetaSuffix))
+}
+
+func (m Meta) Exists() bool {
+	return utils.Exists(string(m))
+}
+
+func (m Meta) Stat() MetaState {
+	stat, err := os.Stat(string(m))
+	if err != nil {
+		return MetaInitial
 	}
-	_, err := toml.DecodeFile(name, &meta)
+
+	//mask out everything except the USER perm bits
+	return MetaState(stat.Mode()) & MetaStateMask
+}
+
+func (m Meta) SetStat(state MetaState) {
+	os.Chmod(string(m), os.FileMode(state))
+}
+
+func (m Meta) Load() (*MetaFile, error) {
+	meta := MetaFile{}
+	_, err := toml.DecodeFile(string(m), &meta)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +91,11 @@ func Load(name string) (*MetaFile, error) {
 	return &meta, nil
 }
 
-func Save(meta *MetaFile) error {
-	if meta.Path == "" {
-		return fmt.Errorf("Meta path is not set")
-	}
-	dir := path.Dir(meta.Path)
+func (m Meta) Save(meta *MetaFile) error {
+	p := string(m)
+	dir := path.Dir(p)
 	os.MkdirAll(dir, os.ModePerm)
-	file, err := os.OpenFile(meta.Path, os.O_WRONLY|os.O_CREATE, 0700)
+	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, 0700)
 	if err != nil {
 		return err
 	}
@@ -104,39 +115,35 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			return err
 		}
 
-		fPath := path.Join(backend.Path, entity.Path)
-		mPath := fmt.Sprintf("%s%s", fPath, MetaSuffix)
+		file := path.Join(backend.Path, entity.Path)
+		m := GetMeta(file)
 
-		if utils.Exists(fmt.Sprintf("%s%s", fPath, OverlayDeletedSuffix)) {
-			//file was deleted locally, completely ignore
+		state := m.Stat()
+		if state.Modified() || state.Deleted() {
 			continue
 		}
 
-		fExists := utils.Exists(fPath)
-		mExists := utils.Exists(mPath)
+		fExists := utils.Exists(file)
 
-		m := &MetaFile{
+		data := &MetaFile{
 			Hash: entity.Hash,
 			Size: uint64(entity.Size),
-			Path: mPath,
 		}
 
-		if fExists && mExists {
+		if fExists {
 			//both meta and file exists. This file wasn't modified we can
 			//just now place the meta and delete the file ONLY if file was changed.
-			oldMeta, err := Load(mPath)
-			if err != nil {
+			oldMeta, err := m.Load()
+			if err != nil && !os.IsNotExist(err) {
 				return err
 			}
+
 			if oldMeta.Hash != entity.Hash {
-				os.Remove(fPath)
+				os.Remove(file)
 			}
-		} else if fExists && !mExists {
-			//Modified file locally, just ignore meta placement
-			continue
 		}
 
-		if err := Save(m); err != nil {
+		if err := m.Save(data); err != nil {
 			return err
 		}
 	}

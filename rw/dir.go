@@ -17,7 +17,6 @@ import (
 var (
 	SkipPattern = []*regexp.Regexp{
 		regexp.MustCompile(`_\d+\.aydo$`), //backup extension before fs push.
-		regexp.MustCompile(meta.OverlayDeletedSuffix + "$"),
 	}
 )
 
@@ -63,13 +62,27 @@ func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 		dirEntry.Type = fuse.DT_File
 	}
 
-	if !entry.IsDir() && strings.HasSuffix(name, meta.MetaSuffix) {
-		name = strings.TrimSuffix(name, meta.MetaSuffix)
-		if utils.Exists(path.Join(n.path, name)) {
-			return dirEntry, false
-		}
+	if !entry.IsDir() {
+		if strings.HasSuffix(name, meta.MetaSuffix) {
+			//We are processing a meta file.
+			name = strings.TrimSuffix(name, meta.MetaSuffix)
+			m := meta.GetMeta(name)
+			if m.Stat().Deleted() {
+				//file was deleted
+				return dirEntry, false
+			}
 
-		dirEntry.Name = name
+			if utils.Exists(path.Join(n.path, name)) {
+				//if the file itself is there just skip because it will get processed anyway
+				return dirEntry, false
+			}
+		} else {
+			//normal file.
+			m := meta.GetMeta(name)
+			if m.Stat().Deleted() {
+				return dirEntry, false
+			}
+		}
 	}
 
 	return dirEntry, true
@@ -96,13 +109,14 @@ func (n *fsDir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
 func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	log.Debugf("Looking up '%s/%s'", n.path, name)
 	fullPath := path.Join(n.path, name)
+	m := meta.GetMeta(fullPath)
+	if m.Stat().Deleted() {
+		return nil, fuse.ENOENT
+	}
+
 	stat, err := os.Stat(fullPath)
-	if os.IsNotExist(err) {
-		metaPath := fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix)
-		stat, err = os.Stat(metaPath)
-		if err != nil {
-			return nil, utils.ErrnoFromPathError(err)
-		}
+	if os.IsNotExist(err) && !m.Exists() {
+		return nil, fuse.ENOENT
 	} else if err != nil {
 		return nil, utils.ErrnoFromPathError(err)
 	}
@@ -143,7 +157,7 @@ func (n *fsDir) touchDeleted(name string) {
 
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
-	fullMetaPath := fmt.Sprintf("%s%s", fullPath, meta.MetaSuffix)
+	metaPath := meta.GetMeta(fullPath)
 
 	defer func() {
 		if n.fs.overlay {
@@ -153,10 +167,12 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	}()
 
 	err := os.Remove(fullPath)
-	if merr := os.Remove(fullMetaPath); merr == nil {
-		if os.IsNotExist(err) {
-			//the file itself doesn't exist but the meta does.
-			return nil
+	if !n.fs.overlay {
+		if merr := os.Remove(string(metaPath)); merr == nil {
+			if os.IsNotExist(err) {
+				//the file itself doesn't exist but the meta does.
+				return nil
+			}
 		}
 	}
 

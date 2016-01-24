@@ -175,7 +175,6 @@ func (w *backenWatcher) processFile(name string) error {
 	file.Seek(0, os.SEEK_SET)
 
 	m := &meta.MetaFile{
-		Path: fmt.Sprintf("%s%s", name, meta.MetaSuffix),
 		Hash: fileHash,
 		Size: uint64(stat.Size()),
 	}
@@ -194,7 +193,8 @@ func (w *backenWatcher) processFile(name string) error {
 		file = enc.file
 	}
 
-	err = meta.Save(m)
+	mf := meta.GetMeta(name)
+	err = mf.Save(m)
 	if err != nil {
 		return err
 	}
