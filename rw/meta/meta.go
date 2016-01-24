@@ -24,7 +24,46 @@ type MetaFile struct {
 	StoreKey string
 }
 
-type MetaState struct {
+type MetaState uint32
+
+const (
+	MetaInitial  MetaState = 0500
+	MetaModified MetaState = 0200
+	MetaDeleted  MetaState = 0100
+)
+
+func GetMetaState(name string) MetaState {
+	stat, err := os.Stat(name)
+	if err != nil {
+		return 0
+	}
+
+	//mask out everything except the USER perm bits
+	return MetaState(stat.Mode()) & MetaInitial
+}
+
+func (s MetaState) Modified() bool {
+	return s&MetaModified != 0
+}
+
+func (s MetaState) Deleted() bool {
+	return s&MetaDeleted != 0
+}
+
+func (s MetaState) SetModified(m bool) MetaState {
+	if m {
+		return MetaState(s | MetaModified)
+	} else {
+		return MetaState(s & (^MetaModified))
+	}
+}
+
+func (s MetaState) SetDeleted(m bool) MetaState {
+	if m {
+		return MetaState(s | MetaDeleted)
+	} else {
+		return MetaState(s & (^MetaDeleted))
+	}
 }
 
 func Load(name string) (*MetaFile, error) {
