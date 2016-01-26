@@ -61,28 +61,25 @@ func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 		dirEntry.Type = fuse.DT_File
 	}
 
-	if !entry.IsDir() {
-		//files only
-		fullPath := path.Join(n.path, name)
-		if strings.HasSuffix(fullPath, meta.MetaSuffix) {
-			//We are processing a meta file.
-			fullPath = strings.TrimSuffix(fullPath, meta.MetaSuffix)
-			if utils.Exists(fullPath) {
-				//if the file itself is there just skip because it will get processed anyway
-				return dirEntry, false
-			}
-			m := meta.GetMeta(fullPath)
-			if m.Stat().Deleted() {
-				//file was deleted
-				return dirEntry, false
-			}
-			dirEntry.Name = strings.TrimSuffix(name, meta.MetaSuffix)
-		} else {
-			//normal file.
-			m := meta.GetMeta(fullPath)
-			if m.Stat().Deleted() {
-				return dirEntry, false
-			}
+	fullPath := path.Join(n.path, name)
+	if strings.HasSuffix(fullPath, meta.MetaSuffix) {
+		//We are processing a meta file.
+		fullPath = strings.TrimSuffix(fullPath, meta.MetaSuffix)
+		if utils.Exists(fullPath) {
+			//if the file itself is there just skip because it will get processed anyway
+			return dirEntry, false
+		}
+		m := meta.GetMeta(fullPath)
+		if m.Stat().Deleted() {
+			//file was deleted
+			return dirEntry, false
+		}
+		dirEntry.Name = strings.TrimSuffix(name, meta.MetaSuffix)
+	} else {
+		//normal file.
+		m := meta.GetMeta(fullPath)
+		if m.Stat().Deleted() {
+			return dirEntry, false
 		}
 	}
 
@@ -137,10 +134,10 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 func (n *fsDir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (fs.Node, error) {
 	fullPath := path.Join(n.path, req.Name)
 	err := os.Mkdir(fullPath, req.Mode)
-	if err != nil {
+	if err != nil && !os.IsExist(err) {
 		return nil, utils.ErrnoFromPathError(err)
 	}
-
+	n.fs.tracker.Touch(fullPath)
 	return n.fs.factory.Dir(n.fs, fullPath, n), nil
 }
 
@@ -166,6 +163,7 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	m := meta.GetMeta(fullPath)
 
 	defer func() {
+		n.fs.factory.Forget(fullPath)
 		if n.fs.overlay {
 			//Set delete mark
 			n.touchDeleted(fullPath)
@@ -182,7 +180,7 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 		}
 	}
 
-	if err != nil && !os.IsNotExist(err) {
+	if !n.fs.overlay && err != nil && !os.IsNotExist(err) {
 		return utils.ErrnoFromPathError(err)
 	}
 
