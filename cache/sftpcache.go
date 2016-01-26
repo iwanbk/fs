@@ -128,12 +128,13 @@ func (c *sftpCache) Open(path string) (io.ReadSeeker, error) {
 	var r io.ReadSeeker
 	var err error
 	r, err = c.client.Open(chrootPath) // try compressed file
-	if err == nil {
-		log.Debug("Can't open compressed file %s", chrootPath)
-		return utils.NewReadSeeker(brotli.NewReader(r)), nil
+	if err != nil {
+		log.Errorf("Can't open file %s", chrootPath)
+		return nil, err
 	}
 
-	return c.client.Open(chrootPath[:len(chrootPath)-4]) // try plain file
+	log.Debugf("Open compressed file %s", chrootPath)
+	return utils.NewReadSeeker(brotli.NewReader(r)), nil
 }
 
 func (c *sftpCache) GetMetaData(id string) ([]string, error) {

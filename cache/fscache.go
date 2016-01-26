@@ -61,7 +61,7 @@ func (f *fsCache) DeDupe(binpath string, file io.ReadSeeker) error {
 		}()
 
 		if err != nil {
-			log.Error("error while saving %s into local cache. open error %s\n", path, err)
+			log.Errorf("error while saving %s into local cache. open error %s\n", path, err)
 			os.Remove(partialPath)
 			return err
 		}
@@ -75,7 +75,7 @@ func (f *fsCache) DeDupe(binpath string, file io.ReadSeeker) error {
 
 		_, err = io.Copy(outFile, file)
 		if err != nil {
-			log.Error("error while saving %s into local cache. copy error %s\n", path, err)
+			log.Errorf("error while saving %s into local cache. copy error %s\n", path, err)
 			os.Remove(partialPath)
 			return err
 		}
@@ -88,19 +88,18 @@ func (f *fsCache) SetMetaData([]string) error {
 }
 
 func (f *fsCache) Open(path string) (io.ReadSeeker, error) {
-	chrootPath := chroot(f.root, filepath.Join(f.dedupe, path+".bro"))
+	chrootPath := chroot(f.root, filepath.Join(f.dedupe, path))
 
 	var r io.ReadSeeker
 	var err error
 	r, err = os.Open(chrootPath) //try compressed file
-	if err == nil {
-		r = utils.NewReadSeeker(brotli.NewReader(r))
-	} else {
-		log.Debugf("Compressed file not available, try plain file. (%s)", chrootPath)
-		r, err = os.Open(chrootPath[:len(chrootPath)-4])
+	if err != nil {
+		log.Errorf("File not available. (%s)", chrootPath)
+		return nil, err
 	}
 
-	return r, err
+	log.Debugf("Open compressed file %s", chrootPath)
+	return utils.NewReadSeeker(brotli.NewReader(r)), nil
 }
 
 func (f *fsCache) GetMetaData(id string) ([]string, error) {

@@ -47,8 +47,7 @@ func (f *fileImpl) String() string {
 }
 
 func (f *fileImpl) binPath() string {
-	hash := f.info.Hash()
-	return filepath.Join(string(hash[0]), string(hash[1]), hash)
+	return f.info.Hash()
 }
 
 func (f *fileImpl) path() string {
