@@ -222,15 +222,18 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 		if err != nil && !os.IsNotExist(err) {
 			return utils.ErrnoFromPathError(err)
 		}
-
-		m := meta.GetMeta(oldPath)
-		if m.Exists() {
-			info, err := m.Load()
-			if err != nil {
-				return utils.ErrnoFromPathError(err)
+		if d.fs.overlay {
+			m := meta.GetMeta(oldPath)
+			if m.Exists() {
+				info, err := m.Load()
+				if err != nil {
+					return utils.ErrnoFromPathError(err)
+				}
+				nm := meta.GetMeta(newPath)
+				nm.Save(info)
 			}
-			nm := meta.GetMeta(newPath)
-			nm.Save(info)
+		} else {
+			os.Rename(meta.GetMeta(oldPath).String(), meta.GetMeta(newPath).String())
 		}
 
 		return nil
