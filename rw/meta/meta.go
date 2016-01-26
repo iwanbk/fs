@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	MetaSuffix           = ".meta"
-	OverlayDeletedSuffix = "_###"
+	MetaSuffix = ".meta"
 )
 
 type MetaFile struct {
@@ -27,7 +26,7 @@ type MetaState uint32
 
 const (
 	MetaStateMask MetaState = 0500
-	MetaInitial   MetaState = 0000
+	MetaInitial   MetaState = 0400
 	MetaModified  MetaState = 0200
 	MetaDeleted   MetaState = 0100
 )
@@ -81,6 +80,10 @@ func (m Meta) SetStat(state MetaState) {
 	os.Chmod(string(m), os.FileMode(state))
 }
 
+func (m Meta) String() string {
+	return string(m)
+}
+
 func (m Meta) Load() (*MetaFile, error) {
 	meta := MetaFile{}
 	_, err := toml.DecodeFile(string(m), &meta)
@@ -95,7 +98,7 @@ func (m Meta) Save(meta *MetaFile) error {
 	p := string(m)
 	dir := path.Dir(p)
 	os.MkdirAll(dir, os.ModePerm)
-	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, 0700)
+	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(MetaInitial))
 	if err != nil {
 		return err
 	}
@@ -118,11 +121,6 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 		file := path.Join(backend.Path, entity.Path)
 		m := GetMeta(file)
 
-		state := m.Stat()
-		if state.Modified() || state.Deleted() {
-			continue
-		}
-
 		fExists := utils.Exists(file)
 
 		data := &MetaFile{
@@ -130,9 +128,10 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 			Size: uint64(entity.Size),
 		}
 
-		if fExists {
+		if fExists && !m.Stat().Modified() {
 			//both meta and file exists. This file wasn't modified we can
 			//just now place the meta and delete the file ONLY if file was changed.
+
 			oldMeta, err := m.Load()
 			if err != nil && !os.IsNotExist(err) {
 				return err

@@ -3,7 +3,6 @@ package rw
 import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"fmt"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/utils"
 	"golang.org/x/net/context"
@@ -63,22 +62,24 @@ func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 	}
 
 	if !entry.IsDir() {
-		if strings.HasSuffix(name, meta.MetaSuffix) {
+		//files only
+		fullPath := path.Join(n.path, name)
+		if strings.HasSuffix(fullPath, meta.MetaSuffix) {
 			//We are processing a meta file.
-			name = strings.TrimSuffix(name, meta.MetaSuffix)
-			m := meta.GetMeta(name)
+			fullPath = strings.TrimSuffix(fullPath, meta.MetaSuffix)
+			if utils.Exists(fullPath) {
+				//if the file itself is there just skip because it will get processed anyway
+				return dirEntry, false
+			}
+			m := meta.GetMeta(fullPath)
 			if m.Stat().Deleted() {
 				//file was deleted
 				return dirEntry, false
 			}
-
-			if utils.Exists(path.Join(n.path, name)) {
-				//if the file itself is there just skip because it will get processed anyway
-				return dirEntry, false
-			}
+			dirEntry.Name = strings.TrimSuffix(name, meta.MetaSuffix)
 		} else {
 			//normal file.
-			m := meta.GetMeta(name)
+			m := meta.GetMeta(fullPath)
 			if m.Stat().Deleted() {
 				return dirEntry, false
 			}
@@ -111,12 +112,17 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 	fullPath := path.Join(n.path, name)
 	m := meta.GetMeta(fullPath)
 	if m.Stat().Deleted() {
+		log.Debugf("File '%s' is deleted according to meta", fullPath)
 		return nil, fuse.ENOENT
 	}
-
 	stat, err := os.Stat(fullPath)
-	if os.IsNotExist(err) && !m.Exists() {
-		return nil, fuse.ENOENT
+	if os.IsNotExist(err) {
+		stat, err = os.Stat(string(m))
+		if os.IsNotExist(err) {
+			return nil, fuse.ENOENT
+		} else if err != nil {
+			return nil, utils.ErrnoFromPathError(err)
+		}
 	} else if err != nil {
 		return nil, utils.ErrnoFromPathError(err)
 	}
@@ -147,17 +153,17 @@ func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 }
 
 func (n *fsDir) touchDeleted(name string) {
-	markPath := fmt.Sprintf("%s%s", name, meta.OverlayDeletedSuffix)
-
-	mark, err := os.Create(markPath)
-	if err == nil {
-		mark.Close()
+	m := meta.GetMeta(name)
+	if !m.Exists() {
+		m.Save(&meta.MetaFile{})
 	}
+
+	m.SetStat(m.Stat().SetDeleted(true).SetModified(true))
 }
 
 func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 	fullPath := path.Join(n.path, req.Name)
-	metaPath := meta.GetMeta(fullPath)
+	m := meta.GetMeta(fullPath)
 
 	defer func() {
 		if n.fs.overlay {
@@ -168,7 +174,7 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 
 	err := os.Remove(fullPath)
 	if !n.fs.overlay {
-		if merr := os.Remove(string(metaPath)); merr == nil {
+		if merr := os.Remove(string(m)); merr == nil {
 			if os.IsNotExist(err) {
 				//the file itself doesn't exist but the meta does.
 				return nil
@@ -176,11 +182,11 @@ func (n *fsDir) Remove(ctx context.Context, req *fuse.RemoveRequest) error {
 		}
 	}
 
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return utils.ErrnoFromPathError(err)
 	}
 
-	return err
+	return nil
 }
 
 func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.Node) error {
@@ -192,9 +198,13 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 		oldNode, ok := d.fs.factory.Get(oldPath)
 		if ok {
 			defer func() {
-				if oldNode, ok := oldNode.(*fsFile); ok {
-					log.Debugf("Changing node path to '%s'", newPath)
-					oldNode.path = newPath
+				switch node := oldNode.(type) {
+				case *fsFile:
+					node.path = newPath
+				case *fsDir:
+					node.path = newPath
+				default:
+					log.Errorf("Failed to update node path to '%s'", newPath)
 				}
 
 				d.fs.factory.Forget(oldPath)
@@ -211,12 +221,20 @@ func (d *fsDir) Rename(ctx context.Context, req *fuse.RenameRequest, newDir fs.N
 		}()
 
 		err := os.Rename(oldPath, newPath)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return utils.ErrnoFromPathError(err)
 		}
 
-		//rename meta if exists
-		os.Rename(fmt.Sprintf("%s%s", oldPath, meta.MetaSuffix), fmt.Sprintf("%s%s", newPath, meta.MetaSuffix))
+		m := meta.GetMeta(oldPath)
+		if m.Exists() {
+			info, err := m.Load()
+			if err != nil {
+				return utils.ErrnoFromPathError(err)
+			}
+			nm := meta.GetMeta(newPath)
+			nm.Save(info)
+		}
+
 		return nil
 	} else {
 		log.Errorf("Not the expected directory type")

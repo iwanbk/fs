@@ -49,7 +49,7 @@ func (f *factory) monitor() {
 }
 
 func (f *factory) File(fs *FS, path string, parent *fsDir) fs.Node {
-	//TODO: locking.
+	log.Debugf("Creating a file instance for: %s", path)
 	node, ok := f.Get(path)
 	if ok {
 		return node
@@ -61,7 +61,7 @@ func (f *factory) File(fs *FS, path string, parent *fsDir) fs.Node {
 }
 
 func (f *factory) Dir(fs *FS, path string, parent *fsDir) fs.Node {
-	//TODO: locking.
+	log.Debugf("Creating a dir instance for: %s", path)
 	node, ok := f.Get(path)
 	if ok {
 		return node

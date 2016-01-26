@@ -23,12 +23,13 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	var size uint64 = 0
 
 	if os.IsNotExist(err) {
-		meta, err := meta.GetMeta(n.path).Load()
+		m := meta.GetMeta(n.path)
+		meta, err := m.Load()
 		if err != nil {
-			log.Debugf("Attr: Meta failed to load '%s.meta'", n.path)
+			log.Debugf("Attr: Meta failed to load '%s.meta': %s", n.path, err)
 			return utils.ErrnoFromPathError(err)
 		}
-
+		stat, _ = os.Stat(string(m))
 		size = meta.Size
 	} else if err != nil {
 		log.Debugf("Attr: File '%s' error: %s", n.path, err)

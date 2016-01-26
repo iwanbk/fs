@@ -108,6 +108,11 @@ func NewPurgeTracker() Tracker {
 
 func (t *metaPurgeTracker) Touch(name string) {
 	m := meta.GetMeta(name)
+	if !m.Exists() {
+		//create an empty meta file.
+		m.Save(&meta.MetaFile{})
+	}
+
 	stat := m.Stat()
 	stat = stat.SetModified(true)
 	stat = stat.SetDeleted(false)
