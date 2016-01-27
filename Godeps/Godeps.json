@@ -78,6 +78,6 @@
 			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
 			"Comment": "brotli-98ed7a2",
 			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
-		},
+		}
 	]
 }
