@@ -19,6 +19,7 @@ import (
 	"github.com/jeffail/tunny"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
+	bro "gopkg.in/kothar/brotli-go.v0/enc"
 )
 
 const (
@@ -113,6 +114,12 @@ func (w *backenWatcher) encrypt(fileHash string, file io.Reader) (*encrypted, er
 	if err != nil {
 		return nil, err
 	}
+	defer buff.Close()
+
+	buffCompress, err := ioutil.TempFile(os.TempDir(), "aydofs.enc.bro")
+	if err != nil {
+		return nil, err
+	}
 
 	sessionKey := crypto.CreateSessionKey(fileHash)
 
@@ -135,16 +142,25 @@ func (w *backenWatcher) encrypt(fileHash string, file io.Reader) (*encrypted, er
 	}
 	enc.globalKey = fmt.Sprintf("%x", encryptedKey)
 
-	// compute new hash base on encrypted file
+	brotliWriter := bro.NewBrotliWriter(nil, buffCompress)
 	buff.Seek(0, os.SEEK_SET)
-	efileHash, err := w.hash(buff)
+	_, err = io.Copy(brotliWriter, buff)
 	if err != nil {
 		return nil, err
 	}
 
-	buff.Seek(0, os.SEEK_SET)
+	// compute new hash base on encrypted compressed file
+	buffCompress.Seek(0, os.SEEK_SET)
+	efileHash, err := w.hash(buffCompress)
+	if err != nil {
+		return nil, err
+	}
+
+	buffCompress.Seek(0, os.SEEK_SET)
 	enc.hash = efileHash
-	enc.file = buff
+	enc.file = buffCompress
+
+	os.Remove(buff.Name())
 
 	return enc, nil
 }
@@ -168,18 +184,18 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
-	fileHash, err := w.hash(file)
-	if err != nil {
-		return err
-	}
-	file.Seek(0, os.SEEK_SET)
-
 	m := &meta.MetaFile{
-		Hash: fileHash,
+		// Hash: fileHash,
 		Size: uint64(stat.Size()),
 	}
 
 	if w.backend.Encrypted {
+		fileHash, err := w.hash(file)
+		if err != nil {
+			return err
+		}
+		file.Seek(0, os.SEEK_SET)
+
 		enc, err := w.encrypt(fileHash, file)
 		if err != nil {
 			return err
@@ -191,6 +207,39 @@ func (w *backenWatcher) processFile(name string) error {
 		m.UserKey = enc.userKey
 		m.StoreKey = enc.globalKey
 		file = enc.file
+	} else {
+		buffCompress, err := ioutil.TempFile(os.TempDir(), "aydofs.bro")
+		if err != nil {
+			return err
+		}
+		defer buffCompress.Close()
+		defer os.RemoveAll(buffCompress.Name())
+
+		brotliWriter := bro.NewBrotliWriter(nil, buffCompress)
+		defer brotliWriter.Close()
+
+		if _, err := file.Seek(0, os.SEEK_SET); err != nil {
+			log.Errorf("Error seek on %v: %v", file.Name(), err)
+		}
+		n, err := io.Copy(brotliWriter, file)
+		if err != nil {
+			log.Errorf("Error compressing file %v: %v", file.Name(), err)
+			return err
+		}
+		log.Debug("Brotli %d bytes written", n)
+
+		if _, err := buffCompress.Seek(0, os.SEEK_SET); err != nil {
+			log.Errorf("Error seek on %v: %v", buffCompress.Name(), err)
+		}
+		m.Hash, err = w.hash(buffCompress)
+		if err != nil {
+			return err
+		}
+
+		if _, err := buffCompress.Seek(0, os.SEEK_SET); err != nil {
+			log.Errorf("Error seek on %v: %v", buffCompress.Name(), err)
+		}
+		file = buffCompress
 	}
 
 	mf := meta.GetMeta(name)
@@ -199,11 +248,14 @@ func (w *backenWatcher) processFile(name string) error {
 		return err
 	}
 
+	if offset, err := file.Seek(0, os.SEEK_SET); err != nil {
+		log.Errorf("Error seek on %v (offset %d): %v", file.Name(), offset, err)
+	}
 	if err := w.put(file); err != nil {
 		return err
-	} else {
-		w.logger.Log(name, m.Hash)
 	}
+
+	w.logger.Log(name, m.Hash)
 	return nil
 }
 
