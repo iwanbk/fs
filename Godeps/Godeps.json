@@ -73,6 +73,11 @@
 			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",
 			"Comment": "v1.0-18-g600ceb4",
 			"Rev": "600ceb4523e5b7ff745f91083c8a023c2bf73af5"
-		}
+		},
+		{
+			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
+			"Comment": "brotli-98ed7a2",
+			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
+		},
 	]
 }
