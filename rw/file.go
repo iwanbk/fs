@@ -17,6 +17,7 @@ import (
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/Jumpscale/aysfs/utils"
+	"github.com/dsnet/compress/brotli"
 	"golang.org/x/net/context"
 )
 
@@ -89,6 +90,8 @@ func (n *fsFile) download() error {
 		return fuse.ENOENT
 	}
 
+	broReader := brotli.NewReader(response.Body)
+
 	file, err := os.OpenFile(n.path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
@@ -112,12 +115,12 @@ func (n *fsFile) download() error {
 			return err
 		}
 
-		if err := crypto.DecryptSym(sessionKey, response.Body, file); err != nil {
+		if err := crypto.DecryptSym(sessionKey, broReader, file); err != nil {
 			log.Errorf("Error decrypting data: %v", err)
 			return err
 		}
 	} else {
-		if _, err = io.Copy(file, response.Body); err != nil {
+		if _, err = io.Copy(file, broReader); err != nil {
 			log.Errorf("Error downloading data: %v", err)
 			return err
 		}
