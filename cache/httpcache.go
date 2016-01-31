@@ -32,7 +32,7 @@ func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
 	url := fmt.Sprintf("%s/%s/%s", f.url, f.dedupe, path)
 
 	resp, err := http.Get(url) // trying compressed file
-	resp.Body.Close()
+
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Errorf("can't get file from %s:  ERR:%v Status:%v\n", url, err, resp.StatusCode)
 		if err != nil {
