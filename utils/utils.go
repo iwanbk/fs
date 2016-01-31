@@ -2,6 +2,7 @@ package utils
 
 import (
 	"github.com/op/go-logging"
+	"os"
 )
 
 var (
@@ -16,4 +17,13 @@ func In(l []string, x string) bool {
 	}
 
 	return false
+}
+
+func Exists(name string) bool {
+	_, err := os.Stat(name)
+	if err == nil {
+		return true
+	}
+
+	return !os.IsNotExist(err)
 }

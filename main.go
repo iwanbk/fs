@@ -5,20 +5,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"path"
 	"path/filepath"
-	"syscall"
+	"sync"
 
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 
-	"github.com/Jumpscale/aysfs/cache"
 	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/ro"
-	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/op/go-logging"
+	"github.com/robfig/cron"
 )
 
 const (
@@ -74,41 +70,6 @@ func configureLogging(options *Options) {
 	logging.SetFormatter(formatter)
 }
 
-func watchReloadSignal(cfgPath string, fs *ro.FS) {
-	channel := make(chan os.Signal)
-	signal.Notify(channel, syscall.SIGUSR1)
-	go func(cfgPath string, fs *ro.FS) {
-		defer close(channel)
-		for {
-			<-channel
-			log.Info("Reloading ays mounts due to user signal")
-
-			func (){
-				//Put the fs down to prevent any access to filesystem
-				fs.Down()
-				defer fs.Up()
-
-				log.Debug("Puring metadata")
-				// delete Metadata
-				fs.PurgeMetadata()
-
-				var metadataDir string
-
-				if _, err := os.Stat(cfgPath); err == nil {
-					cfg := config.LoadConfig(cfgPath)
-					metadataDir = cfg.Main.Metadata
-				}
-
-				if metadataDir == "" {
-					metadataDir = "/etc/ays/local"
-				}
-
-				fs.DiscoverMetadata(metadataDir)
-			}()
-		}
-	}(cfgPath, fs)
-}
-
 func writePidFile() error {
 	pid := fmt.Sprintf("%d", os.Getpid())
 	return ioutil.WriteFile("/tmp/aysfs.pid", []byte(pid), 0600)
@@ -130,88 +91,57 @@ func main() {
 		}()
 	}
 
-	if flag.NArg() != 1 {
-		usage()
-		os.Exit(2)
-	}
-
 	writePidFile()
 
-	mountPoint := path.Clean(flag.Arg(0))
+	cfg := config.LoadConfig(opts.ConfigPath)
 
-	cacheMgr := cache.NewCacheManager()
-	var meta metadata.Metadata
+	scheduler := cron.New()
+	scheduler.Start()
 
-	switch opts.MetaEngine {
-	case MetaEngineBolt:
-		os.Remove(boltdb)
-		if m, err := metadata.NewBoltMetadata(mountPoint, boltdb); err != nil {
-			log.Fatal("Failed to intialize metaengine", err)
-		} else {
-			meta = m
-		}
-	case MetaEngineMem:
-		if m, err := metadata.NewMemMetadata(mountPoint, nil); err != nil {
-			log.Fatal("Failed to intialize metaengine", err)
-		} else {
-			meta = m
-		}
-	default:
-		log.Fatal("Unknown metadata engine '%s'", opts.MetaEngine)
-	}
+	wg := sync.WaitGroup{}
 
-	fs := ro.NewFS(mountPoint, meta, cacheMgr)
-	var metadataDir string
+	for _, mount := range cfg.Mount {
+		if mount.Flist != "" && mount.Backend != "" {
+			log.Infof("Mount Overlay FS on %s", mount.Path)
 
-	if opts.AutoConfig {
-		fs.AutoConfigCaches()
-	}
-
-	if _, err := os.Stat(opts.ConfigPath); err == nil {
-		cfg := config.LoadConfig(opts.ConfigPath)
-		metadataDir = cfg.Main.Metadata
-		// attaching cache layers to the fs
-		for _, c := range cfg.Cache {
-			u, err := url.Parse(c.URL)
+			backend, err := cfg.GetBackend(mount.Backend)
 			if err != nil {
-				log.Fatalf("Invalid URL for cache '%s'", c.URL)
+				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
 			}
-			if u.Scheme == "" || u.Scheme == "file" {
-				//add FS layer
-				cacheMgr.AddLayer(cache.NewFSCache(u.Path, "dedupe", c.Purge))
-			} else if u.Scheme == "http" || u.Scheme == "https" {
-				if c.Purge {
-					log.Warning("HTTP cache '%s' doesn't support purging", c.URL)
-				}
-				cacheMgr.AddLayer(cache.NewHTTPCache(c.URL, "dedupe"))
-			} else if u.Scheme == "ssh" {
-				layer, err := cache.NewSFTPCache(c.URL, "dedupe")
-				if err != nil {
-					log.Fatalf("Failed to intialize cach layer '%s': %s", c.URL, err)
-				}
-				cacheMgr.AddLayer(layer)
+			stor, err := cfg.GetStor(backend.Stor)
+			if err != nil {
+				log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
 			}
+
+			wg.Add(1)
+			os.MkdirAll(backend.Path, 0775)
+			go MountOLFS(&wg, scheduler, mount, backend, stor, opts)
+		} else if mount.Flist != "" {
+			log.Infof("Mount Read only FS on %s", mount.Path)
+			stor, err := cfg.GetStor(mount.Stor)
+			if err != nil {
+				log.Fatalf("Definition of ayostor %s not found in config, but required for RO mount %s", mount.Stor, mount.Path)
+			}
+
+			wg.Add(1)
+			go MountROFS(&wg, mount, stor, opts)
+		} else if mount.Backend != "" {
+			log.Infof("Mount Read write FS on %s", mount.Path)
+
+			backend, err := cfg.GetBackend(mount.Backend)
+			if err != nil {
+				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
+			}
+			stor, err := cfg.GetStor(backend.Stor)
+			if err != nil {
+				log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
+			}
+
+			wg.Add(1)
+			os.MkdirAll(backend.Path, 0775)
+			go MountRWFS(&wg, scheduler, mount, backend, stor, opts)
 		}
 	}
 
-	if metadataDir == "" {
-		// TODO Make portable
-		metadataDir = "/etc/ays/local"
-	}
-
-	//purge all purgable cache layers.
-	fs.DiscoverMetadata(metadataDir)
-
-	fmt.Println(fs)
-
-	watchReloadSignal(opts.ConfigPath, fs)
-
-	//bring fileystem UP
-	fs.Up()
-
-	log.Info("Mounting Fuse File system")
-	if err := mount(fs, mountPoint); err != nil {
-		log.Fatal(err)
-	}
-
+	wg.Wait()
 }

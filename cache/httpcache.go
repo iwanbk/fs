@@ -29,22 +29,19 @@ func (f *httpCache) String() string {
 }
 
 func (f *httpCache) Open(path string) (io.ReadSeeker, error) {
-	url := fmt.Sprintf("%s/%s/%s.bro", f.url, f.dedupe, path)
+	url := fmt.Sprintf("%s/%s/%s", f.url, f.dedupe, path)
 
 	resp, err := http.Get(url) // trying compressed file
-	if err == nil {
-		log.Debug("Open compressed file %s", url)
-		return utils.NewReadSeeker(brotli.NewReader(resp.Body)), nil
-	} else if err != nil || resp.StatusCode != http.StatusOK {
-		log.Debugf("can't get file from %s:  ERR:%v Status:%s\n", url, err, resp.StatusCode)
-		resp.Body.Close()
-	}
 
-	resp, err = http.Get(url[:len(url)-4]) // trying plain file
 	if err != nil || resp.StatusCode != http.StatusOK {
-		log.Debugf("can't get file from %s:  ERR:%v Status:%s\n", url[:len(url)-4], err, resp.StatusCode)
+		log.Errorf("can't get file from %s:  ERR:%v Status:%v\n", url, err, resp.StatusCode)
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("can't get file from %s: Status:%v\n", url, resp.StatusCode)
 	}
-	return utils.NewReadSeeker(resp.Body), nil
+	log.Debug("Open compressed file %s", url)
+	return utils.NewReadSeeker(brotli.NewReader(resp.Body)), nil
 }
 
 func (f *httpCache) GetMetaData(id string) ([]string, error) {
