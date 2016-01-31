@@ -6,9 +6,14 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/metadata"
 	"github.com/Jumpscale/aysfs/utils"
 	"path"
+	"strings"
+)
+
+var (
+	PathSep    = "/"
+	ignoreLine = fmt.Errorf("Ignore Line")
 )
 
 const (
@@ -113,7 +118,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 	}
 
 	for line := range iter {
-		entity, err := metadata.ParseLine(base, line)
+		entity, err := ParseLine(base, line)
 		if err != nil {
 			return err
 		}
@@ -148,4 +153,36 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 	}
 
 	return nil
+}
+
+type Entry struct {
+	Path string
+	Hash string
+	Size int64
+}
+
+func ParseLine(base string, line string) (*Entry, error) {
+	entry := Entry{}
+
+	lineParts := strings.Split(line, "|")
+	if len(lineParts) != 3 {
+		return nil, fmt.Errorf("Wrong metadata line syntax '%s'", line)
+	}
+
+	path := lineParts[0]
+	if strings.HasPrefix(path, base) {
+		path = strings.TrimPrefix(path, base)
+	} else {
+		return nil, ignoreLine
+	}
+
+	//remove prefix / if exists.
+	entry.Path = strings.TrimLeft(path, PathSep)
+	entry.Hash = lineParts[1]
+	count, err := fmt.Sscanf(lineParts[2], "%d", &entry.Size)
+	if err != nil || count != 1 {
+		return nil, fmt.Errorf("Invalid metadata line '%s' (%d, %s)", line, count, err)
+	}
+
+	return &entry, nil
 }

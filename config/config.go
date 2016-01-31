@@ -15,22 +15,28 @@ var (
 	log = logging.MustGetLogger("config")
 )
 
+const (
+	RO = "RO"
+	RW = "RW"
+	OL = "OL"
+)
+
 type Config struct {
 	Mount    []Mount
-	Backend  []Backend
-	Aydostor []Aydostor
+	Backend  map[string]Backend
+	Aydostor map[string]Aydostor
 }
 
 type Mount struct {
 	Path    string
 	Flist   string
 	Backend string
-	// ACL     string
-	Stor string
+	Acl     string
+	Stor    string
 }
 
 type Backend struct {
-	Name string
+	Name string `toml:"-"`
 	Path string
 	Stor string
 
@@ -51,28 +57,29 @@ type Backend struct {
 }
 
 type Aydostor struct {
-	Name   string
+	Name string `toml:"-"`
+
 	Addr   string
 	Login  string
 	Passwd string
 }
 
 func (c *Config) GetBackend(name string) (*Backend, error) {
-	for i, b := range c.Backend {
-		if b.Name == name {
-			return &c.Backend[i], nil
-		}
+	if backend, ok := c.Backend[name]; ok {
+		backend.Name = name
+		return &backend, nil
+	} else {
+		return nil, fmt.Errorf("Backend '%s' not found", name)
 	}
-	return nil, fmt.Errorf("backend not found")
 }
 
 func (c *Config) GetStor(name string) (*Aydostor, error) {
-	for i, s := range c.Aydostor {
-		if s.Name == name {
-			return &c.Aydostor[i], nil
-		}
+	if stor, ok := c.Aydostor[name]; ok {
+		stor.Name = name
+		return &stor, nil
+	} else {
+		return nil, fmt.Errorf("Stor '%s' not found", name)
 	}
-	return nil, fmt.Errorf("backend not found")
 }
 
 func (b *Backend) LoadRSAKeys() error {
@@ -121,10 +128,12 @@ func LoadConfig(path string) *Config {
 		log.Fatalf("can't read config file at %s: %s\n", path, err)
 	}
 
-	for i := range cfg.Backend {
-		if err := cfg.Backend[i].LoadRSAKeys(); err != nil {
+	for name, backend := range cfg.Backend {
+		if err := backend.LoadRSAKeys(); err != nil {
 			log.Fatal(err)
 		}
+
+		cfg.Backend[name] = backend
 	}
 
 	return cfg

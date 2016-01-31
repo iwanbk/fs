@@ -15,6 +15,7 @@ import (
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
+	"strings"
 )
 
 const (
@@ -101,45 +102,40 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	for _, mount := range cfg.Mount {
-		if mount.Flist != "" && mount.Backend != "" {
-			log.Infof("Mount Overlay FS on %s", mount.Path)
+		acl := strings.ToUpper(mount.Acl)
 
-			backend, err := cfg.GetBackend(mount.Backend)
-			if err != nil {
-				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
+		log.Infof("Mount '%s' on %s", acl, mount.Path)
+
+		backend, err := cfg.GetBackend(mount.Backend)
+		if err != nil {
+			log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
+		}
+		store, err := cfg.GetStor(backend.Stor)
+		if err != nil {
+			log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
+		}
+
+		if acl == config.RW {
+			wg.Add(1)
+			os.MkdirAll(backend.Path, 0775)
+			go MountRWFS(&wg, scheduler, mount, backend, store, opts)
+		} else if acl == config.RO {
+			if strings.EqualFold(mount.Flist, "") {
+				log.Fatalf("RO mount point requires a PList")
 			}
-			stor, err := cfg.GetStor(backend.Stor)
-			if err != nil {
-				log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
+			wg.Add(1)
+			os.MkdirAll(backend.Path, 0775)
+			go MountROFS(&wg, scheduler, mount, backend, store, opts)
+		} else if acl == config.OL {
+			if strings.EqualFold(mount.Flist, "") {
+				log.Fatalf("OL mount point requires a PList")
 			}
 
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go MountOLFS(&wg, scheduler, mount, backend, stor, opts)
-		} else if mount.Flist != "" {
-			log.Infof("Mount Read only FS on %s", mount.Path)
-			stor, err := cfg.GetStor(mount.Stor)
-			if err != nil {
-				log.Fatalf("Definition of ayostor %s not found in config, but required for RO mount %s", mount.Stor, mount.Path)
-			}
-
-			wg.Add(1)
-			go MountROFS(&wg, mount, stor, opts)
-		} else if mount.Backend != "" {
-			log.Infof("Mount Read write FS on %s", mount.Path)
-
-			backend, err := cfg.GetBackend(mount.Backend)
-			if err != nil {
-				log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
-			}
-			stor, err := cfg.GetStor(backend.Stor)
-			if err != nil {
-				log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
-			}
-
-			wg.Add(1)
-			os.MkdirAll(backend.Path, 0775)
-			go MountRWFS(&wg, scheduler, mount, backend, stor, opts)
+			go MountOLFS(&wg, scheduler, mount, backend, store, opts)
+		} else {
+			log.Fatalf("Unknown ACL mode '%s' only (RW, RO, OL) are supported", mount.Acl)
 		}
 	}
 
