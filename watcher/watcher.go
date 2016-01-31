@@ -16,9 +16,11 @@ import (
 	"github.com/Jumpscale/aysfs/crypto"
 	"github.com/Jumpscale/aysfs/rw/meta"
 	"github.com/Jumpscale/aysfs/tracker"
+	"github.com/Jumpscale/aysfs/utils"
 	"github.com/jeffail/tunny"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
+	bro "gopkg.in/kothar/brotli-go.v0/enc"
 )
 
 const (
@@ -41,8 +43,7 @@ type backenWatcher struct {
 }
 
 type encrypted struct {
-	file      *os.File
-	hash      string
+	file      io.Reader
 	userKey   string
 	globalKey string
 }
@@ -109,14 +110,10 @@ func (w *backenWatcher) encrypt(fileHash string, file io.Reader) (*encrypted, er
 	// encrypt file
 	enc := &encrypted{}
 
-	buff, err := ioutil.TempFile(os.TempDir(), "aydofs.enc.")
-	if err != nil {
-		return nil, err
-	}
-
 	sessionKey := crypto.CreateSessionKey(fileHash)
 
-	if err := crypto.EncryptSym(sessionKey, file, buff); err != nil {
+	out, err := crypto.EncryptSymStream(sessionKey, file)
+	if err != nil {
 		return nil, err
 	}
 
@@ -133,20 +130,24 @@ func (w *backenWatcher) encrypt(fileHash string, file io.Reader) (*encrypted, er
 		log.Errorf("Error encrypted session with store key:%v", err)
 		return nil, err
 	}
+
 	enc.globalKey = fmt.Sprintf("%x", encryptedKey)
-
-	// compute new hash base on encrypted file
-	buff.Seek(0, os.SEEK_SET)
-	efileHash, err := w.hash(buff)
-	if err != nil {
-		return nil, err
-	}
-
-	buff.Seek(0, os.SEEK_SET)
-	enc.hash = efileHash
-	enc.file = buff
+	enc.file = out
 
 	return enc, nil
+}
+
+func (w *backenWatcher) compress(in io.Reader) (io.Reader, error) {
+	reader, writer := io.Pipe()
+
+	brotliWriter := bro.NewBrotliWriter(nil, writer)
+
+	go func() {
+		defer brotliWriter.Close()
+		io.Copy(brotliWriter, in)
+	}()
+
+	return reader, nil
 }
 
 func (w *backenWatcher) processFile(name string) error {
@@ -157,53 +158,68 @@ func (w *backenWatcher) processFile(name string) error {
 
 	defer os.RemoveAll(backup)
 
+	var reader io.Reader
 	file, err := os.Open(backup)
 	if err != nil {
 		return nil
 	}
 	defer file.Close()
 
+	//initially the reader IS the file.
+	reader = file
 	stat, err := file.Stat()
 	if err != nil {
 		return err
 	}
 
-	fileHash, err := w.hash(file)
-	if err != nil {
-		return err
-	}
-	file.Seek(0, os.SEEK_SET)
-
 	m := &meta.MetaFile{
-		Hash: fileHash,
 		Size: uint64(stat.Size()),
 	}
 
+	//Building the stream pipes
+	//1- Encrypt if enabled.
 	if w.backend.Encrypted {
-		enc, err := w.encrypt(fileHash, file)
+		plainHash, err := w.hash(file)
 		if err != nil {
 			return err
 		}
-		defer os.Remove(enc.file.Name())
-		defer enc.file.Close()
 
-		m.Hash = enc.hash
+		file.Seek(0, os.SEEK_SET)
+
+		enc, err := w.encrypt(plainHash, file)
+		if err != nil {
+			return err
+		}
+
 		m.UserKey = enc.userKey
 		m.StoreKey = enc.globalKey
-		file = enc.file
+
+		reader = enc.file
 	}
 
+	//2- Compression
+	reader, err = w.compress(reader)
+	if err != nil {
+		return err
+	}
+
+	var hasher *utils.Hasher
+	//recalculate the hash of the encrypted file
+	hasher, reader = utils.NewHasher(reader)
+
+	//3- Upload
+	if err := w.put(reader); err != nil {
+		return err
+	}
+
+	m.Hash = hasher.Hash()
 	mf := meta.GetMeta(name)
 	err = mf.Save(m)
 	if err != nil {
 		return err
 	}
 
-	if err := w.put(file); err != nil {
-		return err
-	} else {
-		w.logger.Log(name, m.Hash)
-	}
+	w.logger.Log(name, m.Hash)
 	return nil
 }
 
