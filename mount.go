@@ -11,6 +11,10 @@ import (
 	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/robfig/cron"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 )
 
 const (
@@ -46,33 +50,34 @@ func mountFuse(filesys fs.FS, mountpoint string, readOnly bool) error {
 	return nil
 }
 
-//func watchReloadSignal(metadataDir string, flists [][]string, fs *ro.FS) {
-//	channel := make(chan os.Signal)
-//	signal.Notify(channel, syscall.SIGUSR1)
-//	go func(cfgPath string, fs *ro.FS) {
-//		defer close(channel)
-//		for {
-//			<-channel
-//			log.Info("Reloading ays mounts due to user signal")
-//
-//			func() {
-//				//Put the fs down to prevent any access to filesystem
-//				fs.Down()
-//				defer fs.Up()
-//
-//				log.Debug("Puring metadata")
-//				// delete Metadata
-//				fs.PurgeMetadata()
-//
-//				fs.DiscoverMetadata(metadataDir)
-//				for _, flist := range flists {
-//					fs.AttachFList(flist)
-//				}
-//
-//			}()
-//		}
-//	}(metadataDir, fs)
-//}
+func watchReloadSignal(cfg *config.Config) {
+	channel := make(chan os.Signal)
+	signal.Notify(channel, syscall.SIGUSR1)
+	go func(cfg *config.Config) {
+		defer close(channel)
+		for {
+			<-channel
+			log.Info("Reloading ays mounts due to user signal")
+
+			for _, mount := range cfg.Mount {
+				if strings.EqualFold(mount.Acl, config.RW) {
+					continue
+				}
+
+				//process only RO, and OL
+				backend, err := cfg.GetBackend(mount.Backend)
+				if err != nil {
+					log.Warningf("Couldn't retrive backend '%s'", backend.Name)
+				}
+
+				err = meta.PopulateFromPList(backend, mount.Path, mount.Flist)
+				if err != nil {
+					log.Warningf("Couldn't reload backend meta: %s", err)
+				}
+			}
+		}
+	}(cfg)
+}
 
 func mountFS(
 	mountCfg config.Mount,

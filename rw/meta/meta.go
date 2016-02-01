@@ -107,6 +107,7 @@ func (m Meta) Save(meta *MetaFile) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 	encoder := toml.NewEncoder(file)
 	return encoder.Encode(meta)
 }
