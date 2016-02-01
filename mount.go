@@ -60,7 +60,7 @@ func watchReloadSignal(cfg *config.Config) {
 			log.Info("Reloading ays mounts due to user signal")
 
 			for _, mount := range cfg.Mount {
-				if strings.EqualFold(mount.Acl, config.RW) {
+				if strings.EqualFold(mount.Mode, config.RW) {
 					continue
 				}
 
