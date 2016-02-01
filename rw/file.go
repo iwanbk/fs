@@ -56,7 +56,7 @@ func (n *fsFile) url(hash string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	u.Path = path.Join(u.Path, n.fs.Backend().Namespace, hash)
+	u.Path = path.Join(u.Path, "store", n.fs.Backend().Namespace, hash)
 
 	return u.String(), nil
 }

@@ -81,7 +81,7 @@ func (w *backenWatcher) getUrl() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	u.Path = path.Join(u.Path, w.backend.Namespace)
+	u.Path = path.Join(u.Path, "store", w.backend.Namespace)
 
 	return u.String(), nil
 }
