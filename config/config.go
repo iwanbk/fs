@@ -31,7 +31,7 @@ type Mount struct {
 	Path    string
 	Flist   string
 	Backend string
-	Acl     string
+	Mode    string
 	Stor    string
 }
 

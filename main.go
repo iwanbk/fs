@@ -12,10 +12,11 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
+	"strings"
+
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
-	"strings"
 )
 
 const (
@@ -102,7 +103,7 @@ func main() {
 	wg := sync.WaitGroup{}
 
 	for _, mount := range cfg.Mount {
-		acl := strings.ToUpper(mount.Acl)
+		acl := strings.ToUpper(mount.Mode)
 
 		log.Infof("Mount '%s' on %s", acl, mount.Path)
 
@@ -135,7 +136,7 @@ func main() {
 			os.MkdirAll(backend.Path, 0775)
 			go MountOLFS(&wg, scheduler, mount, backend, store, opts)
 		} else {
-			log.Fatalf("Unknown ACL mode '%s' only (RW, RO, OL) are supported", mount.Acl)
+			log.Fatalf("Unknown ACL mode '%s' only (RW, RO, OL) are supported", mount.Mode)
 		}
 	}
 
