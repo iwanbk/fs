@@ -139,5 +139,7 @@ func main() {
 		}
 	}
 
+	watchReloadSignal(cfg)
+
 	wg.Wait()
 }
