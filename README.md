@@ -1,73 +1,69 @@
 ![Build Status](https://travis-ci.org/Jumpscale/aysfs.svg?branch=master)
 
 # aysfs
-caching filesystem which will be used by ays, mainly used to deploy applications in a grid
+Caching filesystem which will be used by ays, mainly used to deploy applications in a grid
 
 # How to
 config file example
 ```
-[main]
-    id = "dev"
+[[mount]]
+     path="/opt"
+     flist="/root/jumpscale__base.flist"
+     backend="main"
+     #stor="stor1"
+     acl = "OL"
 
-# defines what services you want to use
-[[ays]]
-    id="jumpscale__base"
-[[ays]]
-    id="jumpscale__mongodb"
-
-# Cache layers
-[[cache]]
-    url="/mnt/store1"
-    purge=true
-
-[[cache]]
-    url="/mnt/store2"
-
-[[cache]]
-    url="ssh://remotehost/path/to/cache"
+[backend.main]
+    path="/tmp/aysfs_main"
+    stor="stor1"
+    #namespace="testing"
+    namespace="dedupe"
     
-[[cache]]
-    url="http://ays_store"
+    upload=true
+    encrypted=false
+    # encrypted=true
+    user_rsa="user.rsa"
+    store_rsa="store.rsa"
+
+    aydostor_push_cron="@every 1m"
+    cleanup_cron="@every 1m"
+    cleanup_older_than=1 #in hours
+
+[aydostor.stor1]
+    addr="http://192.168.122.1:8080/"
+    #addr="http://192.168.0.182:8080/"
+    login="zaibon"
+    passwd="supersecret"
 ```
+## Stores 
+Stores defines the places where files can be retrieved. A store is defined with an `aydostor` section as following
+```toml
+[aydostor.storX]
+   addr="http://stor.host/"
+   login=""
+   passwd=""
+```
+A single store can be used by multiple backend using the store name
 
-## Caches layers:
-Caches are quereid in the order of the definition above. a cach must define a URL to the files location. In case of folders
-on local machine, the url can be defined as absolute path or as `file:///path` syntax.
-*Purge* option works on caches that has write access and if true, this cache will be wiped clean before aysfs starts.
+## Backends
+A backend defines the local files cache. It defines how to retrieve the files from the stores, and which store to use. also defined how to push changes back to the store and if files should be pushed back to the store in the first place.
 
-Cache layers that supports writing will get populated with files that are found in higher layers of cache.
-### Supported cache protocols
-* `file` (local path on machine)
-* `http[s]` (remote stores)
-* `ssh` (remote stores) ex: ssh://[user:password@]remothost/path/to/cache/
+## Mounts
+A list of mount points, each mount defines what backend to use the mount ACL. example:
+```toml
+[[mount]]
+     path="/opt"
+     flist="/root/jumpscale__base.flist"
+     backend="main"
+     #stor="stor1"
+     acl = "OL"
+```
+*Flist* is required in case `acl=RO` or `acl=OL`
+*acl* can be one of `RW` (ReadWrite), `RO` (ReadOnly) or, `OL` (Overlay)
 
-> Note: If no password is provided in the URL ssh will also try the private key method
+## Starting fuse layer
+```./aysfs -config config.toml ```
 
-## starting fuse layer
-mounting the fuse layer at /opt  
-```./aysfs -config config.toml /opt```
-
-Use the flag -auto to enable auto discovery of caches, stores and metadata  
-```./aysfs -auto /opt```  
-
-Auto discovery use the following step to discover caches:
-- how to define which stores to use
-    - check /mnt/ays/master or /mnt/ays/master1 or /mnt/ays/master2 exists, if yes use those as masters
-    - check if you can find aysmaster1(2...) as hostname & do tcp port test on port 443
-    - if tcp port test succeeds then use these as http master
-        - url is https://$aysmaster/master/...
-
-- how to define which caches to use
-    - check /mnt/ays/cachelan or /mnt/ays/cachelan1 or /mnt/ays/cachelan2 exists if yes use those as caches
-    - check if you can find ayscache1(2...) as hostname & do tcp port test on port 9990
-    - if tcp port test succeeds use these as http cache
-        - url is http://$ayscache/cache/...
-
-- as local cache use /mnt/ays/cachelocal (only if it exists)
-
-If auto discovery is enable ```/etc/ays/local``` will be scan to find ```.flist``` file.
-
-
-to enable pprof tool, add the -pprof flag to the command  
+###To enable pprof tool, add the -pprof flag to the command  
 ```./aysfs -pprof /opt```  
 and go to http://localhost:6060/debug/pprof
