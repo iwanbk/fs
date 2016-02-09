@@ -119,7 +119,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 	}
 
 	for line := range iter {
-		entity, err := ParseLine(base, line)
+		entity, err := ParseLine(line)
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ type Entry struct {
 	Size int64
 }
 
-func ParseLine(base string, line string) (*Entry, error) {
+func ParseLine(line string) (*Entry, error) {
 	entry := Entry{}
 
 	lineParts := strings.Split(line, "|")
@@ -171,11 +171,6 @@ func ParseLine(base string, line string) (*Entry, error) {
 	}
 
 	path := lineParts[0]
-	if strings.HasPrefix(path, base) {
-		path = strings.TrimPrefix(path, base)
-	} else {
-		return nil, ignoreLine
-	}
 
 	//remove prefix / if exists.
 	entry.Path = strings.TrimLeft(path, PathSep)
