@@ -11,7 +11,7 @@ config file example
      flist="/root/jumpscale__base.flist"
      backend="main"
      #stor="stor1"
-     acl = "OL"
+     mode = "OL"
 
 [backend.main]
     path="/tmp/aysfs_main"
@@ -49,17 +49,17 @@ A single store can be used by multiple backend using the store name
 A backend defines the local files cache. It defines how to retrieve the files from the stores, and which store to use. also defined how to push changes back to the store and if files should be pushed back to the store in the first place.
 
 ## Mounts
-A list of mount points, each mount defines what backend to use the mount ACL. example:
+A list of mount points, each mount defines what backend to use and mount `mode`. example:
 ```toml
 [[mount]]
      path="/opt"
      flist="/root/jumpscale__base.flist"
      backend="main"
      #stor="stor1"
-     acl = "OL"
+     mode = "OL"
 ```
 *Flist* is required in case `acl=RO` or `acl=OL`
-*acl* can be one of `RW` (ReadWrite), `RO` (ReadOnly) or, `OL` (Overlay)
+*mode* can be one of `RW` (ReadWrite), `RO` (ReadOnly) or, `OL` (Overlay)
 
 ## Starting fuse layer
 ```./aysfs -config config.toml ```
