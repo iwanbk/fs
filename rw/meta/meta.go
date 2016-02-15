@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"path"
+	"strings"
+
 	"github.com/BurntSushi/toml"
 	"github.com/Jumpscale/aysfs/config"
 	"github.com/Jumpscale/aysfs/utils"
-	"path"
-	"strings"
 )
 
 var (
@@ -119,7 +120,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 	}
 
 	for line := range iter {
-		entity, err := ParseLine(line)
+		entity, err := ParseLine(base, line)
 		if err != nil {
 			return err
 		}
@@ -162,7 +163,7 @@ type Entry struct {
 	Size int64
 }
 
-func ParseLine(line string) (*Entry, error) {
+func ParseLine(base, line string) (*Entry, error) {
 	entry := Entry{}
 
 	lineParts := strings.Split(line, "|")
@@ -171,6 +172,11 @@ func ParseLine(line string) (*Entry, error) {
 	}
 
 	path := lineParts[0]
+	if base != "" && strings.HasPrefix(path, base) {
+		path = strings.TrimPrefix(path, base)
+	} else {
+		return nil, ignoreLine
+	}
 
 	//remove prefix / if exists.
 	entry.Path = strings.TrimLeft(path, PathSep)
