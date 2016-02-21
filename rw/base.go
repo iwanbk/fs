@@ -19,7 +19,7 @@ type fsBase struct {
 
 func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	log.Debugf("Attr %s", n.path)
-	stat, err := os.Stat(n.path)
+	stat, err := os.Lstat(n.path)
 	var size uint64 = 0
 
 	if os.IsNotExist(err) {
@@ -29,7 +29,7 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 			log.Debugf("Attr: Meta failed to load '%s.meta': %s", n.path, err)
 			return utils.ErrnoFromPathError(err)
 		}
-		stat, _ = os.Stat(string(m))
+		stat, _ = os.Lstat(string(m))
 		size = meta.Size
 	} else if err != nil {
 		log.Debugf("Attr: File '%s' error: %s", n.path, err)
@@ -41,6 +41,7 @@ func (n *fsBase) Attr(ctx context.Context, attr *fuse.Attr) error {
 	attr.Mtime = stat.ModTime()
 	attr.Mode = (stat.Mode() & os.ModeType) | 0755
 	attr.Size = size
+
 	if sys_stat := stat.Sys(); sys_stat != nil {
 		if stat, ok := sys_stat.(*syscall.Stat_t); ok {
 			attr.Inode = stat.Ino

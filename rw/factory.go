@@ -12,6 +12,7 @@ const (
 
 type Factory interface {
 	File(fs *FS, path string, parent *fsDir) fs.Node
+	Link(fs *FS, path string, parent *fsDir) fs.Node
 	Dir(fs *FS, path string, parent *fsDir) fs.Node
 	Get(path string) (fs.Node, bool)
 	Forget(path string)
@@ -56,6 +57,18 @@ func (f *factory) File(fs *FS, path string, parent *fsDir) fs.Node {
 	}
 
 	node = newFile(fs, path, parent)
+	f.cache[path] = node
+	return node
+}
+
+func (f *factory) Link(fs *FS, path string, parent *fsDir) fs.Node {
+	log.Debugf("Createing a link instance for: %s", path)
+	node, ok := f.Get(path)
+	if ok {
+		return node
+	}
+
+	node = newLink(fs, path, parent)
 	f.cache[path] = node
 	return node
 }

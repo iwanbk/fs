@@ -57,6 +57,9 @@ func (n *fsDir) getDirent(entry os.FileInfo) (fuse.Dirent, bool) {
 
 	if entry.IsDir() {
 		dirEntry.Type = fuse.DT_Dir
+	} else if entry.Mode()&os.ModeSymlink > 0 {
+		dirEntry.Type = fuse.DT_Link
+		return dirEntry, true
 	} else {
 		dirEntry.Type = fuse.DT_File
 	}
@@ -112,9 +115,9 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 		log.Debugf("File '%s' is deleted according to meta", fullPath)
 		return nil, fuse.ENOENT
 	}
-	stat, err := os.Stat(fullPath)
+	stat, err := os.Lstat(fullPath)
 	if os.IsNotExist(err) {
-		stat, err = os.Stat(string(m))
+		stat, err = os.Lstat(string(m))
 		if os.IsNotExist(err) {
 			return nil, fuse.ENOENT
 		} else if err != nil {
@@ -126,6 +129,8 @@ func (n *fsDir) Lookup(ctx context.Context, name string) (fs.Node, error) {
 
 	if stat.IsDir() {
 		return n.fs.factory.Dir(n.fs, fullPath, n), nil
+	} else if stat.Mode()&os.ModeSymlink > 0 {
+		return n.fs.factory.Link(n.fs, fullPath, n), nil
 	} else {
 		return n.fs.factory.File(n.fs, fullPath, n), nil
 	}
@@ -147,6 +152,15 @@ func (n *fsDir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.
 	handle, err := node.open(req.Flags)
 
 	return node, handle, err
+}
+
+func (n *fsDir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (fs.Node, error) {
+	fullPath := path.Join(n.path, req.NewName)
+	err := os.Symlink(req.Target, fullPath)
+	if err != nil {
+		return nil, err
+	}
+	return n.fs.factory.Link(n.fs, fullPath, n), nil
 }
 
 func (n *fsDir) touchDeleted(name string) {
