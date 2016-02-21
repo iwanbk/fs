@@ -174,8 +174,6 @@ func ParseLine(base, line string) (*Entry, error) {
 	path := lineParts[0]
 	if base != "" && strings.HasPrefix(path, base) {
 		path = strings.TrimPrefix(path, base)
-	} else {
-		return nil, ignoreLine
 	}
 
 	//remove prefix / if exists.
