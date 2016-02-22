@@ -2,6 +2,7 @@ package rw
 
 import (
 	"bazil.org/fuse/fs"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,7 @@ type Factory interface {
 type factory struct {
 	cache  map[string]fs.Node
 	access map[string]time.Time
+	m      sync.Mutex
 }
 
 func NewFactory() Factory {
@@ -51,6 +53,8 @@ func (f *factory) monitor() {
 
 func (f *factory) File(fs *FS, path string, parent *fsDir) fs.Node {
 	log.Debugf("Creating a file instance for: %s", path)
+	f.m.Lock()
+	defer f.m.Unlock()
 	node, ok := f.Get(path)
 	if ok {
 		return node
@@ -63,6 +67,8 @@ func (f *factory) File(fs *FS, path string, parent *fsDir) fs.Node {
 
 func (f *factory) Link(fs *FS, path string, parent *fsDir) fs.Node {
 	log.Debugf("Createing a link instance for: %s", path)
+	f.m.Lock()
+	defer f.m.Unlock()
 	node, ok := f.Get(path)
 	if ok {
 		return node
@@ -75,6 +81,8 @@ func (f *factory) Link(fs *FS, path string, parent *fsDir) fs.Node {
 
 func (f *factory) Dir(fs *FS, path string, parent *fsDir) fs.Node {
 	log.Debugf("Creating a dir instance for: %s", path)
+	f.m.Lock()
+	defer f.m.Unlock()
 	node, ok := f.Get(path)
 	if ok {
 		return node
@@ -93,6 +101,8 @@ func (f *factory) Get(path string) (fs.Node, bool) {
 }
 
 func (f *factory) Forget(path string) {
+	f.m.Lock()
+	defer f.m.Unlock()
 	delete(f.cache, path)
 	delete(f.access, path)
 }
