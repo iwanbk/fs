@@ -28,11 +28,12 @@ type Config struct {
 }
 
 type Mount struct {
-	Path    string
-	Flist   string
-	Backend string
-	Mode    string
-	Stor    string
+	Path     string
+	Flist    string
+	Backend  string
+	Mode     string
+	Stor     string `toml:",omitempty"`
+	TrimBase bool
 }
 
 type Backend struct {
@@ -40,17 +41,17 @@ type Backend struct {
 	Path string
 	Stor string
 
-	Upload           bool
+	Upload           bool `toml:",omitempty"`
 	Namespace        string
-	AydostorPushCron string
-	CleanupCron      string
-	CleanupOlderThan int
+	AydostorPushCron string `toml:",omitempty"`
+	CleanupCron      string `toml:",omitempty"`
+	CleanupOlderThan int    `toml:",omitempty"`
 
 	Log string
 
-	Encrypted bool
-	UserRsa   string
-	StoreRsa  string
+	Encrypted bool   `toml:",omitempty"`
+	UserRsa   string `toml:",omitempty"`
+	StoreRsa  string `toml:",omitempty"`
 
 	ClientKey *rsa.PrivateKey `toml:"-"`
 	GlobalKey *rsa.PrivateKey `toml:"-"`

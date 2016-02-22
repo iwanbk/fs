@@ -3,6 +3,11 @@ package main
 import (
 	"sync"
 
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/Jumpscale/aysfs/config"
@@ -11,10 +16,6 @@ import (
 	"github.com/Jumpscale/aysfs/tracker"
 	"github.com/Jumpscale/aysfs/watcher"
 	"github.com/robfig/cron"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
 )
 
 const (
@@ -69,8 +70,11 @@ func watchReloadSignal(cfg *config.Config) {
 				if err != nil {
 					log.Warningf("Couldn't retrive backend '%s'", backend.Name)
 				}
-
-				err = meta.PopulateFromPList(backend, mount.Path, mount.Flist)
+				base := ""
+				if mount.TrimBase {
+					base = mount.Path
+				}
+				err = meta.PopulateFromPList(backend, base, mount.Flist)
 				if err != nil {
 					log.Warningf("Couldn't reload backend meta: %s", err)
 				}
@@ -128,7 +132,11 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 
 func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
 	//1- generate the metadata
-	if err := meta.PopulateFromPList(backend, mount.Path, mount.Flist); err != nil {
+	base := ""
+	if mount.TrimBase {
+		base = mount.Path
+	}
+	if err := meta.PopulateFromPList(backend, base, mount.Flist); err != nil {
 		log.Errorf("Failed to mount overllay fs '%s': %s", mount, err)
 	}
 
@@ -148,7 +156,11 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 
 func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
 	//1- generate the metadata
-	if err := meta.PopulateFromPList(backend, mount.Path, mount.Flist); err != nil {
+	base := ""
+	if mount.TrimBase {
+		base = mount.Path
+	}
+	if err := meta.PopulateFromPList(backend, base, mount.Flist); err != nil {
 		log.Errorf("Failed to mount overllay fs '%s': %s", mount, err)
 	}
 
