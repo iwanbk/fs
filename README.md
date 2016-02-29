@@ -12,6 +12,7 @@ config file example
      backend="main"
      #stor="stor1"
      mode = "OL"
+     trim_base = true
 
 [backend.main]
     path="/tmp/aysfs_main"
