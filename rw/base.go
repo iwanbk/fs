@@ -2,8 +2,8 @@ package rw
 
 import (
 	"bazil.org/fuse"
-	"github.com/Jumpscale/aysfs/rw/meta"
-	"github.com/Jumpscale/aysfs/utils"
+	"github.com/g8os/fs/rw/meta"
+	"github.com/g8os/fs/utils"
 	"golang.org/x/net/context"
 	"os"
 	"syscall"

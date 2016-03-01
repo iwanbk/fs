@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Jumpscale/aysfs/crypto"
+	"github.com/g8os/fs/crypto"
 	"github.com/naoina/toml"
 	"github.com/op/go-logging"
 )

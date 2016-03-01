@@ -14,7 +14,7 @@ import (
 
 	"strings"
 
-	"github.com/Jumpscale/aysfs/config"
+	"github.com/g8os/fs/config"
 	"github.com/op/go-logging"
 	"github.com/robfig/cron"
 )
@@ -87,8 +87,9 @@ func main() {
 	configureLogging(&opts)
 
 	if opts.Pprof {
+		log.Info("starting pprof server")
 		go func() {
-			log.Info("%v", http.ListenAndServe("localhost:6060", nil))
+			log.Info("%v", http.ListenAndServe(":6060", nil))
 
 		}()
 	}

@@ -10,11 +10,11 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/rw"
-	"github.com/Jumpscale/aysfs/rw/meta"
-	"github.com/Jumpscale/aysfs/tracker"
-	"github.com/Jumpscale/aysfs/watcher"
+	"github.com/g8os/fs/config"
+	"github.com/g8os/fs/rw"
+	"github.com/g8os/fs/rw/meta"
+	"github.com/g8os/fs/tracker"
+	"github.com/g8os/fs/watcher"
 	"github.com/robfig/cron"
 )
 
