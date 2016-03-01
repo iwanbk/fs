@@ -1,8 +1,8 @@
 package watcher
 
 import (
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/g8os/fs/config"
+	"github.com/g8os/fs/rw/meta"
 	"github.com/robfig/cron"
 	"os"
 	"path/filepath"

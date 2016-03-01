@@ -2,8 +2,8 @@ package rw
 
 import (
 	"bazil.org/fuse/fs"
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/tracker"
+	"github.com/g8os/fs/config"
+	"github.com/g8os/fs/tracker"
 	"github.com/op/go-logging"
 )
 

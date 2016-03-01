@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
-	"github.com/Jumpscale/aysfs/config"
-	"github.com/Jumpscale/aysfs/utils"
+	"github.com/g8os/fs/config"
+	"github.com/g8os/fs/utils"
 )
 
 var (
