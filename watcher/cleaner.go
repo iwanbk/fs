@@ -35,7 +35,8 @@ func (c *backenCleaner) walkFN(name string, info os.FileInfo, err error) error {
 	}
 
 	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
-		atime := time.Unix(sys.Atim.Unix())
+		statAtim := atim(sys)
+		atime := time.Unix(statAtim.Unix())
 		if c.now.Sub(atime) > time.Duration(c.backend.CleanupOlderThan)*time.Hour {
 			if !meta.GetMeta(name).Exists() {
 				return nil
