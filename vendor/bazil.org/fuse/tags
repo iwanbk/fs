@@ -1,0 +1,584 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AccessRequest	fuse.go	/^type AccessRequest struct {$/;"	t
+AllowOther	options.go	/^func AllowOther() MountOption {$/;"	f
+AllowRoot	options.go	/^func AllowRoot() MountOption {$/;"	f
+Append	fuse.go	/^func (r *ListxattrResponse) Append(names ...string) {$/;"	f
+AppendDirent	fuse.go	/^func AppendDirent(data []byte, dir Dirent) []byte {$/;"	f
+AsyncRead	options.go	/^func AsyncRead() MountOption {$/;"	f
+Atime	fuse_kernel.go	/^func (fl SetattrValid) Atime() bool     { return fl&SetattrAtime != 0 }$/;"	f
+AtimeNow	fuse_kernel.go	/^func (fl SetattrValid) AtimeNow() bool  { return fl&SetattrAtimeNow != 0 }$/;"	f
+Attr	fuse.go	/^type Attr struct {$/;"	t
+BkupTime	fuse_kernel_darwin.go	/^func (in *setattrIn) BkupTime() time.Time {$/;"	f
+BkupTime	fuse_kernel_freebsd.go	/^func (in *setattrIn) BkupTime() time.Time {$/;"	f
+BkupTime	fuse_kernel_linux.go	/^func (in *setattrIn) BkupTime() time.Time {$/;"	f
+Bkuptime	fuse_kernel.go	/^func (fl SetattrValid) Bkuptime() bool  { return fl&SetattrBkuptime != 0 }$/;"	f
+Chgtime	fuse_kernel.go	/^func (fl SetattrValid) Chgtime() bool   { return fl&SetattrChgtime != 0 }$/;"	f
+Chgtime	fuse_kernel_darwin.go	/^func (in *setattrIn) Chgtime() time.Time {$/;"	f
+Chgtime	fuse_kernel_freebsd.go	/^func (in *setattrIn) Chgtime() time.Time {$/;"	f
+Chgtime	fuse_kernel_linux.go	/^func (in *setattrIn) Chgtime() time.Time {$/;"	f
+Close	fuse.go	/^func (c *Conn) Close() error {$/;"	f
+Conn	fuse.go	/^type Conn struct {$/;"	t
+CreateRequest	fuse.go	/^type CreateRequest struct {$/;"	t
+CreateResponse	fuse.go	/^type CreateResponse struct {$/;"	t
+Crtime	fuse_kernel.go	/^func (fl SetattrValid) Crtime() bool    { return fl&SetattrCrtime != 0 }$/;"	f
+Crtime	fuse_kernel_freebsd.go	/^func (a *attr) Crtime() time.Time {$/;"	f
+Crtime	fuse_kernel_linux.go	/^func (a *attr) Crtime() time.Time {$/;"	f
+DT_Block	fuse.go	/^	DT_File    DirentType = syscall.S_IFREG >> 12$/;"	c
+DT_Char	fuse.go	/^	DT_Dir     DirentType = syscall.S_IFDIR >> 12$/;"	c
+DT_Dir	fuse.go	/^	DT_Block   DirentType = syscall.S_IFBLK >> 12$/;"	c
+DT_FIFO	fuse.go	/^	DT_Char    DirentType = syscall.S_IFCHR >> 12$/;"	c
+DT_File	fuse.go	/^	DT_Link    DirentType = syscall.S_IFLNK >> 12$/;"	c
+DT_Link	fuse.go	/^	DT_Socket  DirentType = syscall.S_IFSOCK >> 12$/;"	c
+DT_Socket	fuse.go	/^	DT_Unknown DirentType = 0$/;"	c
+DT_Unknown	fuse.go	/^const ($/;"	c
+Debug	debug.go	/^var Debug func(msg interface{}) = nop$/;"	v
+DefaultErrno	fuse.go	/^const DefaultErrno = EIO$/;"	c
+DefaultPermissions	options.go	/^func DefaultPermissions() MountOption {$/;"	f
+DestroyRequest	fuse.go	/^type DestroyRequest struct {$/;"	t
+Dirent	fuse.go	/^type Dirent struct {$/;"	t
+DirentType	fuse.go	/^type DirentType uint32$/;"	t
+EEXIST	fuse.go	/^	ENOTSUP = Errno(syscall.ENOTSUP)$/;"	c
+EINTR	fuse.go	/^	EPERM  = Errno(syscall.EPERM)$/;"	c
+EIO	fuse.go	/^	ENOENT = Errno(syscall.ENOENT)$/;"	c
+ENOATTR	error_darwin.go	/^const ($/;"	c
+ENOATTR	error_freebsd.go	/^const ($/;"	c
+ENODATA	error_linux.go	/^const ($/;"	c
+ENOENT	fuse.go	/^	ESTALE = Errno(syscall.ESTALE)$/;"	c
+ENOSYS	fuse.go	/^const ($/;"	c
+ENOTSUP	fuse.go	/^	ERANGE  = Errno(syscall.ERANGE)$/;"	c
+EPERM	fuse.go	/^	EIO    = Errno(syscall.EIO)$/;"	c
+ERANGE	fuse.go	/^	EINTR = Errno(syscall.EINTR)$/;"	c
+ESTALE	fuse.go	/^	ENOSYS = Errno(syscall.ENOSYS)$/;"	c
+ErrCannotCombineAllowOtherAndAllowRoot	options.go	/^var ErrCannotCombineAllowOtherAndAllowRoot = errors.New("cannot combine AllowOther and AllowRoot")$/;"	v
+ErrClosedWithoutInit	fuse.go	/^var ($/;"	v
+ErrNoXattr	error_std.go	/^const ErrNoXattr = errNoXattr$/;"	c
+ErrNotCached	fuse.go	/^var ($/;"	v
+Errno	fuse.go	/^func (e Errno) Errno() Errno {$/;"	f
+Errno	fuse.go	/^func (notCachedError) Errno() Errno {$/;"	f
+Errno	fuse.go	/^type Errno syscall.Errno$/;"	t
+ErrnoName	fuse.go	/^func (e Errno) ErrnoName() string {$/;"	f
+Error	fuse.go	/^func (e *MountpointDoesNotExistError) Error() string {$/;"	f
+Error	fuse.go	/^func (e *OldVersionError) Error() string {$/;"	f
+Error	fuse.go	/^func (e Errno) Error() string {$/;"	f
+Error	fuse.go	/^func (notCachedError) Error() string {$/;"	f
+ErrorNumber	fuse.go	/^type ErrorNumber interface {$/;"	t
+FSName	options.go	/^func FSName(name string) MountOption {$/;"	f
+Flags	fuse_kernel.go	/^func (fl SetattrValid) Flags() bool     { return fl&SetattrFlags != 0 }$/;"	f
+Flags	fuse_kernel_darwin.go	/^func (in *setattrIn) Flags() uint32 {$/;"	f
+Flags	fuse_kernel_freebsd.go	/^func (in *setattrIn) Flags() uint32 {$/;"	f
+Flags	fuse_kernel_linux.go	/^func (in *setattrIn) Flags() uint32 {$/;"	f
+FlushRequest	fuse.go	/^type FlushRequest struct {$/;"	t
+ForgetRequest	fuse.go	/^type ForgetRequest struct {$/;"	t
+FsyncRequest	fuse.go	/^type FsyncRequest struct {$/;"	t
+GE	protocol.go	/^func (a Protocol) GE(b Protocol) bool {$/;"	f
+GetattrFh	fuse_kernel.go	/^const ($/;"	c
+GetattrFlags	fuse_kernel.go	/^type GetattrFlags uint32$/;"	t
+GetattrRequest	fuse.go	/^type GetattrRequest struct {$/;"	t
+GetattrResponse	fuse.go	/^type GetattrResponse struct {$/;"	t
+GetxattrRequest	fuse.go	/^type GetxattrRequest struct {$/;"	t
+GetxattrResponse	fuse.go	/^type GetxattrResponse struct {$/;"	t
+Gid	fuse_kernel.go	/^func (fl SetattrValid) Gid() bool       { return fl&SetattrGid != 0 }$/;"	f
+Handle	fuse_kernel.go	/^func (fl SetattrValid) Handle() bool    { return fl&SetattrHandle != 0 }$/;"	f
+HandleID	fuse.go	/^type HandleID uint64$/;"	t
+HasAttrBlockSize	protocol.go	/^func (a Protocol) HasAttrBlockSize() bool {$/;"	f
+HasGetattrFlags	protocol.go	/^func (a Protocol) HasGetattrFlags() bool {$/;"	f
+HasInvalidate	protocol.go	/^func (a Protocol) HasInvalidate() bool {$/;"	f
+HasOpenNonSeekable	protocol.go	/^func (a Protocol) HasOpenNonSeekable() bool {$/;"	f
+HasReadWriteFlags	protocol.go	/^func (a Protocol) HasReadWriteFlags() bool {$/;"	f
+HasUmask	protocol.go	/^func (a Protocol) HasUmask() bool {$/;"	f
+Hdr	fuse.go	/^func (h *Header) Hdr() *Header {$/;"	f
+Header	fuse.go	/^func (m *message) Header() Header {$/;"	f
+Header	fuse.go	/^type Header struct {$/;"	t
+InitAsyncDIO	fuse_kernel.go	/^	InitReaddirplusAuto InitFlags = 1 << 14$/;"	c
+InitAsyncRead	fuse_kernel.go	/^const ($/;"	c
+InitAtomicTrunc	fuse_kernel.go	/^	InitFileOps       InitFlags = 1 << 2$/;"	c
+InitAutoInvalData	fuse_kernel.go	/^	InitHasIoctlDir     InitFlags = 1 << 11$/;"	c
+InitBigWrites	fuse_kernel.go	/^	InitExportSupport InitFlags = 1 << 4$/;"	c
+InitCaseSensitive	fuse_kernel.go	/^	InitNoOpenSupport   InitFlags = 1 << 17$/;"	c
+InitDoReaddirplus	fuse_kernel.go	/^	InitAutoInvalData   InitFlags = 1 << 12$/;"	c
+InitDontMask	fuse_kernel.go	/^	InitBigWrites     InitFlags = 1 << 5$/;"	c
+InitExportSupport	fuse_kernel.go	/^	InitAtomicTrunc   InitFlags = 1 << 3$/;"	c
+InitFileOps	fuse_kernel.go	/^	InitPosixLocks    InitFlags = 1 << 1$/;"	c
+InitFlags	fuse_kernel.go	/^type InitFlags uint32$/;"	t
+InitFlockLocks	fuse_kernel.go	/^	InitSpliceRead      InitFlags = 1 << 9$/;"	c
+InitHasIoctlDir	fuse_kernel.go	/^	InitFlockLocks      InitFlags = 1 << 10$/;"	c
+InitNoOpenSupport	fuse_kernel.go	/^	InitWritebackCache  InitFlags = 1 << 16$/;"	c
+InitPosixLocks	fuse_kernel.go	/^	InitAsyncRead     InitFlags = 1 << 0$/;"	c
+InitReaddirplusAuto	fuse_kernel.go	/^	InitDoReaddirplus   InitFlags = 1 << 13$/;"	c
+InitRequest	fuse.go	/^type InitRequest struct {$/;"	t
+InitResponse	fuse.go	/^type InitResponse struct {$/;"	t
+InitSpliceMove	fuse_kernel.go	/^	InitSpliceWrite     InitFlags = 1 << 7$/;"	c
+InitSpliceRead	fuse_kernel.go	/^	InitSpliceMove      InitFlags = 1 << 8$/;"	c
+InitSpliceWrite	fuse_kernel.go	/^	InitDontMask        InitFlags = 1 << 6$/;"	c
+InitVolRename	fuse_kernel.go	/^	InitCaseSensitive InitFlags = 1 << 29 \/\/ OS X only$/;"	c
+InitWritebackCache	fuse_kernel.go	/^	InitAsyncDIO        InitFlags = 1 << 15$/;"	c
+InitXtimes	fuse_kernel.go	/^	InitVolRename     InitFlags = 1 << 30 \/\/ OS X only$/;"	c
+InterruptRequest	fuse.go	/^type InterruptRequest struct {$/;"	t
+InvalidateEntry	fuse.go	/^func (c *Conn) InvalidateEntry(parent NodeID, name string) error {$/;"	f
+InvalidateNode	fuse.go	/^func (c *Conn) InvalidateNode(nodeID NodeID, off int64, size int64) error {$/;"	f
+IsReadOnly	fuse_kernel.go	/^func (fl OpenFlags) IsReadOnly() bool {$/;"	f
+IsReadWrite	fuse_kernel.go	/^func (fl OpenFlags) IsReadWrite() bool {$/;"	f
+IsWriteOnly	fuse_kernel.go	/^func (fl OpenFlags) IsWriteOnly() bool {$/;"	f
+LT	protocol.go	/^func (a Protocol) LT(b Protocol) bool {$/;"	f
+LinkRequest	fuse.go	/^type LinkRequest struct {$/;"	t
+ListxattrRequest	fuse.go	/^type ListxattrRequest struct {$/;"	t
+ListxattrResponse	fuse.go	/^type ListxattrResponse struct {$/;"	t
+LocalVolume	options.go	/^func LocalVolume() MountOption {$/;"	f
+LockOwner	fuse_kernel.go	/^func (fl SetattrValid) LockOwner() bool { return fl&SetattrLockOwner != 0 }$/;"	f
+LookupRequest	fuse.go	/^type LookupRequest struct {$/;"	t
+LookupResponse	fuse.go	/^type LookupResponse struct {$/;"	t
+MarshalJSON	fuse.go	/^func (r *ReadResponse) MarshalJSON() ([]byte, error) {$/;"	f
+MarshalJSON	fuse.go	/^func (r *WriteRequest) MarshalJSON() ([]byte, error) {$/;"	f
+MarshalText	fuse.go	/^func (e Errno) MarshalText() ([]byte, error) {$/;"	f
+MaxReadahead	options.go	/^func MaxReadahead(n uint32) MountOption {$/;"	f
+MkdirRequest	fuse.go	/^type MkdirRequest struct {$/;"	t
+MkdirResponse	fuse.go	/^type MkdirResponse struct {$/;"	t
+MknodRequest	fuse.go	/^type MknodRequest struct {$/;"	t
+Mode	fuse_kernel.go	/^func (fl SetattrValid) Mode() bool      { return fl&SetattrMode != 0 }$/;"	f
+Mount	fuse.go	/^func Mount(dir string, options ...MountOption) (*Conn, error) {$/;"	f
+MountOption	options.go	/^type MountOption mountOption$/;"	t
+MountpointDoesNotExistError	fuse.go	/^type MountpointDoesNotExistError struct {$/;"	t
+Mtime	fuse_kernel.go	/^func (fl SetattrValid) Mtime() bool     { return fl&SetattrMtime != 0 }$/;"	f
+MtimeNow	fuse_kernel.go	/^func (fl SetattrValid) MtimeNow() bool  { return fl&SetattrMtimeNow != 0 }$/;"	f
+NodeID	fuse.go	/^type NodeID uint64$/;"	t
+OSXFUSELocationV2	options.go	/^	}$/;"	v
+OSXFUSELocationV3	options.go	/^var ($/;"	v
+OSXFUSELocations	options.go	/^func OSXFUSELocations(paths ...OSXFUSEPaths) MountOption {$/;"	f
+OSXFUSEPaths	options.go	/^type OSXFUSEPaths struct {$/;"	t
+OldVersionError	fuse.go	/^type OldVersionError struct {$/;"	t
+OpenAccessModeMask	fuse_kernel.go	/^const OpenAccessModeMask OpenFlags = syscall.O_ACCMODE$/;"	c
+OpenAppend	fuse_kernel.go	/^	OpenReadWrite OpenFlags = syscall.O_RDWR$/;"	c
+OpenCreate	fuse_kernel.go	/^	OpenAppend    OpenFlags = syscall.O_APPEND$/;"	c
+OpenDirectIO	fuse_kernel.go	/^const ($/;"	c
+OpenDirectory	fuse_kernel.go	/^	OpenCreate    OpenFlags = syscall.O_CREAT$/;"	c
+OpenExclusive	fuse_kernel.go	/^	OpenDirectory OpenFlags = syscall.O_DIRECTORY$/;"	c
+OpenFlags	fuse_kernel.go	/^type OpenFlags uint32$/;"	t
+OpenKeepCache	fuse_kernel.go	/^	OpenDirectIO    OpenResponseFlags = 1 << 0 \/\/ bypass page cache for this open file$/;"	c
+OpenNonSeekable	fuse_kernel.go	/^	OpenKeepCache   OpenResponseFlags = 1 << 1 \/\/ don't invalidate the data cache on open$/;"	c
+OpenNonblock	fuse_kernel.go	/^	OpenExclusive OpenFlags = syscall.O_EXCL$/;"	c
+OpenPurgeAttr	fuse_kernel.go	/^	OpenNonSeekable OpenResponseFlags = 1 << 2 \/\/ mark the file as non-seekable (not supported on OS X)$/;"	c
+OpenPurgeUBC	fuse_kernel.go	/^	OpenPurgeAttr OpenResponseFlags = 1 << 30 \/\/ OS X$/;"	c
+OpenReadOnly	fuse_kernel.go	/^const ($/;"	c
+OpenReadWrite	fuse_kernel.go	/^	OpenWriteOnly OpenFlags = syscall.O_WRONLY$/;"	c
+OpenRequest	fuse.go	/^type OpenRequest struct {$/;"	t
+OpenResponse	fuse.go	/^type OpenResponse struct {$/;"	t
+OpenResponseFlags	fuse_kernel.go	/^type OpenResponseFlags uint32$/;"	t
+OpenSync	fuse_kernel.go	/^	OpenNonblock  OpenFlags = syscall.O_NONBLOCK$/;"	c
+OpenTruncate	fuse_kernel.go	/^	OpenSync      OpenFlags = syscall.O_SYNC$/;"	c
+OpenWriteOnly	fuse_kernel.go	/^	OpenReadOnly  OpenFlags = syscall.O_RDONLY$/;"	c
+Protocol	fuse.go	/^func (c *Conn) Protocol() Protocol {$/;"	f
+Protocol	protocol.go	/^type Protocol struct {$/;"	t
+ReadFlags	fuse_kernel.go	/^type ReadFlags uint32$/;"	t
+ReadLockOwner	fuse_kernel.go	/^const ($/;"	c
+ReadOnly	options.go	/^func ReadOnly() MountOption {$/;"	f
+ReadRequest	fuse.go	/^func (c *Conn) ReadRequest() (Request, error) {$/;"	f
+ReadRequest	fuse.go	/^type ReadRequest struct {$/;"	t
+ReadResponse	fuse.go	/^type ReadResponse struct {$/;"	t
+ReadlinkRequest	fuse.go	/^type ReadlinkRequest struct {$/;"	t
+ReleaseFlags	fuse_kernel.go	/^type ReleaseFlags uint32$/;"	t
+ReleaseFlush	fuse_kernel.go	/^const ($/;"	c
+ReleaseRequest	fuse.go	/^type ReleaseRequest struct {$/;"	t
+RemoveRequest	fuse.go	/^type RemoveRequest struct {$/;"	t
+RemovexattrRequest	fuse.go	/^type RemovexattrRequest struct {$/;"	t
+RenameRequest	fuse.go	/^type RenameRequest struct {$/;"	t
+Request	fuse.go	/^type Request interface {$/;"	t
+RequestID	fuse.go	/^type RequestID uint64$/;"	t
+Respond	fuse.go	/^func (r *AccessRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *CreateRequest) Respond(resp *CreateResponse) {$/;"	f
+Respond	fuse.go	/^func (r *DestroyRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *FlushRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *ForgetRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *FsyncRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *GetattrRequest) Respond(resp *GetattrResponse) {$/;"	f
+Respond	fuse.go	/^func (r *GetxattrRequest) Respond(resp *GetxattrResponse) {$/;"	f
+Respond	fuse.go	/^func (r *InitRequest) Respond(resp *InitResponse) {$/;"	f
+Respond	fuse.go	/^func (r *InterruptRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *LinkRequest) Respond(resp *LookupResponse) {$/;"	f
+Respond	fuse.go	/^func (r *ListxattrRequest) Respond(resp *ListxattrResponse) {$/;"	f
+Respond	fuse.go	/^func (r *LookupRequest) Respond(resp *LookupResponse) {$/;"	f
+Respond	fuse.go	/^func (r *MkdirRequest) Respond(resp *MkdirResponse) {$/;"	f
+Respond	fuse.go	/^func (r *MknodRequest) Respond(resp *LookupResponse) {$/;"	f
+Respond	fuse.go	/^func (r *OpenRequest) Respond(resp *OpenResponse) {$/;"	f
+Respond	fuse.go	/^func (r *ReadRequest) Respond(resp *ReadResponse) {$/;"	f
+Respond	fuse.go	/^func (r *ReadlinkRequest) Respond(target string) {$/;"	f
+Respond	fuse.go	/^func (r *ReleaseRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *RemoveRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *RemovexattrRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *RenameRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *SetattrRequest) Respond(resp *SetattrResponse) {$/;"	f
+Respond	fuse.go	/^func (r *SetxattrRequest) Respond() {$/;"	f
+Respond	fuse.go	/^func (r *StatfsRequest) Respond(resp *StatfsResponse) {$/;"	f
+Respond	fuse.go	/^func (r *SymlinkRequest) Respond(resp *SymlinkResponse) {$/;"	f
+Respond	fuse.go	/^func (r *WriteRequest) Respond(resp *WriteResponse) {$/;"	f
+RespondError	fuse.go	/^func (h *Header) RespondError(err error) {$/;"	f
+RootID	fuse.go	/^const RootID NodeID = rootID$/;"	c
+SetCrtime	fuse_kernel_darwin.go	/^func (a *attr) SetCrtime(s uint64, ns uint32) {$/;"	f
+SetCrtime	fuse_kernel_freebsd.go	/^func (a *attr) SetCrtime(s uint64, ns uint32) {$/;"	f
+SetCrtime	fuse_kernel_linux.go	/^func (a *attr) SetCrtime(s uint64, ns uint32) {$/;"	f
+SetFlags	fuse_kernel_darwin.go	/^func (a *attr) SetFlags(f uint32) {$/;"	f
+SetFlags	fuse_kernel_freebsd.go	/^func (a *attr) SetFlags(f uint32) {$/;"	f
+SetFlags	fuse_kernel_linux.go	/^func (a *attr) SetFlags(f uint32) {$/;"	f
+SetattrAtime	fuse_kernel.go	/^	SetattrSize   SetattrValid = 1 << 3$/;"	c
+SetattrAtimeNow	fuse_kernel.go	/^	SetattrHandle SetattrValid = 1 << 6$/;"	c
+SetattrBkuptime	fuse_kernel.go	/^	SetattrChgtime  SetattrValid = 1 << 29$/;"	c
+SetattrChgtime	fuse_kernel.go	/^	SetattrCrtime   SetattrValid = 1 << 28$/;"	c
+SetattrCrtime	fuse_kernel.go	/^	SetattrLockOwner SetattrValid = 1 << 9 \/\/ http:\/\/www.mail-archive.com\/git-commits-head@vger.kernel.org\/msg27852.html$/;"	c
+SetattrFlags	fuse_kernel.go	/^	SetattrBkuptime SetattrValid = 1 << 30$/;"	c
+SetattrGid	fuse_kernel.go	/^	SetattrUid    SetattrValid = 1 << 1$/;"	c
+SetattrHandle	fuse_kernel.go	/^	SetattrMtime  SetattrValid = 1 << 5$/;"	c
+SetattrLockOwner	fuse_kernel.go	/^	SetattrMtimeNow  SetattrValid = 1 << 8$/;"	c
+SetattrMode	fuse_kernel.go	/^const ($/;"	c
+SetattrMtime	fuse_kernel.go	/^	SetattrAtime  SetattrValid = 1 << 4$/;"	c
+SetattrMtimeNow	fuse_kernel.go	/^	SetattrAtimeNow  SetattrValid = 1 << 7$/;"	c
+SetattrRequest	fuse.go	/^type SetattrRequest struct {$/;"	t
+SetattrResponse	fuse.go	/^type SetattrResponse struct {$/;"	t
+SetattrSize	fuse_kernel.go	/^	SetattrGid    SetattrValid = 1 << 2$/;"	c
+SetattrUid	fuse_kernel.go	/^	SetattrMode   SetattrValid = 1 << 0$/;"	c
+SetattrValid	fuse_kernel.go	/^type SetattrValid uint32$/;"	t
+SetxattrRequest	fuse.go	/^type SetxattrRequest struct {$/;"	t
+Size	fuse_kernel.go	/^func (fl SetattrValid) Size() bool      { return fl&SetattrSize != 0 }$/;"	f
+StatfsRequest	fuse.go	/^type StatfsRequest struct {$/;"	t
+StatfsResponse	fuse.go	/^type StatfsResponse struct {$/;"	t
+String	fuse.go	/^func (a Attr) String() string {$/;"	f
+String	fuse.go	/^func (b bugKernelWriteError) String() string {$/;"	f
+String	fuse.go	/^func (b bugShortKernelWrite) String() string {$/;"	f
+String	fuse.go	/^func (e Errno) String() string {$/;"	f
+String	fuse.go	/^func (h *Header) String() string {$/;"	f
+String	fuse.go	/^func (h HandleID) String() string {$/;"	f
+String	fuse.go	/^func (m noOpcode) String() string {$/;"	f
+String	fuse.go	/^func (malformedMessage) String() string {$/;"	f
+String	fuse.go	/^func (n NodeID) String() string {$/;"	f
+String	fuse.go	/^func (r *AccessRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *CreateRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *CreateResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *DestroyRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *FlushRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *ForgetRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *FsyncRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *GetattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *GetattrResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *GetxattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *GetxattrResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *InitRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *InitResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *InterruptRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *LinkRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *ListxattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *ListxattrResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *LookupRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *LookupResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *MkdirRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *MkdirResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *MknodRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *OpenRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *OpenResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *ReadRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *ReadResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *ReadlinkRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *ReleaseRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *RemoveRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *RemovexattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *RenameRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *SetattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *SetattrResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *SetxattrRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *StatfsRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *StatfsResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *SymlinkRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *SymlinkResponse) String() string {$/;"	f
+String	fuse.go	/^func (r *WriteRequest) String() string {$/;"	f
+String	fuse.go	/^func (r *WriteResponse) String() string {$/;"	f
+String	fuse.go	/^func (r RequestID) String() string {$/;"	f
+String	fuse.go	/^func (t DirentType) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl GetattrFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl InitFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl OpenFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl OpenResponseFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl ReadFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl ReleaseFlags) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl SetattrValid) String() string {$/;"	f
+String	fuse_kernel.go	/^func (fl WriteFlags) String() string {$/;"	f
+String	protocol.go	/^func (p Protocol) String() string {$/;"	f
+Subtype	options.go	/^func Subtype(fstype string) MountOption {$/;"	f
+SymlinkRequest	fuse.go	/^type SymlinkRequest struct {$/;"	t
+SymlinkResponse	fuse.go	/^type SymlinkResponse struct {$/;"	t
+Uid	fuse_kernel.go	/^func (fl SetattrValid) Uid() bool       { return fl&SetattrUid != 0 }$/;"	f
+Unmount	unmount.go	/^func Unmount(dir string) error {$/;"	f
+VolumeName	options.go	/^func VolumeName(name string) MountOption {$/;"	f
+WriteCache	fuse_kernel.go	/^const ($/;"	c
+WriteFlags	fuse_kernel.go	/^type WriteFlags uint32$/;"	t
+WriteLockOwner	fuse_kernel.go	/^	WriteCache WriteFlags = 1 << 0$/;"	c
+WriteRequest	fuse.go	/^type WriteRequest struct {$/;"	t
+WriteResponse	fuse.go	/^type WriteResponse struct {$/;"	t
+WritebackCache	options.go	/^func WritebackCache() MountOption {$/;"	f
+_	error_std.go	/^var _ Errno = ErrNoXattr$/;"	v
+_	error_std.go	/^var _ ErrorNumber = ErrNoXattr$/;"	v
+_	error_std.go	/^var _ error = ErrNoXattr$/;"	v
+_	fuse.go	/^var _ = ErrorNumber(Errno(0))$/;"	v
+_	fuse.go	/^var _ = Request(&AccessRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&CreateRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&DestroyRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&FlushRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&ForgetRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&FsyncRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&GetattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&GetxattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&InitRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&InterruptRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&LinkRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&ListxattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&LookupRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&MkdirRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&MknodRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&OpenRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&ReadRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&ReadlinkRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&ReleaseRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&RemoveRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&RemovexattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&RenameRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&SetattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&SetxattrRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&StatfsRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&SymlinkRequest{})$/;"	v
+_	fuse.go	/^var _ = Request(&WriteRequest{})$/;"	v
+_	fuse.go	/^var _ = error(Errno(0))$/;"	v
+_	fuse.go	/^var _ ErrorNumber = notCachedError{}$/;"	v
+_	fuse.go	/^var _ error = (*MountpointDoesNotExistError)(nil)$/;"	v
+accModeName	fuse_kernel.go	/^func accModeName(flags OpenFlags) string {$/;"	f
+accessIn	fuse_kernel.go	/^type accessIn struct {$/;"	t
+alloc	buffer.go	/^func (w *buffer) alloc(size uintptr) unsafe.Pointer {$/;"	f
+allocMessage	fuse.go	/^func allocMessage() interface{} {$/;"	f
+attr	fuse.go	/^func (a *Attr) attr(out *attr, proto Protocol) {$/;"	f
+attr	fuse_kernel_darwin.go	/^type attr struct {$/;"	t
+attr	fuse_kernel_freebsd.go	/^type attr struct {$/;"	t
+attr	fuse_kernel_linux.go	/^type attr struct {$/;"	t
+attrOut	fuse_kernel.go	/^type attrOut struct {$/;"	t
+attrOutSize	fuse_kernel.go	/^func attrOutSize(p Protocol) uintptr {$/;"	f
+bmapIn	fuse_kernel.go	/^type bmapIn struct {$/;"	t
+bmapOut	fuse_kernel.go	/^type bmapOut struct {$/;"	t
+bufSize	fuse.go	/^var bufSize = maxRequestSize + maxWrite$/;"	v
+buffer	buffer.go	/^type buffer []byte$/;"	t
+bugKernelWriteError	fuse.go	/^type bugKernelWriteError struct {$/;"	t
+bugShortKernelWrite	fuse.go	/^type bugShortKernelWrite struct {$/;"	t
+bytes	fuse.go	/^func (m *message) bytes() []byte {$/;"	f
+callMount	mount_darwin.go	/^func callMount(bin string, dir string, conf *mountConfig, f *os.File, ready chan<- struct{}, errp *error) error {$/;"	f
+compatStatfsSize	fuse_kernel.go	/^const compatStatfsSize = 48$/;"	c
+createIn	fuse_kernel.go	/^type createIn struct {$/;"	t
+createInSize	fuse_kernel.go	/^func createInSize(p Protocol) uintptr {$/;"	f
+data	fuse.go	/^func (m *message) data() unsafe.Pointer {$/;"	f
+dirent	fuse_kernel.go	/^type dirent struct {$/;"	t
+direntSize	fuse_kernel.go	/^const direntSize = 8 + 8 + 4 + 4$/;"	c
+dummyOption	options.go	/^func dummyOption(conf *mountConfig) error {$/;"	f
+entryOut	fuse_kernel.go	/^type entryOut struct {$/;"	t
+entryOutSize	fuse_kernel.go	/^func entryOutSize(p Protocol) uintptr {$/;"	f
+errNoAvail	mount_darwin.go	/^var ($/;"	v
+errNoXattr	error_darwin.go	/^const ($/;"	c
+errNoXattr	error_freebsd.go	/^const ($/;"	c
+errNoXattr	error_linux.go	/^const ($/;"	c
+errNotLoaded	mount_darwin.go	/^	errNoAvail         = errors.New("no available fuse devices")$/;"	v
+errOSXFUSENotFound	mount_darwin.go	/^	errNotLoaded       = errors.New("osxfuse is not loaded")$/;"	v
+errnoNames	fuse.go	/^var errnoNames = map[Errno]string{$/;"	v
+errorString	fuse.go	/^func errorString(err error) string {$/;"	f
+escapeComma	options.go	/^func escapeComma(s string) string {$/;"	f
+exchangeIn	fuse_kernel.go	/^type exchangeIn struct {$/;"	t
+fd	fuse.go	/^func (c *Conn) fd() int {$/;"	f
+fileLock	fuse_kernel.go	/^type fileLock struct {$/;"	t
+fileMode	fuse.go	/^func fileMode(unixMode uint32) os.FileMode {$/;"	f
+flagName	fuse_kernel.go	/^type flagName struct {$/;"	t
+flagString	fuse_kernel.go	/^func flagString(f uint32, names []flagName) string {$/;"	f
+flushIn	fuse_kernel.go	/^type flushIn struct {$/;"	t
+forgetIn	fuse_kernel.go	/^type forgetIn struct {$/;"	t
+fsyncIn	fuse_kernel.go	/^type fsyncIn struct {$/;"	t
+fuse	buffer.go	/^package fuse$/;"	p
+fuse	debug.go	/^package fuse$/;"	p
+fuse	error_darwin.go	/^package fuse$/;"	p
+fuse	error_freebsd.go	/^package fuse$/;"	p
+fuse	error_linux.go	/^package fuse$/;"	p
+fuse	error_std.go	/^package fuse$/;"	p
+fuse	fuse.go	/^package fuse$/;"	p
+fuse	fuse_kernel.go	/^package fuse$/;"	p
+fuse	fuse_kernel_darwin.go	/^package fuse$/;"	p
+fuse	fuse_kernel_freebsd.go	/^package fuse$/;"	p
+fuse	fuse_kernel_linux.go	/^package fuse$/;"	p
+fuse	fuse_kernel_std.go	/^package fuse$/;"	p
+fuse	mount.go	/^package fuse$/;"	p
+fuse	mount_darwin.go	/^package fuse$/;"	p
+fuse	mount_freebsd.go	/^package fuse$/;"	p
+fuse	mount_linux.go	/^package fuse$/;"	p
+fuse	options.go	/^package fuse$/;"	p
+fuse	options_darwin.go	/^package fuse$/;"	p
+fuse	options_freebsd.go	/^package fuse$/;"	p
+fuse	options_linux.go	/^package fuse$/;"	p
+fuse	protocol.go	/^package fuse$/;"	p
+fuse	unmount.go	/^package fuse$/;"	p
+fuse	unmount_linux.go	/^package fuse$/;"	p
+fuse	unmount_std.go	/^package fuse$/;"	p
+getMessage	fuse.go	/^func getMessage(c *Conn) *message {$/;"	f
+getOptions	options.go	/^func (m *mountConfig) getOptions() string {$/;"	f
+getattrFlagsNames	fuse_kernel.go	/^var getattrFlagsNames = []flagName{$/;"	v
+getattrIn	fuse_kernel.go	/^type getattrIn struct {$/;"	t
+getxattrIn	fuse_kernel_darwin.go	/^type getxattrIn struct {$/;"	t
+getxattrIn	fuse_kernel_freebsd.go	/^type getxattrIn struct {$/;"	t
+getxattrIn	fuse_kernel_linux.go	/^type getxattrIn struct {$/;"	t
+getxattrInCommon	fuse_kernel.go	/^type getxattrInCommon struct {$/;"	t
+getxattrOut	fuse_kernel.go	/^type getxattrOut struct {$/;"	t
+getxtimesOut	fuse_kernel.go	/^type getxtimesOut struct {$/;"	t
+handleFusermountStderr	mount_linux.go	/^func handleFusermountStderr(errCh chan<- error) func(line string) (ignore bool) {$/;"	f
+handleMountFusefsStderr	mount_freebsd.go	/^func handleMountFusefsStderr(errCh chan<- error) func(line string) (ignore bool) {$/;"	f
+handleMountOSXFUSE	mount_darwin.go	/^func handleMountOSXFUSE(helperName string, errCh chan<- error) func(line string) (ignore bool) {$/;"	f
+inHeader	fuse_kernel.go	/^type inHeader struct {$/;"	t
+inHeaderSize	fuse_kernel.go	/^const inHeaderSize = int(unsafe.Sizeof(inHeader{}))$/;"	c
+init	error_darwin.go	/^func init() {$/;"	f
+init	error_freebsd.go	/^func init() {$/;"	f
+init	error_linux.go	/^func init() {$/;"	f
+initFlagNames	fuse_kernel.go	/^var initFlagNames = []flagName{$/;"	v
+initIn	fuse_kernel.go	/^type initIn struct {$/;"	t
+initInSize	fuse_kernel.go	/^const initInSize = int(unsafe.Sizeof(initIn{}))$/;"	c
+initMount	fuse.go	/^func initMount(c *Conn, conf *mountConfig) error {$/;"	f
+initOut	fuse_kernel.go	/^type initOut struct {$/;"	t
+interruptIn	fuse_kernel.go	/^type interruptIn struct {$/;"	t
+is710	protocol.go	/^func (a Protocol) is710() bool {$/;"	f
+is712	protocol.go	/^func (a Protocol) is712() bool {$/;"	f
+is79	protocol.go	/^func (a Protocol) is79() bool {$/;"	f
+isBoringFusermountError	mount_linux.go	/^func isBoringFusermountError(err error) bool {$/;"	f
+isBoringMountFusefsError	mount_freebsd.go	/^func isBoringMountFusefsError(err error) bool {$/;"	f
+isBoringMountOSXFUSEError	mount_darwin.go	/^func isBoringMountOSXFUSEError(err error) bool {$/;"	f
+jsonReadResponse	fuse.go	/^type jsonReadResponse struct {$/;"	t
+jsonWriteRequest	fuse.go	/^type jsonWriteRequest struct {$/;"	t
+kstatfs	fuse_kernel.go	/^type kstatfs struct {$/;"	t
+len	fuse.go	/^func (m *message) len() uintptr {$/;"	f
+lineLogger	mount.go	/^func lineLogger(wg *sync.WaitGroup, prefix string, ignore func(line string) bool, r io.ReadCloser) {$/;"	f
+linkIn	fuse_kernel.go	/^type linkIn struct {$/;"	t
+lkIn	fuse_kernel.go	/^type lkIn struct {$/;"	t
+lkInSize	fuse_kernel.go	/^func lkInSize(p Protocol) uintptr {$/;"	f
+lkOut	fuse_kernel.go	/^type lkOut struct {$/;"	t
+loadOSXFUSE	mount_darwin.go	/^func loadOSXFUSE(bin string) error {$/;"	f
+localVolume	options_darwin.go	/^func localVolume(conf *mountConfig) error {$/;"	f
+localVolume	options_freebsd.go	/^func localVolume(conf *mountConfig) error {$/;"	f
+localVolume	options_linux.go	/^func localVolume(conf *mountConfig) error {$/;"	f
+malformedMessage	fuse.go	/^type malformedMessage struct {$/;"	t
+maxRequestSize	fuse.go	/^var maxRequestSize = syscall.Getpagesize()$/;"	v
+maxWrite	fuse.go	/^const maxWrite = 16 * 1024 * 1024$/;"	c
+message	fuse.go	/^type message struct {$/;"	t
+mkdirIn	fuse_kernel.go	/^type mkdirIn struct {$/;"	t
+mkdirInSize	fuse_kernel.go	/^func mkdirInSize(p Protocol) uintptr {$/;"	f
+mknodIn	fuse_kernel.go	/^type mknodIn struct {$/;"	t
+mknodInSize	fuse_kernel.go	/^func mknodInSize(p Protocol) uintptr {$/;"	f
+mount	mount_darwin.go	/^func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (*os.File, error) {$/;"	f
+mount	mount_freebsd.go	/^func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (*os.File, error) {$/;"	f
+mount	mount_linux.go	/^func mount(dir string, conf *mountConfig, ready chan<- struct{}, errp *error) (fusefd *os.File, err error) {$/;"	f
+mountConfig	options.go	/^type mountConfig struct {$/;"	t
+mountOption	options.go	/^type mountOption func(*mountConfig) error$/;"	t
+neverIgnoreLine	mount.go	/^func neverIgnoreLine(line string) bool {$/;"	f
+newBuffer	buffer.go	/^func newBuffer(extra uintptr) buffer {$/;"	f
+noOpcode	fuse.go	/^type noOpcode struct {$/;"	t
+noResponse	fuse.go	/^func (h *Header) noResponse() {$/;"	f
+nop	debug.go	/^func nop(msg interface{}) {}$/;"	f
+notCachedError	fuse.go	/^type notCachedError struct{}$/;"	t
+notifyCodeInvalEntry	fuse_kernel.go	/^	notifyCodeInvalInode int32 = 2$/;"	c
+notifyCodeInvalInode	fuse_kernel.go	/^	notifyCodePoll       int32 = 1$/;"	c
+notifyCodePoll	fuse_kernel.go	/^const ($/;"	c
+notifyInvalEntryOut	fuse_kernel.go	/^type notifyInvalEntryOut struct {$/;"	t
+notifyInvalInodeOut	fuse_kernel.go	/^type notifyInvalInodeOut struct {$/;"	t
+opAccess	fuse_kernel.go	/^	opSetlkw      = 33$/;"	c
+opBmap	fuse_kernel.go	/^	opInterrupt   = 36$/;"	c
+opCreate	fuse_kernel.go	/^	opAccess      = 34$/;"	c
+opDestroy	fuse_kernel.go	/^	opBmap        = 37$/;"	c
+opExchange	fuse_kernel.go	/^	opGetxtimes  = 62$/;"	c
+opFlush	fuse_kernel.go	/^	opRemovexattr = 24$/;"	c
+opForget	fuse_kernel.go	/^	opLookup      = 1$/;"	c
+opFsync	fuse_kernel.go	/^	opRelease     = 18$/;"	c
+opFsyncdir	fuse_kernel.go	/^	opReleasedir  = 29$/;"	c
+opGetattr	fuse_kernel.go	/^	opForget      = 2 \/\/ no reply$/;"	c
+opGetlk	fuse_kernel.go	/^	opFsyncdir    = 30$/;"	c
+opGetxattr	fuse_kernel.go	/^	opSetxattr    = 21$/;"	c
+opGetxtimes	fuse_kernel.go	/^	opSetvolname = 61$/;"	c
+opInit	fuse_kernel.go	/^	opFlush       = 25$/;"	c
+opInterrupt	fuse_kernel.go	/^	opCreate      = 35$/;"	c
+opIoctl	fuse_kernel.go	/^	opDestroy     = 38$/;"	c
+opLink	fuse_kernel.go	/^	opRename      = 12$/;"	c
+opListxattr	fuse_kernel.go	/^	opGetxattr    = 22$/;"	c
+opLookup	fuse_kernel.go	/^const ($/;"	c
+opMkdir	fuse_kernel.go	/^	opMknod       = 8$/;"	c
+opMknod	fuse_kernel.go	/^	opSymlink     = 6$/;"	c
+opOpen	fuse_kernel.go	/^	opLink        = 13$/;"	c
+opOpendir	fuse_kernel.go	/^	opInit        = 26$/;"	c
+opPoll	fuse_kernel.go	/^	opIoctl       = 39 \/\/ Linux?$/;"	c
+opRead	fuse_kernel.go	/^	opOpen        = 14$/;"	c
+opReaddir	fuse_kernel.go	/^	opOpendir     = 27$/;"	c
+opReadlink	fuse_kernel.go	/^	opSetattr     = 4$/;"	c
+opRelease	fuse_kernel.go	/^	opStatfs      = 17$/;"	c
+opReleasedir	fuse_kernel.go	/^	opReaddir     = 28$/;"	c
+opRemovexattr	fuse_kernel.go	/^	opListxattr   = 23$/;"	c
+opRename	fuse_kernel.go	/^	opRmdir       = 11$/;"	c
+opRmdir	fuse_kernel.go	/^	opUnlink      = 10$/;"	c
+opSetattr	fuse_kernel.go	/^	opGetattr     = 3$/;"	c
+opSetlk	fuse_kernel.go	/^	opGetlk       = 31$/;"	c
+opSetlkw	fuse_kernel.go	/^	opSetlk       = 32$/;"	c
+opSetvolname	fuse_kernel.go	/^	opPoll        = 40 \/\/ Linux?$/;"	c
+opSetxattr	fuse_kernel.go	/^	opFsync       = 20$/;"	c
+opStatfs	fuse_kernel.go	/^	opWrite       = 16$/;"	c
+opSymlink	fuse_kernel.go	/^	opReadlink    = 5$/;"	c
+opUnlink	fuse_kernel.go	/^	opMkdir       = 9$/;"	c
+opWrite	fuse_kernel.go	/^	opRead        = 15$/;"	c
+openFlagNames	fuse_kernel.go	/^var openFlagNames = []flagName{$/;"	v
+openFlags	fuse_kernel_darwin.go	/^func openFlags(flags uint32) OpenFlags {$/;"	f
+openFlags	fuse_kernel_freebsd.go	/^func openFlags(flags uint32) OpenFlags {$/;"	f
+openFlags	fuse_kernel_linux.go	/^func openFlags(flags uint32) OpenFlags {$/;"	f
+openIn	fuse_kernel.go	/^type openIn struct {$/;"	t
+openOSXFUSEDev	mount_darwin.go	/^func openOSXFUSEDev(devPrefix string) (*os.File, error) {$/;"	f
+openOut	fuse_kernel.go	/^type openOut struct {$/;"	t
+openResponseFlagNames	fuse_kernel.go	/^var openResponseFlagNames = []flagName{$/;"	v
+outHeader	fuse_kernel.go	/^type outHeader struct {$/;"	t
+position	fuse_kernel.go	/^func (getxattrInCommon) position() uint32 {$/;"	f
+position	fuse_kernel.go	/^func (setxattrInCommon) position() uint32 {$/;"	f
+position	fuse_kernel_darwin.go	/^func (g *getxattrIn) position() uint32 {$/;"	f
+position	fuse_kernel_darwin.go	/^func (s *setxattrIn) position() uint32 {$/;"	f
+protoVersionMaxMajor	fuse_kernel.go	/^	protoVersionMinMinor = 8$/;"	c
+protoVersionMaxMinor	fuse_kernel.go	/^	protoVersionMaxMajor = 7$/;"	c
+protoVersionMinMajor	fuse_kernel.go	/^const ($/;"	c
+protoVersionMinMinor	fuse_kernel.go	/^	protoVersionMinMajor = 7$/;"	c
+putMessage	fuse.go	/^func putMessage(m *message) {$/;"	f
+readFlagNames	fuse_kernel.go	/^var readFlagNames = []flagName{$/;"	v
+readIn	fuse_kernel.go	/^type readIn struct {$/;"	t
+readInSize	fuse_kernel.go	/^func readInSize(p Protocol) uintptr {$/;"	f
+releaseFlagNames	fuse_kernel.go	/^var releaseFlagNames = []flagName{$/;"	v
+releaseIn	fuse_kernel.go	/^type releaseIn struct {$/;"	t
+renameIn	fuse_kernel.go	/^type renameIn struct {$/;"	t
+reqPool	fuse.go	/^var reqPool = sync.Pool{$/;"	v
+reset	buffer.go	/^func (w *buffer) reset() {$/;"	f
+respond	fuse.go	/^func (c *Conn) respond(msg []byte) {$/;"	f
+respond	fuse.go	/^func (h *Header) respond(msg []byte) {$/;"	f
+rootID	fuse_kernel.go	/^const ($/;"	c
+sendInvalidate	fuse.go	/^func (c *Conn) sendInvalidate(msg []byte) error {$/;"	f
+setattrIn	fuse_kernel_darwin.go	/^type setattrIn struct {$/;"	t
+setattrIn	fuse_kernel_freebsd.go	/^type setattrIn struct {$/;"	t
+setattrIn	fuse_kernel_linux.go	/^type setattrIn struct {$/;"	t
+setattrInCommon	fuse_kernel.go	/^type setattrInCommon struct {$/;"	t
+setattrValidNames	fuse_kernel.go	/^var setattrValidNames = []flagName{$/;"	v
+setxattrIn	fuse_kernel_darwin.go	/^type setxattrIn struct {$/;"	t
+setxattrIn	fuse_kernel_freebsd.go	/^type setxattrIn struct {$/;"	t
+setxattrIn	fuse_kernel_linux.go	/^type setxattrIn struct {$/;"	t
+setxattrInCommon	fuse_kernel.go	/^type setxattrInCommon struct {$/;"	t
+stack	debug.go	/^func stack() string {$/;"	f
+statfsOut	fuse_kernel.go	/^type statfsOut struct {$/;"	t
+string	fuse.go	/^func (r *LookupResponse) string() string {$/;"	f
+string	fuse.go	/^func (r *OpenResponse) string() string {$/;"	f
+trunc	fuse.go	/^func trunc(b []byte, max int) ([]byte, string) {$/;"	f
+unix	fuse.go	/^func unix(t time.Time) (sec uint64, nsec uint32) {$/;"	f
+unmount	unmount_linux.go	/^func unmount(dir string) error {$/;"	f
+unmount	unmount_std.go	/^func unmount(dir string) error {$/;"	f
+volumeName	options_darwin.go	/^func volumeName(name string) MountOption {$/;"	f
+volumeName	options_freebsd.go	/^func volumeName(name string) MountOption {$/;"	f
+volumeName	options_linux.go	/^func volumeName(name string) MountOption {$/;"	f
+writeFlagNames	fuse_kernel.go	/^var writeFlagNames = []flagName{$/;"	v
+writeIn	fuse_kernel.go	/^type writeIn struct {$/;"	t
+writeInSize	fuse_kernel.go	/^func writeInSize(p Protocol) uintptr {$/;"	f
+writeOut	fuse_kernel.go	/^type writeOut struct {$/;"	t
+writeToKernel	fuse.go	/^func (c *Conn) writeToKernel(msg []byte) error {$/;"	f
