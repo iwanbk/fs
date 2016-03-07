@@ -383,7 +383,8 @@ type Server struct {
 // of fs and the Nodes and Handles it makes available.  It returns only
 // when the connection has been closed or an unexpected error occurs.
 func (s *Server) Serve(fs FS) error {
-	defer s.wg.Wait() // Wait for worker goroutines to complete before return
+	defer s.wg.Wait()                // Wait for worker goroutines to complete before return
+	guardChan := make(chan bool, 10) // limit number of active workers to 10
 
 	s.fs = fs
 	if dyn, ok := fs.(FSInodeGenerator); ok {
@@ -406,8 +407,10 @@ func (s *Server) Serve(fs FS) error {
 	s.handle = append(s.handle, nil)
 
 	for {
+		guardChan <- true
 		req, err := s.conn.ReadRequest()
 		if err != nil {
+			close(guardChan)
 			if err == io.EOF {
 				break
 			}
@@ -416,7 +419,11 @@ func (s *Server) Serve(fs FS) error {
 
 		s.wg.Add(1)
 		go func() {
-			defer s.wg.Done()
+			defer func() {
+				<-guardChan
+				s.wg.Done()
+			}()
+
 			s.serve(req)
 		}()
 	}

@@ -430,7 +430,8 @@ func allocMessage() interface{} {
 }
 
 func getMessage(c *Conn) *message {
-	m := reqPool.Get().(*message)
+	// m := reqPool.Get().(*message)
+	m := mPool.Get()
 	m.conn = c
 	return m
 }
@@ -439,7 +440,8 @@ func putMessage(m *message) {
 	m.buf = m.buf[:bufSize]
 	m.conn = nil
 	m.off = 0
-	reqPool.Put(m)
+	mPool.Put(m)
+	//reqPool.Put(m)
 }
 
 // a message represents the bytes of a single FUSE message
