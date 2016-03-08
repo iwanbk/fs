@@ -1,7 +1,7 @@
 package tracker
 
 import (
-	"github.com/Jumpscale/aysfs/rw/meta"
+	"github.com/g8os/fs/rw/meta"
 	"github.com/op/go-logging"
 	"time"
 )
