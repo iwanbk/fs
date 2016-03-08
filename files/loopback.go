@@ -22,7 +22,7 @@ type loopbackFileSystem struct {
 // having to build a synthetic filesystem.
 func NewLoopbackFileSystem(root string) pathfs.FileSystem {
 	return &loopbackFileSystem{
-		FileSystem: NewDefaultFileSystem(),
+		FileSystem: newFileSystem(),
 		Root:       root,
 	}
 }
