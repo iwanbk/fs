@@ -30,3 +30,6 @@ aysfs
 .idea
 *.iml
 Godeps/_workspace
+tags
+fs
+.swp

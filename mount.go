@@ -11,7 +11,7 @@ import (
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
 	"github.com/g8os/fs/config"
-	"github.com/g8os/fs/rw"
+	"github.com/g8os/fs/files"
 	"github.com/g8os/fs/rw/meta"
 	"github.com/g8os/fs/tracker"
 	"github.com/g8os/fs/watcher"
@@ -91,12 +91,13 @@ func mountFS(
 	overlay bool,
 	readOnly bool) error {
 
-	fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay)
+	fs := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
 
 	log.Info("Mounting Fuse File system")
-	if err := mountFuse(fs, mountCfg.Path, readOnly); err != nil {
-		log.Fatal(err)
-	}
+	//if err := mountFuse(fs, mountCfg.Path, readOnly); err != nil {
+	//	log.Fatal(err)
+	//}
+	fs.Serve()
 
 	return nil
 }
