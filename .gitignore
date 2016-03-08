@@ -32,4 +32,4 @@ aysfs
 Godeps/_workspace
 tags
 fs
-.swp
+*.swp

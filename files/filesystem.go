@@ -38,15 +38,19 @@ func newFileSystem(fs *FS) pathfs.FileSystem {
 }
 
 func (fs *fileSystem) OnMount(nodeFs *pathfs.PathNodeFs) {
+	log.Debug("OnMount")
 }
 
-func (fs *fileSystem) OnUnmount() {}
+func (fs *fileSystem) OnUnmount() {
+	log.Debug("OnUnmount")
+}
 
 func (fs *fileSystem) GetPath(relPath string) string {
 	return filepath.Join(fs.Root, relPath)
 }
 
 func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr, code fuse.Status) {
+	log.Debugf("GetAttr %v", fs.GetPath(name))
 	fullPath := fs.GetPath(name)
 	var err error = nil
 	st := syscall.Stat_t{}
@@ -64,46 +68,6 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr,
 	a = &fuse.Attr{}
 	a.FromStat(&st)
 	return a, fuse.OK
-}
-
-func (fs *fileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
-	// What other ways beyond O_RDONLY are there to open
-	// directories?
-	f, err := os.Open(fs.GetPath(name))
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-	want := 500
-	output := make([]fuse.DirEntry, 0, want)
-	for {
-		infos, err := f.Readdir(want)
-		for i := range infos {
-			// workaround forhttps://code.google.com/p/go/issues/detail?id=5960
-			if infos[i] == nil {
-				continue
-			}
-			n := infos[i].Name()
-			d := fuse.DirEntry{
-				Name: n,
-			}
-			if s := fuse.ToStatT(infos[i]); s != nil {
-				d.Mode = uint32(s.Mode)
-			} else {
-				log.Errorf("ReadDir entry %q for %q has no stat info", n, name)
-			}
-			output = append(output, d)
-		}
-		if len(infos) < want || err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Errorf("Readdir() returned err:%v", err)
-			break
-		}
-	}
-	f.Close()
-
-	return output, fuse.OK
 }
 
 // Open opens a file.
@@ -172,6 +136,7 @@ func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) (
 }
 
 func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
+	log.Debugf("Access %v", fs.GetPath(name))
 	return fuse.ToStatus(syscall.Access(fs.GetPath(name), mode))
 }
 
