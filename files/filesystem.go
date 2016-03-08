@@ -50,10 +50,15 @@ func (fs *fileSystem) GetPath(relPath string) string {
 }
 
 func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr, code fuse.Status) {
+	var err error = nil
+	var st syscall.Stat_t
+	var fromMeta bool
+	var fromMetaSize uint64
+	a = &fuse.Attr{}
+
 	log.Debugf("GetAttr %v", fs.GetPath(name))
 	fullPath := fs.GetPath(name)
-	var err error = nil
-	st := syscall.Stat_t{}
+
 	if name == "" {
 		// When GetAttr is called for the toplevel directory, we always want
 		// to look through symlinks.
@@ -62,11 +67,26 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr,
 		err = syscall.Lstat(fullPath, &st)
 	}
 
-	if err != nil {
+	if os.IsNotExist(err) {
+		m := meta.GetMeta(fullPath)
+		meta, err := m.Load()
+		if err != nil {
+			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
+			return a, fuse.ToStatus(err)
+		}
+		if err := syscall.Lstat(string(m), &st); err != nil {
+			return nil, fuse.ToStatus(err)
+		}
+		fromMeta = true
+		fromMetaSize = uint64(meta.Size)
+	} else if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
-	a = &fuse.Attr{}
+
 	a.FromStat(&st)
+	if fromMeta {
+		a.Size = fromMetaSize
+	}
 	return a, fuse.OK
 }
 
