@@ -18,16 +18,14 @@ var (
 )
 
 type FS struct {
-	//root       *fsDir
 	mountpoint string
 	backend    *config.Backend
 	stor       *config.Aydostor
-	//factory    Factory
-	tracker tracker.Tracker
-	overlay bool
-	conn    *nodefs.FileSystemConnector
-	pathFs  *pathfs.PathNodeFs
-	server  *fuse.Server
+	tracker    tracker.Tracker
+	overlay    bool
+	conn       *nodefs.FileSystemConnector
+	pathFs     *pathfs.PathNodeFs
+	server     *fuse.Server
 }
 
 func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker, overlay, readOnly bool) *FS {
@@ -39,7 +37,7 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 		tracker: tracker,
 		overlay: overlay,
 	}
-	filesys := newFileSystem(fs.backend.Path)
+	filesys := newFileSystem(fs)
 
 	opts := &nodefs.Options{
 		// These options are to be compatible with libfuse defaults,
