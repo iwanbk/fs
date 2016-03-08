@@ -39,7 +39,7 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 		tracker: tracker,
 		overlay: overlay,
 	}
-	loopbackfs := NewLoopbackFileSystem(fs.backend.Path)
+	filesys := newFileSystem(fs.backend.Path)
 
 	opts := &nodefs.Options{
 		// These options are to be compatible with libfuse defaults,
@@ -48,12 +48,12 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 		AttrTimeout:     time.Second,
 		EntryTimeout:    time.Second,
 	}
-	fs.pathFs = pathfs.NewPathNodeFs(loopbackfs, nil)
+	fs.pathFs = pathfs.NewPathNodeFs(filesys, nil)
 	fs.conn = nodefs.NewFileSystemConnector(fs.pathFs.Root(), opts)
 
 	mOpts := &fuse.MountOptions{
 		AllowOther: false,
-		Name:       "loopbackfs",
+		Name:       "g8osfs",
 		FsName:     fs.backend.Path,
 	}
 	state, err := fuse.NewServer(fs.conn.RawFS(), mountpoint, mOpts)
