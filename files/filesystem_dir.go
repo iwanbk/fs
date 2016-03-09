@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"syscall"
 
 	"github.com/g8os/fs/rw/meta"
 	"github.com/g8os/fs/utils"
@@ -17,6 +18,98 @@ var (
 		regexp.MustCompile(`_\d+\.aydo$`), //backup extension before fs push.
 	}
 )
+
+// Mkdir creates a directory
+func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) (code fuse.Status) {
+	fullPath := fs.GetPath(path)
+	status := fuse.ToStatus(os.Mkdir(fullPath, os.FileMode(mode)))
+	if status != fuse.OK {
+		return status
+	}
+	fs.tracker.Touch(fullPath)
+	return fuse.OK
+}
+
+func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Status) {
+	fullPath := fs.GetPath(name)
+
+	log.Debugf("Rmdir %v", fullPath)
+
+	m := meta.GetMeta(fullPath)
+
+	// TODO : ask azmy / chris about this defer, it seems invalid
+	defer func() {
+		if fs.overlay {
+			//Set delete mark
+			touchDeleted(fullPath)
+		}
+	}()
+
+	status := fuse.ToStatus(syscall.Rmdir(fullPath))
+
+	// remove meta
+	if !fs.overlay {
+		if merr := os.Remove(string(m)); merr == nil {
+			if status == fuse.ENOENT {
+				//the file itself doesn't exist but the meta does.
+				return fuse.OK
+			}
+		}
+	}
+
+	if !fs.overlay && status != fuse.OK && status != fuse.ENOENT {
+		return status
+	}
+
+	return fuse.OK
+}
+
+// OpenDir opens a directory and return all files/dir in the directory.
+// If it finds .meta file, it shows the file represented by that meta
+func (fs *fileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
+	log.Debugf("OpenDir %v", fs.GetPath(name))
+	// What other ways beyond O_RDONLY are there to open
+	// directories?
+	f, err := os.Open(fs.GetPath(name))
+	if err != nil {
+		return nil, fuse.ToStatus(err)
+	}
+	defer f.Close()
+	want := 500
+	output := make([]fuse.DirEntry, 0, want)
+	for {
+		infos, err := f.Readdir(want)
+		for i := range infos {
+			// workaround forhttps://code.google.com/p/go/issues/detail?id=5960
+			if infos[i] == nil {
+				continue
+			}
+			n := infos[i].Name()
+			/*d := fuse.DirEntry{
+				Name: n,
+			}*/
+			d, ok := fs.getDirent(infos[i], n)
+			if !ok {
+				continue
+			}
+			if s := fuse.ToStatT(infos[i]); s != nil {
+				d.Mode = uint32(s.Mode)
+			} else {
+				log.Errorf("ReadDir entry %q for %q has no stat info", n, name)
+			}
+			output = append(output, d)
+		}
+		if len(infos) < want || err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Errorf("Readdir() returned err:%v", err)
+			break
+		}
+	}
+
+	return output, fuse.OK
+}
 
 func skipDir(name string) bool {
 	for _, r := range SkipPattern {
@@ -73,51 +166,4 @@ func (fs *fileSystem) getDirent(entry os.FileInfo, fullPath string) (fuse.DirEnt
 	}
 
 	return dirEntry, true
-}
-
-// OpenDir opens a directory and return all files/dir in the directory.
-// If it finds .meta file, it shows the file represented by that meta
-func (fs *fileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
-	log.Debugf("OpenDir %v", fs.GetPath(name))
-	// What other ways beyond O_RDONLY are there to open
-	// directories?
-	f, err := os.Open(fs.GetPath(name))
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-	defer f.Close()
-	want := 500
-	output := make([]fuse.DirEntry, 0, want)
-	for {
-		infos, err := f.Readdir(want)
-		for i := range infos {
-			// workaround forhttps://code.google.com/p/go/issues/detail?id=5960
-			if infos[i] == nil {
-				continue
-			}
-			n := infos[i].Name()
-			/*d := fuse.DirEntry{
-				Name: n,
-			}*/
-			d, ok := fs.getDirent(infos[i], n)
-			if !ok {
-				continue
-			}
-			if s := fuse.ToStatT(infos[i]); s != nil {
-				d.Mode = uint32(s.Mode)
-			} else {
-				log.Errorf("ReadDir entry %q for %q has no stat info", n, name)
-			}
-			output = append(output, d)
-		}
-		if len(infos) < want || err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Errorf("Readdir() returned err:%v", err)
-			break
-		}
-	}
-
-	return output, fuse.OK
 }

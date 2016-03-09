@@ -129,26 +129,64 @@ func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.
 	return fuse.ToStatus(syscall.Mknod(fs.GetPath(name), mode, int(dev)))
 }
 
-func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) (code fuse.Status) {
-	return fuse.ToStatus(os.Mkdir(fs.GetPath(path), os.FileMode(mode)))
-}
-
 // Don't use os.Remove, it removes twice (unlink followed by rmdir).
 func (fs *fileSystem) Unlink(name string, context *fuse.Context) (code fuse.Status) {
+	log.Debugf("Unlink %v", name)
 	return fuse.ToStatus(syscall.Unlink(fs.GetPath(name)))
-}
-
-func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Status) {
-	return fuse.ToStatus(syscall.Rmdir(fs.GetPath(name)))
 }
 
 func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.Context) (code fuse.Status) {
 	return fuse.ToStatus(os.Symlink(pointedTo, fs.GetPath(linkName)))
 }
 
+// Rename handles dir & file rename operation
 func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Context) (codee fuse.Status) {
+	/* TODO
+	defer func() {
+		switch node := oldNode.(type) {
+		case *fsFile:
+			node.path = newPath
+		case *fsDir:
+			node.path = newPath
+		default:
+			log.Errorf("Failed to update node path to '%s'", newPath)
+		}
+
+		d.fs.factory.Forget(oldPath)
+	}()
+	*/
+
+	defer func() {
+		//make sure we mark the new path as changed.
+		fs.tracker.Touch(newPath)
+		if fs.overlay {
+			//touch old path as deleted
+			touchDeleted(oldPath)
+		}
+	}()
+
+	// rename file
 	err := os.Rename(fs.GetPath(oldPath), fs.GetPath(newPath))
-	return fuse.ToStatus(err)
+	if err != nil && !os.IsNotExist(err) {
+		return fuse.ToStatus(err)
+	}
+
+	// adjust metadata
+	if fs.overlay {
+		m := meta.GetMeta(oldPath)
+		if m.Exists() {
+			info, err := m.Load()
+			if err != nil {
+				return fuse.ToStatus(err)
+			}
+			nm := meta.GetMeta(newPath)
+			nm.Save(info)
+		}
+	} else {
+		os.Rename(meta.GetMeta(oldPath).String(), meta.GetMeta(newPath).String())
+	}
+
+	return fuse.ToStatus(nil)
 }
 
 func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) (code fuse.Status) {
@@ -247,4 +285,13 @@ func (fs *fileSystem) url(hash string) (string, error) {
 	u.Path = path.Join(u.Path, "store", fs.backend.Namespace, hash)
 
 	return u.String(), nil
+}
+
+func touchDeleted(name string) {
+	m := meta.GetMeta(name)
+	if !m.Exists() {
+		m.Save(&meta.MetaFile{})
+	}
+
+	m.SetStat(m.Stat().SetDeleted(true).SetModified(true))
 }
