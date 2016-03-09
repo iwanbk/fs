@@ -200,7 +200,7 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 
 func (fs *fileSystem) Create(path string, flags uint32, mode uint32, context *fuse.Context) (fuseFile nodefs.File, code fuse.Status) {
 	f, err := os.OpenFile(fs.GetPath(path), int(flags)|os.O_CREATE, os.FileMode(mode))
-	return nodefs.NewLoopbackFile(f), fuse.ToStatus(err)
+	return NewLoopbackFile(f, fs.tracker), fuse.ToStatus(err)
 }
 
 // download file from stor
