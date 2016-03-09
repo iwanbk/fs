@@ -30,6 +30,7 @@ func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) (co
 	return fuse.OK
 }
 
+// Rmdir deletes a directory
 func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Status) {
 	fullPath := fs.GetPath(name)
 
@@ -37,7 +38,7 @@ func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Statu
 
 	m := meta.GetMeta(fullPath)
 
-	// TODO : ask azmy / chris about this defer, it seems invalid
+	// make sure we touchDeleted it
 	defer func() {
 		if fs.overlay {
 			//Set delete mark

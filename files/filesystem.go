@@ -141,49 +141,39 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 
 // Rename handles dir & file rename operation
 func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Context) (codee fuse.Status) {
-	/* TODO
-	defer func() {
-		switch node := oldNode.(type) {
-		case *fsFile:
-			node.path = newPath
-		case *fsDir:
-			node.path = newPath
-		default:
-			log.Errorf("Failed to update node path to '%s'", newPath)
-		}
+	fullOldPath := fs.GetPath(oldPath)
+	fullNewPath := fs.GetPath(newPath)
 
-		d.fs.factory.Forget(oldPath)
-	}()
-	*/
+	log.Debugf("Rename (%v) -> (%v)", oldPath, newPath)
 
 	defer func() {
 		//make sure we mark the new path as changed.
-		fs.tracker.Touch(newPath)
+		fs.tracker.Touch(fullNewPath)
 		if fs.overlay {
 			//touch old path as deleted
-			touchDeleted(oldPath)
+			touchDeleted(fullOldPath)
 		}
 	}()
 
 	// rename file
-	err := os.Rename(fs.GetPath(oldPath), fs.GetPath(newPath))
+	err := os.Rename(fullOldPath, fullNewPath)
 	if err != nil && !os.IsNotExist(err) {
 		return fuse.ToStatus(err)
 	}
 
 	// adjust metadata
 	if fs.overlay {
-		m := meta.GetMeta(oldPath)
+		m := meta.GetMeta(fullOldPath)
 		if m.Exists() {
 			info, err := m.Load()
 			if err != nil {
 				return fuse.ToStatus(err)
 			}
-			nm := meta.GetMeta(newPath)
+			nm := meta.GetMeta(fullNewPath)
 			nm.Save(info)
 		}
 	} else {
-		os.Rename(meta.GetMeta(oldPath).String(), meta.GetMeta(newPath).String())
+		os.Rename(meta.GetMeta(fullOldPath).String(), meta.GetMeta(fullNewPath).String())
 	}
 
 	return fuse.ToStatus(nil)
@@ -199,6 +189,7 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 }
 
 func (fs *fileSystem) Create(path string, flags uint32, mode uint32, context *fuse.Context) (fuseFile nodefs.File, code fuse.Status) {
+	log.Debugf("Create %v", path)
 	f, err := os.OpenFile(fs.GetPath(path), int(flags)|os.O_CREATE, os.FileMode(mode))
 	return NewLoopbackFile(f, fs.tracker), fuse.ToStatus(err)
 }

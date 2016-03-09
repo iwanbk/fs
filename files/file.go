@@ -62,6 +62,8 @@ func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 }
 
 func (f *loopbackFile) Release() {
+	log.Debugf("Release file %v", f.File.Name())
+	defer f.tracker.Close(f.File.Name())
 	f.lock.Lock()
 	f.File.Close()
 	f.lock.Unlock()
