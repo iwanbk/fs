@@ -49,12 +49,12 @@ func (fs *fileSystem) GetPath(relPath string) string {
 	return filepath.Join(fs.Root, relPath)
 }
 
-func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr, code fuse.Status) {
+func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	var err error = nil
 	var st syscall.Stat_t
 	var fromMeta bool
 	var fromMetaSize uint64
-	a = &fuse.Attr{}
+	attr := &fuse.Attr{}
 
 	log.Debugf("GetAttr %v", fs.GetPath(name))
 	fullPath := fs.GetPath(name)
@@ -72,7 +72,7 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr,
 		meta, err := m.Load()
 		if err != nil {
 			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
-			return a, fuse.ToStatus(err)
+			return attr, fuse.ToStatus(err)
 		}
 		if err := syscall.Lstat(string(m), &st); err != nil {
 			return nil, fuse.ToStatus(err)
@@ -83,11 +83,15 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (a *fuse.Attr,
 		return nil, fuse.ToStatus(err)
 	}
 
-	a.FromStat(&st)
+	//attr.FromStat(&st)
+	attr.Mtime = uint64(st.Mtim.Sec)
+	attr.Mode = st.Mode | 0755
+	attr.Size = uint64(st.Size)
+
 	if fromMeta {
-		a.Size = fromMetaSize
+		attr.Size = fromMetaSize
 	}
-	return a, fuse.OK
+	return attr, fuse.OK
 }
 
 // Open opens a file.
