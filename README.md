@@ -60,7 +60,7 @@ example:
     namespace="js8_opt"
 
     lib="hanwen"
-    ```
+```
 
 ## Mounts
 A list of mount points, each mount defines what backend to use and mount `mode`. example:
