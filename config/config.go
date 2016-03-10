@@ -41,6 +41,8 @@ type Backend struct {
 	Path string
 	Stor string
 
+	Lib string `toml:"lib,omitempty"` // lib to be used, 'hanwen' or 'bazil'
+
 	Upload           bool `toml:",omitempty"`
 	Namespace        string
 	AydostorPushCron string `toml:",omitempty"`
