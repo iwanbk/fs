@@ -3,6 +3,7 @@ package files
 import (
 	"io"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 	"syscall"
@@ -76,28 +77,28 @@ func (fs *fileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse
 		return nil, fuse.ToStatus(err)
 	}
 	defer f.Close()
-	want := 500
+
+	want := 100
 	output := make([]fuse.DirEntry, 0, want)
 	for {
 		infos, err := f.Readdir(want)
 		for i := range infos {
-			// workaround forhttps://code.google.com/p/go/issues/detail?id=5960
+			// workaround for https://code.google.com/p/go/issues/detail?id=5960
 			if infos[i] == nil {
 				continue
 			}
-			n := infos[i].Name()
-			/*d := fuse.DirEntry{
-				Name: n,
-			}*/
-			d, ok := fs.getDirent(infos[i], n)
-			if !ok {
+
+			d, ok := fs.getDirent(infos[i], name)
+			if !ok { // ignore certain files : .meta, .aydo
 				continue
 			}
+
 			if s := fuse.ToStatT(infos[i]); s != nil {
 				d.Mode = uint32(s.Mode)
 			} else {
-				log.Errorf("ReadDir entry %q for %q has no stat info", n, name)
+				log.Errorf("ReadDir entry %q for %q has no stat info", infos[i].Name(), name)
 			}
+
 			output = append(output, d)
 		}
 		if len(infos) < want || err == io.EOF {
@@ -122,10 +123,11 @@ func skipDir(name string) bool {
 	return false
 }
 
-func (fs *fileSystem) getDirent(entry os.FileInfo, name string) (fuse.DirEntry, bool) {
-	fullPath := fs.GetPath(name)
+func (fs *fileSystem) getDirent(entry os.FileInfo, dir string) (fuse.DirEntry, bool) {
+	name := entry.Name()
+	fullPath := fs.GetPath(path.Join(dir, entry.Name()))
 	dirEntry := fuse.DirEntry{
-		Name: name,
+		Name: entry.Name(),
 	}
 
 	if skipDir(name) {
@@ -144,6 +146,9 @@ func (fs *fileSystem) getDirent(entry os.FileInfo, name string) (fuse.DirEntry, 
 		}
 	*/
 
+	// process meta file:
+	// - if represented file exist = ignore
+	// - if meta marked as deleted = ignore
 	if strings.HasSuffix(fullPath, meta.MetaSuffix) { // meta file.
 		filePath := strings.TrimSuffix(fullPath, meta.MetaSuffix)
 		if utils.Exists(filePath) { //if the file itself is there just skip because it will get processed anyway
