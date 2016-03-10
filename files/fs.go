@@ -38,6 +38,9 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 		overlay: overlay,
 	}
 	filesys := newFileSystem(fs)
+	if readOnly {
+		filesys = pathfs.NewReadonlyFileSystem(filesys)
+	}
 
 	opts := &nodefs.Options{
 		// These options are to be compatible with libfuse defaults,
