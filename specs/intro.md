@@ -1,107 +1,40 @@
-# intro
+# G8OS Filesystem
+The basic idea of the file system is as follows
+- When the filesystem is mounted, a `flist` file is loaded to build the filesystem tree using the provided information in the flist
+- Each row in the flist is formated as `<path>,<hash>,<size in bytes>`
+- We exapand this flist into metadata files in the backend cache for fast access.
+- Each metadata file will have the flist entry data in a toml format.
+- Metadata files is used to track modifications to the file
 
-- is read only caching fuse based virtual filesystem
-- every file read can optionally be cached in ayfs_stor's
-- an ayfs_stor can be installed locally or remotely
+# G8OS modes
+Mounts can run in 3 different modes
 
-# definitions
+1- Readonly (RO)
+2- Readwrite (RW)
+3- Overlay (OL)
 
+## Readonly mode
+In readonly mode, a user can't change the content of the file or create a new file. That's the simplest mode. Metadata is never touched or changed. And is only accessed if the actual file doesn't exist.
+When a file is accesses:
+- If the file exists, all read operations are redirected to the actual file
+- If file does not exist, the meta is used to build the download url (using the hash) and file is downloade.
+Also in RO mode (and all other modes) a cleaner process starts that vacumes the backend by deleteing actuall files that hasn't been accessed for a long time (1day)
 
-### aysfs_client (CL)
+## Readwrite mode
+This implementes the same `RO` behavior plus support for editing files and creating new files.
+In `RW` mode, the fuse layer starts a `watcher` routine that runs every configurable amount of minutes which does the following
+- When awake, it loops over all tracked files that are ready to be uploaded (has been closed or has been open and not modified for a long time (configurable)
+- For each ready file, it process it
+- Encrypt it
+- Compress
+- Upload to store
+- Create a file metadata with correct hash and size
 
-* fuse client
-* exposes the filesystem to local OS
-* uses list of aysfs_stor's to find files 
-* metadata comes from ays
+For newly created files _and_ modified files.
+- When a file is modified or created, the meta data file gets a `w` flag to mark the file as modified. This will prevent the filesystem reboot from overriding your modified meta file. and will force the cleaner to skip cleaning up your modified version of the actual file.
+- When a file or a directory is deleted. the meta file of the deleted node gets a `x` flag to mark file/dir deletion for the same reason. This will also force the directory listing to not show the deleted file/directory.
 
+> Note: File delete, move, or rename should work even if the actual file is not downloaded from the stor. File is only downloaded in case of `Open`. Other operations can be performed directly on the meta file without the need to download the file. So a file delete makes sure the file meta is marked as deleted, even if the actual file delete failed (because it might not exist at all)
 
-# components
-
-## aysfs_cl
-
-### config
-
-```python
-
-[main]
-id="aUniqueIdForThisClient"
-
-
-[[ays.cache]]
-#cache at gridlevel, can have more than 1, will try all till found what it needs
-mnt="/mnt/gridnode1/"
-
-[[ays.cache]]
-mnt="http://192.168.1.1:8080"
-
-[[ays.stor]]
-#cache at gridlevel, can have more than 1, will try all till found what it needs
-url="http://stor1.aydo.com:8080"
-cache.expiration = 0
-
-[[ays.stor]]
-url="ssh://stor2.aydo.com:8080/mnt/1"
-cache.expiration = 0
-
-[[debug]]
-debug_filter = [".*\.py",".*\.hrd"]
-redis.addr="127.0.0.1"
-redis.port=555
-redis.passwd=""
-
-[[ays]]
-id="jumpscale|mongodb!main"
-prefetch.cache.grid=0
-prefetch.cache.local=0
-cache.grid=1
-cache.local=1
-
-[[ays]]
-id="jumpscale|mysql!main"
-prefetch.cache.grid=0
-prefetch.cache.local=0
-
-```
-
-### features
-
-- autoreload the config file
-- is readonly (exception for debug feature)
-- support easy mechanism for developer to work on files in reality and get feedback to his local machine
-
-### how are files & metadata stored in boltdb
-
-- metadata
-    - hset `md:$ays_id` key:`dirpath` val:`["filename":"$hash,$size",...]`
-    - no need to store things like acl's: root:root will always have access moddate is now
-
-- files
-    - hset `files:$dedupedomain` key:`hash` val:`binarydata`  
-
-
-### debug
-
-- we allow write behaviour in debug mode
-- for files specified in debug_filter (use specified redis)
-    - file paths will be remembered in 
-        - hset `debug:paths:$mountname` key:`$path` 
-        - value = md5_hashkey,size
-    - files will be cached in in 
-        - hset `debug:files:$mountname` key:`$hash` 
-        - value = md5_hashkey,size
-    - transaction log in
-        - llist `debug:log:$mountname` append [epoch,"$path","$hash"]
-        - will use remotely to fetch changed files and download them locally on local e.g. github for further processing of changed data
-- if file requested at fuselayer need to check debug first
-    - if debug on & regex matches
-        - check in configured redis if path is there, if so read hash
-        - get file from files location
-        - no need to go to store
-
-### remarks
-
-
-# remarks
-- all in golang
-- use fuse (golang) to expose local fs
-- caching using bolt
+## Overlay mode.
+Overlay mode works exactly as the `RW` mode without the uploader worker. So if a new file is created/modifed, it's never uploaded to the store but will always served from local cache. Same meta data roles applies.
