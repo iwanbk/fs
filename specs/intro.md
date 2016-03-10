@@ -5,6 +5,8 @@ The basic idea of the file system is as follows
 - We exapand this flist into metadata files in the backend cache for fast access.
 - Each metadata file will have the flist entry data in a toml format.
 - Metadata files is used to track modifications to the file
+- Metadata files has mode `0400` when first created.
+- Actual files has mode `0755` by default, and can't be changed (same as directories)
 
 # G8OS modes
 Mounts can run in 3 different modes
