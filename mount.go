@@ -92,18 +92,17 @@ func mountFS(
 	overlay bool,
 	readOnly bool) error {
 
-	if backendCfg.Lib == "hanwen" {
-		fs := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
-		log.Info("Serving File system")
-		fs.Serve()
-	} else {
+	if backendCfg.Lib == "bazil" {
 		fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay)
 		log.Info("Mounting Fuse File system")
 		if err := mountFuse(fs, mountCfg.Path, readOnly); err != nil {
 			log.Fatal(err)
 		}
+	} else {
+		fs := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
+		log.Info("Serving File system")
+		fs.Serve()
 	}
-
 	return nil
 }
 

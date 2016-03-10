@@ -50,8 +50,8 @@ A single store can be used by multiple backend using the store name
 A backend defines the local files cache. It defines how to retrieve the files from the stores, and which store to use. also defined how to push changes back to the store and if files should be pushed back to the store in the first place.
 
 ### Fuse lib
-There are two fuse lib we use, https://bazil.org/fuse/ (default) and https://github.com/hanwen/go-fuse.
-To use hanwen/go-fuse lib, we need to specify `lib="hanwen"` in the config.
+There are two fuse lib we use, https://bazil.org/fuse/ and https://github.com/hanwen/go-fuse (default).
+To use bazil's lib, we need to specify `lib="bazil"` in the config.
 example:
 ```
 [backend.main]
@@ -59,7 +59,7 @@ example:
     stor="stor1"
     namespace="js8_opt"
 
-    lib="hanwen"
+    lib="bazil"
 ```
 
 ## Mounts
