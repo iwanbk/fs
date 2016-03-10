@@ -134,18 +134,6 @@ func (fs *fileSystem) getDirent(entry os.FileInfo, dir string) (fuse.DirEntry, b
 		return dirEntry, false
 	}
 
-	/*
-		TODO : ask azmy & chris about these code
-		if entry.IsDir() {
-			dirEntry.Type = fuse.DT_Dir
-		} else if entry.Mode()&os.ModeSymlink > 0 {
-			dirEntry.Type = fuse.DT_Link
-			return dirEntry, true
-		} else {
-			dirEntry.Type = fuse.DT_File
-		}
-	*/
-
 	// process meta file:
 	// - if represented file exist = ignore
 	// - if meta marked as deleted = ignore

@@ -46,18 +46,18 @@ func (f *loopbackFile) String() string {
 
 func (f *loopbackFile) Read(buf []byte, off int64) (res fuse.ReadResult, code fuse.Status) {
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	// This is not racy by virtue of the kernel properly
 	// synchronizing the open/write/close.
 	r := fuse.ReadResultFd(f.File.Fd(), off, len(buf))
-	f.lock.Unlock()
 	return r, fuse.OK
 }
 
 func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 	defer f.tracker.Touch(f.File.Name())
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	n, err := f.File.WriteAt(data, off)
-	f.lock.Unlock()
 	return uint32(n), fuse.ToStatus(err)
 }
 
@@ -65,8 +65,8 @@ func (f *loopbackFile) Release() {
 	log.Debugf("Release file %v", f.File.Name())
 	defer f.tracker.Close(f.File.Name())
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	f.File.Close()
-	f.lock.Unlock()
 }
 
 func (f *loopbackFile) Flush() fuse.Status {
@@ -87,32 +87,33 @@ func (f *loopbackFile) Flush() fuse.Status {
 
 func (f *loopbackFile) Fsync(flags int) (code fuse.Status) {
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	r := fuse.ToStatus(syscall.Fsync(int(f.File.Fd())))
-	f.lock.Unlock()
 
 	return r
 }
 
 func (f *loopbackFile) Truncate(size uint64) fuse.Status {
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	r := fuse.ToStatus(syscall.Ftruncate(int(f.File.Fd()), int64(size)))
-	f.lock.Unlock()
 
 	return r
 }
 
 func (f *loopbackFile) Chmod(mode uint32) fuse.Status {
 	f.lock.Lock()
+	defer f.lock.Unlock()
 	r := fuse.ToStatus(f.File.Chmod(os.FileMode(mode)))
-	f.lock.Unlock()
 
 	return r
 }
 
 func (f *loopbackFile) Chown(uid uint32, gid uint32) fuse.Status {
 	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	r := fuse.ToStatus(f.File.Chown(int(uid), int(gid)))
-	f.lock.Unlock()
 
 	return r
 }
