@@ -1,7 +1,6 @@
 package files
 
 import (
-	"os"
 	"time"
 
 	"github.com/g8os/fs/config"
@@ -17,6 +16,7 @@ var (
 	log = logging.MustGetLogger("files")
 )
 
+// FS defines g8os fuse filesystem
 type FS struct {
 	mountpoint string
 	backend    *config.Backend
@@ -28,14 +28,14 @@ type FS struct {
 	server     *fuse.Server
 }
 
-func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker, overlay, readOnly bool) *FS {
+// NewFS creates new fuse filesystem using hanwen/go-fuse lib
+func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker, overlay, readOnly bool) (*FS, error) {
 	fs := &FS{
 		mountpoint: mountpoint,
 		backend:    backend,
 		stor:       stor,
-		//factory:    NewFactory(),
-		tracker: tracker,
-		overlay: overlay,
+		tracker:    tracker,
+		overlay:    overlay,
 	}
 	filesys := newFileSystem(fs)
 	if readOnly {
@@ -59,12 +59,12 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 	}
 	state, err := fuse.NewServer(fs.conn.RawFS(), mountpoint, mOpts)
 	if err != nil {
-		os.Exit(1)
+		return fs, err
 	}
 	fs.server = state
 	//fs.server.SetDebug(true)
 
-	return fs
+	return fs, nil
 }
 
 func (fs *FS) Serve() {

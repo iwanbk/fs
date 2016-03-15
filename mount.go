@@ -99,7 +99,10 @@ func mountFS(
 			log.Fatal(err)
 		}
 	} else {
-		fs := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
+		fs, err := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
+		if err != nil {
+			return err
+		}
 		log.Info("Serving File system")
 		fs.Serve()
 	}
