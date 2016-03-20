@@ -23,7 +23,7 @@ When a file is accesses:
 Also in RO mode (and all other modes) a cleaner process starts that vacumes the backend by deleteing actuall files that hasn't been accessed for a long time (1day)
 
 ## Readwrite mode
-This implementes the same `RO` behavior plus support for editing files and creating new files.
+In `RW` mode, the mount starts with an empty mount.
 In `RW` mode, the fuse layer starts a `watcher` routine that runs every configurable amount of minutes which does the following
 - When awake, it loops over all tracked files that are ready to be uploaded (has been closed or has been open and not modified for a long time (configurable)
 - For each ready file, it process it
