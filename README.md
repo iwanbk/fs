@@ -49,6 +49,19 @@ A single store can be used by multiple backend using the store name
 ## Backends
 A backend defines the local files cache. It defines how to retrieve the files from the stores, and which store to use. also defined how to push changes back to the store and if files should be pushed back to the store in the first place.
 
+### Fuse lib
+There are two fuse lib we use, https://bazil.org/fuse/ and https://github.com/hanwen/go-fuse (default).
+To use bazil's lib, we need to specify `lib="bazil"` in the config.
+example:
+```
+[backend.main]
+    path="/root/aysfs_main"
+    stor="stor1"
+    namespace="js8_opt"
+
+    lib="bazil"
+```
+
 ## Mounts
 A list of mount points, each mount defines what backend to use and mount `mode`. example:
 ```toml
