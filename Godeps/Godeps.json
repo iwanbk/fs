@@ -1,6 +1,6 @@
 {
-	"ImportPath": "github.com/Jumpscale/aysfs",
-	"GoVersion": "go1.5.2",
+	"ImportPath": "github.com/g8os/fs",
+	"GoVersion": "go1.6",
 	"Deps": [
 		{
 			"ImportPath": "bazil.org/fuse",
@@ -12,29 +12,20 @@
 			"Rev": "5c4df71dfe9ac89ef6287afc05e4c1b16ae65a1e"
 		},
 		{
-			"ImportPath": "github.com/boltdb/bolt",
-			"Comment": "v1.1.0-22-g6e1ca38",
-			"Rev": "6e1ca38c6a73025366cd8705553b404746ee6e63"
-		},
-		{
 			"ImportPath": "github.com/dsnet/compress/brotli",
 			"Rev": "ba093074f09ee73cea12653790f132e3ed8abfbe"
 		},
 		{
-			"ImportPath": "github.com/garyburd/redigo/internal",
-			"Rev": "8b1d80a45a732e6d95e22dcc2e067312c664936c"
+			"ImportPath": "github.com/hanwen/go-fuse/fuse",
+			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
 		},
 		{
-			"ImportPath": "github.com/garyburd/redigo/redis",
-			"Rev": "8b1d80a45a732e6d95e22dcc2e067312c664936c"
+			"ImportPath": "github.com/hanwen/go-fuse/splice",
+			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
 		},
 		{
 			"ImportPath": "github.com/jeffail/tunny",
 			"Rev": "863db275f4f2273d031c2ce4f4834714e8c10606"
-		},
-		{
-			"ImportPath": "github.com/kr/fs",
-			"Rev": "2788f0dbd16903de03cb8186e5c7d97b69ad387b"
 		},
 		{
 			"ImportPath": "github.com/naoina/go-stringutil",
@@ -49,35 +40,28 @@
 			"Rev": "dfaf3dff9b631bc4236201d90d41ee0de9202889"
 		},
 		{
-			"ImportPath": "github.com/pkg/sftp",
-			"Rev": "e09e01e6e10971840f7639df3dd747e6fd2dff3a"
-		},
-		{
 			"ImportPath": "github.com/robfig/cron",
 			"Comment": "v1-2-g67823cd",
 			"Rev": "67823cd24dece1b04cced3a0a0b3ca2bc84d875e"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ssh",
-			"Rev": "1e856cbfdf9bc25eefca75f83f25d55e35ae72e0"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "e0403b4e005737430c05a57aac078479844f919c"
 		},
 		{
-			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "833a04a10549a95dc34458c195cbad61bbb6cb4d"
+			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
+			"Comment": "brotli-98ed7a2",
+			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
+		},
+		{
+			"ImportPath": "gopkg.in/kothar/brotli-go.v0/shared",
+			"Comment": "brotli-98ed7a2",
+			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
 		},
 		{
 			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",
 			"Comment": "v1.0-18-g600ceb4",
 			"Rev": "600ceb4523e5b7ff745f91083c8a023c2bf73af5"
-		},
-		{
-			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
-			"Comment": "brotli-98ed7a2",
-			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
 		}
 	]
 }
