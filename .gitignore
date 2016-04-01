@@ -31,5 +31,4 @@ aysfs
 *.iml
 Godeps/_workspace
 tags
-fs
 *.swp
