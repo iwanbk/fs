@@ -1,9 +1,21 @@
 {
 	"ImportPath": "github.com/g8os/fs",
 	"GoVersion": "go1.6",
+	"GodepVersion": "v60",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "bazil.org/fuse",
+			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
+		},
+		{
+			"ImportPath": "bazil.org/fuse/fs",
+			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
+		},
+		{
+			"ImportPath": "bazil.org/fuse/fuseutil",
 			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
 		},
 		{
@@ -20,6 +32,14 @@
 			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
 		},
 		{
+			"ImportPath": "github.com/hanwen/go-fuse/fuse/nodefs",
+			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+		},
+		{
+			"ImportPath": "github.com/hanwen/go-fuse/fuse/pathfs",
+			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+		},
+		{
 			"ImportPath": "github.com/hanwen/go-fuse/splice",
 			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
 		},
@@ -33,6 +53,12 @@
 		},
 		{
 			"ImportPath": "github.com/naoina/toml",
+			"Comment": "v0.1.0",
+			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+		},
+		{
+			"ImportPath": "github.com/naoina/toml/ast",
+			"Comment": "v0.1.0",
 			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
 		},
 		{
@@ -45,18 +71,28 @@
 			"Rev": "67823cd24dece1b04cced3a0a0b3ca2bc84d875e"
 		},
 		{
+			"ImportPath": "github.com/stretchr/testify/assert",
+			"Comment": "v1.0-12-g7e4a149",
+			"Rev": "7e4a149930b09fe4c2b134c50ce637457ba6e966"
+		},
+		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "e0403b4e005737430c05a57aac078479844f919c"
 		},
 		{
+			"ImportPath": "gopkg.in/kothar/brotli-go.v0/dec",
+			"Comment": "brotli-33aa402-1-g1565f15",
+			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
+		},
+		{
 			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
-			"Comment": "brotli-98ed7a2",
-			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
+			"Comment": "brotli-33aa402-1-g1565f15",
+			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
 		},
 		{
 			"ImportPath": "gopkg.in/kothar/brotli-go.v0/shared",
-			"Comment": "brotli-98ed7a2",
-			"Rev": "73023613d977ba1ebc8bfb9afe06eca5c5876ab6"
+			"Comment": "brotli-33aa402-1-g1565f15",
+			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
 		},
 		{
 			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",

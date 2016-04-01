@@ -21,14 +21,3 @@ _testmain.go
 
 *.exe
 *.test
-*.prof
-
-aysfs
-*.toml
-*.bolt
-
-.idea
-*.iml
-Godeps/_workspace
-tags
-*.swp

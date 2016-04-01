@@ -8,5 +8,4 @@ before_install:
   - go get github.com/stretchr/testify
 
 install:
-  - godep restore
   - go test -v ./...
