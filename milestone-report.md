@@ -3,17 +3,17 @@
 # Summary
 |Milestone|ETA|
 |---------|---|
-|[g8os1.0_beta](#milestone-g8os10_beta)|0 seconds|
 |[g8os1.0](#milestone-g8os10)|0 seconds|
+|[g8os1.0_beta](#milestone-g8os10_beta)|0 seconds|
 |[No milestone](#no-milestone)|0 seconds|
 
-## [Milestone g8os1.0_beta](milestones/2:g8os1.0_beta.md)
+## [Milestone g8os1.0](milestones/3:g8os1.0.md)
 
 
 |Issue|Title|State|Owner|ETA|
 |-----|-----|-----|-----|---|
 
-## [Milestone g8os1.0](milestones/3:g8os1.0.md)
+## [Milestone g8os1.0_beta](milestones/2:g8os1.0_beta.md)
 
 
 |Issue|Title|State|Owner|ETA|
