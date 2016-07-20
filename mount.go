@@ -95,9 +95,7 @@ func mountFS(
 	if backendCfg.Lib == "bazil" {
 		fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay)
 		log.Info("Mounting Fuse File system")
-		if err := mountFuse(fs, mountCfg.Path, readOnly); err != nil {
-			log.Fatal(err)
-		}
+		return mountFuse(fs, mountCfg.Path, readOnly)
 	} else {
 		fs, err := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
 		if err != nil {
@@ -133,7 +131,9 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//Mount file system
-	mountFS(mount, backend, stor, tracker, false, false)
+	if err := mountFS(mount, backend, stor, tracker, false, false); err != nil {
+		log.Fatal(err)
+	}
 
 	wg.Done()
 }
@@ -158,7 +158,9 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 
 	//TODO: 3- start RWFS with overlay compatibility.
 	tracker := tracker.NewPurgeTracker()
-	mountFS(mount, backend, stor, tracker, true, false)
+	if err := mountFS(mount, backend, stor, tracker, true, false); err != nil {
+		log.Fatal(err)
+	}
 	wg.Done()
 }
 
@@ -182,6 +184,8 @@ func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 
 	//TODO: 3- start RWFS with overlay compatibility.
 	tracker := tracker.NewPurgeTracker()
-	mountFS(mount, backend, stor, tracker, true, true)
+	if err := mountFS(mount, backend, stor, tracker, true, true); err != nil {
+		log.Fatal(err)
+	}
 	wg.Done()
 }
