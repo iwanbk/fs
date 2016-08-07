@@ -111,15 +111,6 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 	return nodefs.NewLoopbackFile(f), fuse.OK
 }
 
-func (fs *fileSystem) Chmod(path string, mode uint32, context *fuse.Context) (code fuse.Status) {
-	err := os.Chmod(fs.GetPath(path), os.FileMode(mode))
-	return fuse.ToStatus(err)
-}
-
-func (fs *fileSystem) Chown(path string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
-	return fuse.ToStatus(os.Chown(fs.GetPath(path), int(uid), int(gid)))
-}
-
 func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) (code fuse.Status) {
 	return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
 }
@@ -129,14 +120,33 @@ func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, 
 	return f, fuse.ToStatus(err)
 }
 
-func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.Context) (code fuse.Status) {
-	return fuse.ToStatus(syscall.Mknod(fs.GetPath(name), mode, int(dev)))
-}
-
 // Don't use os.Remove, it removes twice (unlink followed by rmdir).
 func (fs *fileSystem) Unlink(name string, context *fuse.Context) (code fuse.Status) {
-	log.Debugf("Unlink %v", name)
-	return fuse.ToStatus(syscall.Unlink(fs.GetPath(name)))
+	fullPath := fs.GetPath(name)
+	m := meta.GetMeta(fullPath)
+
+	defer func() {
+		if fs.overlay {
+			//Set delete mark
+			touchDeleted(fullPath)
+		}
+	}()
+
+	err := os.Remove(fullPath)
+	if !fs.overlay {
+		if merr := os.Remove(string(m)); merr == nil {
+			if os.IsNotExist(err) {
+				//the file itself doesn't exist but the meta does.
+				return fuse.OK
+			}
+		}
+	}
+
+	if !fs.overlay && err != nil && !os.IsNotExist(err) {
+		return fuse.ToStatus(err)
+	}
+
+	return fuse.OK
 }
 
 func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.Context) (code fuse.Status) {
