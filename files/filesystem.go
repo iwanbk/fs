@@ -11,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
+	"os/user"
+	"strconv"
 
 	"github.com/dsnet/compress/brotli"
 	"github.com/g8os/fs/crypto"
@@ -52,8 +54,6 @@ func (fs *fileSystem) GetPath(relPath string) string {
 func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	var err error = nil
 	var st syscall.Stat_t
-	var fromMeta bool
-	var fromMetaSize uint64
 	attr := &fuse.Attr{}
 
 	log.Debugf("GetAttr %v", fs.GetPath(name))
@@ -67,9 +67,12 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 		err = syscall.Lstat(fullPath, &st)
 	}
 
+	metadata := &meta.MetaFile{}
+
 	if os.IsNotExist(err) {
 		m := meta.GetMeta(fullPath)
-		meta, err := m.Load()
+		metadata, err = m.Load()
+
 		if err != nil {
 			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
 			return attr, fuse.ToStatus(err)
@@ -77,20 +80,35 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 		if err := syscall.Lstat(string(m), &st); err != nil {
 			return nil, fuse.ToStatus(err)
 		}
-		fromMeta = true
-		fromMetaSize = uint64(meta.Size)
+
 	} else if err != nil {
 		return nil, fuse.ToStatus(err)
+
+	} else {
+		attr.FromStat(&st)
+		return attr, fuse.OK
 	}
 
-	//attr.FromStat(&st)
-	attr.Mtime = uint64(st.Mtim.Sec)
-	attr.Mode = st.Mode | 0755
-	attr.Size = uint64(st.Size)
-
-	if fromMeta {
-		attr.Size = fromMetaSize
+	// user and group id
+	uid := 0
+	u, err := user.Lookup(metadata.Uname)
+	if err == nil {
+		uid, _ = strconv.Atoi(u.Uid)
 	}
+
+	gid := 0
+	g, err := user.LookupGroup(metadata.Gname)
+	if err == nil {
+		gid, _ = strconv.Atoi(g.Gid)
+	}
+
+	attr.Size  = metadata.Size
+	attr.Mode  = metadata.Filetype | metadata.Permissions
+	attr.Ctime = metadata.Ctime
+	attr.Mtime = metadata.Mtime
+	attr.Uid   = uint32(uid)
+	attr.Gid   = uint32(gid)
+
 	return attr, fuse.OK
 }
 
@@ -102,7 +120,7 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 	if os.IsNotExist(err) {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := fs.download(fs.GetPath(name)); err != nil {
-			return nil, fuse.ToStatus(err)
+			return nil, fuse.EIO
 		}
 		return fs.Open(name, flags, context)
 	} else if err != nil {
@@ -116,7 +134,35 @@ func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context
 }
 
 func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, code fuse.Status) {
-	f, err := os.Readlink(fs.GetPath(name))
+	var err error = nil
+	var st syscall.Stat_t
+
+	log.Debugf("ReadLink %v", fs.GetPath(name))
+
+	fullPath := fs.GetPath(name)
+	err = syscall.Stat(fullPath, &st)
+
+	metadata := &meta.MetaFile{}
+
+	if os.IsNotExist(err) {
+		m := meta.GetMeta(fullPath)
+		metadata, err = m.Load()
+
+		if err != nil {
+			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
+			return "", fuse.ToStatus(err)
+		}
+
+	} else if err != nil {
+		return "", fuse.ToStatus(err)
+
+	} else {
+		f, err := os.Readlink(fs.GetPath(name))
+		return f, fuse.ToStatus(err)
+	}
+
+	f := metadata.Extended
+
 	return f, fuse.ToStatus(err)
 }
 
@@ -225,7 +271,11 @@ func (fs *fileSystem) download(path string) error {
 
 	log.Info("Downloading: %s", url)
 
-	response, err := http.Get(url)
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Accept", "application/brotli")
+
+	response, err := client.Do(req)
 	if err != nil {
 		log.Errorf("Failed to download file from stor: %s", err)
 		return err
@@ -270,9 +320,14 @@ func (fs *fileSystem) download(path string) error {
 	} else {
 		if _, err = io.Copy(file, broReader); err != nil {
 			log.Errorf("Error downloading data: %v", err)
+			_ = os.Remove(path)
 			return err
 		}
 	}
+
+	// setting locally file permission
+	log.Debug("%s", meta.Hash)
+	log.Debug("%d", meta.Permissions)
 
 	return err
 }
