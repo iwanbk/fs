@@ -6,6 +6,7 @@ import (
 	"time"
 	"strconv"
 	"syscall"
+	"os/user"
 
 	"path"
 	"strings"
@@ -28,7 +29,9 @@ type MetaFile struct {
 	Hash         string   // file hash
 	Size         uint64   // file size in bytes
 	Uname        string   // username (used for permissions)
+	Uid          uint32
 	Gname        string   // groupname (used for permissions)
+	Gid          uint32
 	Permissions  uint32   // perissions (octal style)
 	Filetype     uint32   // golang depend os.FileMode id
 	Ctime        uint64   // creation time
@@ -142,11 +145,26 @@ func PopulateFromPList(backend *config.Backend, base string, plist string) error
 
 		fExists := utils.Exists(file)
 
+		// user and group id
+		uid := 0
+		u, err := user.Lookup(entity.Uname)
+		if err == nil {
+			uid, _ = strconv.Atoi(u.Uid)
+		}
+
+		gid := 0
+		g, err := user.LookupGroup(entity.Gname)
+		if err == nil {
+			gid, _ = strconv.Atoi(g.Gid)
+		}
+
 		data := &MetaFile{
 			Hash: entity.Hash,
 			Size: uint64(entity.Filesize),
 			Uname: entity.Uname,
+			Uid: uint32(uid),
 			Gname: entity.Gname,
+			Gid: uint32(gid),
 			Permissions: uint32(entity.Permissions),
 			Filetype: entity.Filetype,
 			Ctime: uint64(entity.Ctime.Unix()),

@@ -11,8 +11,6 @@ import (
 	"path"
 	"path/filepath"
 	"syscall"
-	"os/user"
-	"strconv"
 
 	"github.com/dsnet/compress/brotli"
 	"github.com/g8os/fs/crypto"
@@ -89,25 +87,12 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 		return attr, fuse.OK
 	}
 
-	// user and group id
-	uid := 0
-	u, err := user.Lookup(metadata.Uname)
-	if err == nil {
-		uid, _ = strconv.Atoi(u.Uid)
-	}
-
-	gid := 0
-	g, err := user.LookupGroup(metadata.Gname)
-	if err == nil {
-		gid, _ = strconv.Atoi(g.Gid)
-	}
-
 	attr.Size  = metadata.Size
 	attr.Mode  = metadata.Filetype | metadata.Permissions
 	attr.Ctime = metadata.Ctime
 	attr.Mtime = metadata.Mtime
-	attr.Uid   = uint32(uid)
-	attr.Gid   = uint32(gid)
+	attr.Uid   = metadata.Uid
+	attr.Gid   = metadata.Gid
 
 	return attr, fuse.OK
 }
@@ -326,8 +311,16 @@ func (fs *fileSystem) download(path string) error {
 	}
 
 	// setting locally file permission
-	log.Debug("%s", meta.Hash)
-	log.Debug("%d", meta.Permissions)
+	err = os.Chown(path, int(meta.Uid), int(meta.Gid))
+	if err != nil {
+		log.Errorf("Cannot chown %v to (%d, %d): %v", path, meta.Uid, meta.Gid, err)
+	}
+
+	// err = syscall.Chmod(path, meta.Permissions)
+	err = syscall.Chmod(path, 04755)
+	if err != nil {
+		log.Errorf("Cannot chmod %v to %d: %v", path, meta.Permissions, err)
+	}
 
 	return err
 }
