@@ -94,6 +94,11 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	attr.Uid   = metadata.Uid
 	attr.Gid   = metadata.Gid
 
+	// block and character devices
+	if(metadata.Filetype == syscall.S_IFCHR || metadata.Filetype == syscall.S_IFBLK) {
+		attr.Rdev = uint32((metadata.DevMajor * 256) + metadata.DevMinor)
+	}
+
 	return attr, fuse.OK
 }
 
@@ -322,7 +327,15 @@ func (fs *fileSystem) download(path string) error {
 		log.Errorf("Cannot chmod %v to %d: %v", path, meta.Permissions, err)
 	}
 
-	// FIXME: restore time
+	utbuf := &syscall.Utimbuf{
+		Actime: int64(meta.Ctime),
+		Modtime: int64(meta.Mtime),
+	}
+
+	err = syscall.Utime(path, utbuf)
+	if err != nil {
+		log.Errorf("Cannot utime %v: %v", path, err)
+	}
 
 	return err
 }
