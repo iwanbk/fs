@@ -316,11 +316,13 @@ func (fs *fileSystem) download(path string) error {
 		log.Errorf("Cannot chown %v to (%d, %d): %v", path, meta.Uid, meta.Gid, err)
 	}
 
-	// err = syscall.Chmod(path, meta.Permissions)
-	err = syscall.Chmod(path, 04755)
+	// err = syscall.Chmod(path, 04755)
+	err = syscall.Chmod(path, meta.Permissions)
 	if err != nil {
 		log.Errorf("Cannot chmod %v to %d: %v", path, meta.Permissions, err)
 	}
+
+	// FIXME: restore time
 
 	return err
 }
