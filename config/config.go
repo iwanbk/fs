@@ -34,6 +34,7 @@ type Mount struct {
 	Mode     string
 	Stor     string `toml:",omitempty"`
 	TrimBase bool
+	Trim     string
 }
 
 type Backend struct {

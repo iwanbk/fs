@@ -128,14 +128,14 @@ func (m Meta) Save(meta *MetaFile) error {
 	return encoder.Encode(meta)
 }
 
-func PopulateFromPList(backend *config.Backend, base string, plist string) error {
+func PopulateFromPList(backend *config.Backend, base string, plist string, trim string) error {
 	iter, err := utils.IterFlistFile(plist)
 	if err != nil {
 		return err
 	}
 
 	for line := range iter {
-		entity, err := ParseLine(base, line)
+		entity, err := ParseLine(base, line, trim)
 		if err != nil {
 			return err
 		}
@@ -219,30 +219,7 @@ type Entry struct {
 	DevMinor     int64      // block/char device minor id
 }
 
-func ParseLine(base, line string) (*Entry, error) {
-	/*
-	entry := Entry{}
-
-	lineParts := strings.Split(line, "|")
-	if len(lineParts) != 3 {
-		return nil, fmt.Errorf("Wrong metadata line syntax '%s'", line)
-	}
-
-	path := lineParts[0]
-	if base != "" && strings.HasPrefix(path, base) {
-		path = strings.TrimPrefix(path, base)
-	}
-
-	//remove prefix / if exists.
-	entry.Path = strings.TrimLeft(path, PathSep)
-	entry.Hash = lineParts[1]
-	count, err := fmt.Sscanf(lineParts[2], "%d", &entry.Size)
-	if err != nil || count != 1 {
-		return nil, fmt.Errorf("Invalid metadata line '%s' (%d, %s)", line, count, err)
-	}
-
-	return &entry, nil
-	*/
+func ParseLine(base, line string, trim string) (*Entry, error) {
 	if line == "" {
 		err := fmt.Errorf("Cannot parse empty lines\n")
 		return nil, err
@@ -259,6 +236,8 @@ func ParseLine(base, line string) (*Entry, error) {
 	//
 	// file stats
 	//
+	filepath := strings.TrimPrefix(items[0], trim)
+
 	length, err := strconv.ParseInt(items[2], 10, 64)
 	if err != nil {
 		fmt.Errorf("Error parsing filesize: %v\n", err)
@@ -304,7 +283,7 @@ func ParseLine(base, line string) (*Entry, error) {
 	if ftype == 1 { fileType = syscall.S_IFLNK }
 	if ftype == 2 { fileType = syscall.S_IFREG }
 	if ftype == 3 { fileType = syscall.S_IFBLK }
-	if ftype == 4 { fileType = syscall.S_IFDIR }     // not used
+	if ftype == 4 { fileType = syscall.S_IFDIR }
 	if ftype == 5 { fileType = syscall.S_IFCHR }
 	if ftype == 6 { fileType = syscall.S_IFIFO }
 
@@ -324,7 +303,7 @@ func ParseLine(base, line string) (*Entry, error) {
 	}
 
 	return &Entry{
-		Filepath: items[0],
+		Filepath: filepath,
 		Hash: items[1],
 		Filesize: length,
 		Uname: items[3],

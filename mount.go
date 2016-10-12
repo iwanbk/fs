@@ -75,7 +75,7 @@ func watchReloadSignal(cfg *config.Config) {
 				if mount.TrimBase {
 					base = mount.Path
 				}
-				err = meta.PopulateFromPList(backend, base, mount.Flist)
+				err = meta.PopulateFromPList(backend, base, mount.Flist, mount.Trim)
 				if err != nil {
 					log.Warningf("Couldn't reload backend meta: %s", err)
 				}
@@ -144,7 +144,7 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	if mount.TrimBase {
 		base = mount.Path
 	}
-	if err := meta.PopulateFromPList(backend, base, mount.Flist); err != nil {
+	if err := meta.PopulateFromPList(backend, base, mount.Flist, mount.Trim); err != nil {
 		log.Errorf("Failed to mount overllay fs '%s': %s", mount, err)
 	}
 
@@ -170,7 +170,7 @@ func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	if mount.TrimBase {
 		base = mount.Path
 	}
-	if err := meta.PopulateFromPList(backend, base, mount.Flist); err != nil {
+	if err := meta.PopulateFromPList(backend, base, mount.Flist, mount.Trim); err != nil {
 		log.Errorf("Failed to mount overllay fs '%s': %s", mount, err)
 	}
 
