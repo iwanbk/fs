@@ -66,9 +66,8 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	}
 
 	metadata := &meta.MetaFile{}
-
-	if os.IsNotExist(err) {
-		m := meta.GetMeta(fullPath)
+	m := meta.GetMeta(fullPath)
+	if os.IsNotExist(err) || !m.Stat().Modified() {
 		metadata, err = m.Load()
 
 		if err != nil {
@@ -87,15 +86,15 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 		return attr, fuse.OK
 	}
 
-	attr.Size  = metadata.Size
-	attr.Mode  = metadata.Filetype | metadata.Permissions
+	attr.Size = metadata.Size
+	attr.Mode = metadata.Filetype | metadata.Permissions
 	attr.Ctime = metadata.Ctime
 	attr.Mtime = metadata.Mtime
-	attr.Uid   = metadata.Uid
-	attr.Gid   = metadata.Gid
+	attr.Uid = metadata.Uid
+	attr.Gid = metadata.Gid
 
 	// block and character devices
-	if(metadata.Filetype == syscall.S_IFCHR || metadata.Filetype == syscall.S_IFBLK) {
+	if metadata.Filetype == syscall.S_IFCHR || metadata.Filetype == syscall.S_IFBLK {
 		attr.Rdev = uint32((metadata.DevMajor * 256) + metadata.DevMinor)
 	}
 
@@ -328,7 +327,7 @@ func (fs *fileSystem) download(path string) error {
 	}
 
 	utbuf := &syscall.Utimbuf{
-		Actime: int64(meta.Ctime),
+		Actime:  int64(meta.Ctime),
 		Modtime: int64(meta.Mtime),
 	}
 
