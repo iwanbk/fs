@@ -68,7 +68,7 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	metadata := &meta.MetaFile{}
 	m := meta.GetMeta(fullPath)
 
-	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) || st.Size == 0 {
+	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) || (st.Size == 0 && m.Exists()) {
 		metadata, err = m.Load()
 
 		if err != nil {
@@ -115,7 +115,9 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 	log.Debug("Open %v", name)
 	err := syscall.Lstat(fs.GetPath(name), &st)
 
-	if os.IsNotExist(err) || st.Size == 0 {
+	m := meta.GetMeta(fs.GetPath(name))
+
+	if os.IsNotExist(err) || (st.Size == 0 && m.Exists()) {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := fs.download(fs.GetPath(name)); err != nil {
 			return nil, fuse.EIO
