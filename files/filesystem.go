@@ -68,30 +68,58 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	metadata := &meta.MetaFile{}
 	m := meta.GetMeta(fullPath)
 
-	if m.Exists() && m.Stat().Deleted() {
-		log.Errorf("%v: found but flagged as deleted", fullPath)
-		return nil, fuse.ENOENT
-	}
-
-	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) || (st.Size == 0 && m.Exists()) {
-		metadata, err = m.Load()
-
-		if err != nil {
-			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
-			return attr, fuse.ToStatus(err)
+	if m.Exists() {
+		// metadata exists but flagged as deleted
+		if m.Stat().Deleted() {
+			log.Errorf("%v: found but flagged as deleted", fullPath)
+			return nil, fuse.ENOENT
 		}
 
-		if err := syscall.Lstat(string(m), &st); err != nil {
-			return nil, fuse.ToStatus(err)
+		// metadata exists, it's not modified and the file is not yet downloaded
+		if !m.Stat().Modified() || st.Size == 0 {
+			metadata, err = m.Load()
+
+			if err != nil {
+				log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
+				return attr, fuse.ToStatus(err)
+			}
+
+			/*
+			if err := syscall.Lstat(string(m), &st); err != nil {
+				return nil, fuse.ToStatus(err)
+			}
+			*/
 		}
 
-	} else if err != nil {
-		return nil, fuse.ToStatus(err)
+		if st.Size > 0 {
+			log.Debugf("GetAttr %v: metadata, forwarding from backend", fs.GetPath(name))
+			attr.FromStat(&st)
+			return attr, fuse.OK
+		}
 
 	} else {
+		// no metadata, no physical file, it doesn't exists
+		if os.IsNotExist(err) {
+			log.Debugf("GetAttr %v: not found at all", fs.GetPath(name))
+			return nil, fuse.ENOENT
+		}
+	}
+
+	//
+	// metadata doesn't exists but physical filesize if greater than 0
+	// this seems a valid file
+	//
+	if !m.Exists() || st.Size > 0 {
+		log.Debugf("GetAttr %v: no metadata, forwarding from backend", fs.GetPath(name))
 		attr.FromStat(&st)
 		return attr, fuse.OK
 	}
+
+	//
+	// now, metadata exists and physical file existe
+	// but file is empty (not downloaded yet)
+	// populating stat from metadata
+	//
 
 	attr.Size = metadata.Size
 	attr.Mode = metadata.Filetype | metadata.Permissions
@@ -150,6 +178,7 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 }
 
 func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) (code fuse.Status) {
+	touchModify(fs.GetPath(path))
 	return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
 }
 
@@ -277,7 +306,9 @@ func (fs *fileSystem) Create(path string, flags uint32, mode uint32, context *fu
 	}
 
 	m := meta.GetMeta(fs.GetPath(path))
-	m.SetStat(m.Stat().SetDeleted(false))
+	if m.Exists() {
+		m.SetStat(m.Stat().SetDeleted(false))
+	}
 
 	return NewLoopbackFile(f, fs.tracker), fuse.ToStatus(err)
 }
@@ -400,4 +431,13 @@ func touchDeleted(name string) {
 	}
 
 	m.SetStat(m.Stat().SetDeleted(true).SetModified(true))
+}
+
+func touchModify(name string) {
+	m := meta.GetMeta(name)
+	if !m.Exists() {
+		m.Save(&meta.MetaFile{})
+	}
+
+	m.SetStat(m.Stat().SetDeleted(false).SetModified(true))
 }
