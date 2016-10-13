@@ -62,7 +62,7 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 		return fs, err
 	}
 	fs.server = state
-	//fs.server.SetDebug(true)
+	// fs.server.SetDebug(true)
 
 	return fs, nil
 }

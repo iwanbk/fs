@@ -54,7 +54,7 @@ func (f *loopbackFile) Read(buf []byte, off int64) (res fuse.ReadResult, code fu
 }
 
 func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
-	// defer f.tracker.Touch(f.File.Name())
+	defer f.tracker.Touch(f.File.Name())
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	n, err := f.File.WriteAt(data, off)
@@ -63,7 +63,7 @@ func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 
 func (f *loopbackFile) Release() {
 	log.Debugf("Release file %v", f.File.Name())
-	// defer f.tracker.Close(f.File.Name())
+	defer f.tracker.Close(f.File.Name())
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.File.Close()
@@ -119,6 +119,8 @@ func (f *loopbackFile) Chown(uid uint32, gid uint32) fuse.Status {
 }
 
 func (f *loopbackFile) GetAttr(a *fuse.Attr) fuse.Status {
+	log.Debugf("GetAttr file %v", f.File.Name())
+
 	st := syscall.Stat_t{}
 	f.lock.Lock()
 	err := syscall.Fstat(int(f.File.Fd()), &st)
@@ -128,5 +130,6 @@ func (f *loopbackFile) GetAttr(a *fuse.Attr) fuse.Status {
 	}
 	a.FromStat(&st)
 
-	return fuse.OK
+	// return fuse.OK
+	return fuse.ENOENT
 }

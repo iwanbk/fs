@@ -68,6 +68,11 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	metadata := &meta.MetaFile{}
 	m := meta.GetMeta(fullPath)
 
+	if m.Exists() && m.Stat().Deleted() {
+		log.Errorf("%v: found but flagged as deleted", fullPath)
+		return nil, fuse.ENOENT
+	}
+
 	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) || (st.Size == 0 && m.Exists()) {
 		metadata, err = m.Load()
 
@@ -122,6 +127,10 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 		if err == nil {
 			tmpsize = int64(metadata.Size)
 		}
+
+		if m.Stat().Deleted() {
+			return nil, fuse.ENOENT
+		}
 	}
 
 	if os.IsNotExist(err) || (st.Size == 0 && m.Exists() && tmpsize > 0) {
@@ -160,7 +169,7 @@ func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, 
 		metadata, err = m.Load()
 
 		if err != nil {
-			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
+			log.Errorf("ReadLink: Meta failed to load '%s.meta': %s", fullPath, err)
 			return "", fuse.ToStatus(err)
 		}
 
@@ -261,7 +270,15 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 
 func (fs *fileSystem) Create(path string, flags uint32, mode uint32, context *fuse.Context) (fuseFile nodefs.File, code fuse.Status) {
 	log.Debugf("Create %v", path)
-	f, err := os.OpenFile(fs.GetPath(path), int(flags)|os.O_CREATE, os.FileMode(mode))
+
+	f, err := os.OpenFile(fs.GetPath(path), int(flags)|os.O_CREATE|os.O_TRUNC, os.FileMode(mode))
+	if err != nil {
+		return nil, fuse.EIO
+	}
+
+	m := meta.GetMeta(fs.GetPath(path))
+	m.SetStat(m.Stat().SetDeleted(false))
+
 	return NewLoopbackFile(f, fs.tracker), fuse.ToStatus(err)
 }
 

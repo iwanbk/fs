@@ -53,6 +53,7 @@ func (t *trackerImpl) Touch(name string) {
 }
 
 func (t *trackerImpl) Forget(name string) {
+	log.Debugf("Forgetting file '%s'", name)
 	delete(t.cache, name)
 }
 
