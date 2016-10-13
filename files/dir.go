@@ -23,11 +23,16 @@ var (
 // Mkdir creates a directory
 func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) (code fuse.Status) {
 	fullPath := fs.GetPath(path)
+
+	log.Debugf("Mkdir %v", path)
+
 	status := fuse.ToStatus(os.Mkdir(fullPath, os.FileMode(mode)))
 	if status != fuse.OK {
 		return status
 	}
-	fs.tracker.Touch(fullPath)
+
+	// This line break mkdir on OL
+	// fs.tracker.Touch(fullPath)
 	return fuse.OK
 }
 
