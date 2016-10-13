@@ -214,6 +214,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			data.Inode = st.Ino
 		}
 
+		// create new empty file
 		if !fExists && data.Filetype == syscall.S_IFREG {
 			// create an empty file to allocate an inode
 			p := m.GetEffectiveFilePath()
@@ -234,7 +235,13 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			}
 
 			data.Inode = st.Ino
+		}
 
+		// create empty directory
+		if !fExists && data.Filetype == syscall.S_IFDIR {
+			// create an empty directory
+			p := m.GetEffectiveFilePath()
+			os.MkdirAll(p, os.ModePerm)
 		}
 
 		if err := m.Save(data); err != nil {
