@@ -234,6 +234,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			}
 
 			data.Inode = st.Ino
+
 		}
 
 		if err := m.Save(data); err != nil {
