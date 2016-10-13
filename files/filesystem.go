@@ -67,7 +67,8 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 
 	metadata := &meta.MetaFile{}
 	m := meta.GetMeta(fullPath)
-	if os.IsNotExist(err) || !m.Stat().Modified() {
+
+	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) {
 		metadata, err = m.Load()
 
 		if err != nil {
