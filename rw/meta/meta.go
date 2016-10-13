@@ -127,7 +127,7 @@ func (m Meta) Save(meta *MetaFile) error {
 	p := string(m)
 	dir := path.Dir(p)
 	os.MkdirAll(dir, os.ModePerm)
-	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(MetaInitial))
+	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(MetaInitial))
 	if err != nil {
 		return err
 	}
@@ -202,6 +202,18 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			}
 		}
 
+		if fExists {
+			p := m.GetEffectiveFilePath()
+
+			err := syscall.Lstat(p, &st)
+			if err != nil {
+				log.Errorf("%v: %v", p, err)
+				return err
+			}
+
+			data.Inode = st.Ino
+		}
+
 		if !fExists && data.Filetype == syscall.S_IFREG {
 			// create an empty file to allocate an inode
 			p := m.GetEffectiveFilePath()
@@ -213,6 +225,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			if err != nil {
 				return err
 			}
+
 			file.Close()
 
 			err = syscall.Lstat(p, &st)

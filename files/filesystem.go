@@ -111,13 +111,20 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 // Download it from stor if file not exist
 func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fuseFile nodefs.File, status fuse.Status) {
 	var st syscall.Stat_t
+	var tmpsize = int64(-1)
 
 	log.Debug("Open %v", name)
 	err := syscall.Lstat(fs.GetPath(name), &st)
 
 	m := meta.GetMeta(fs.GetPath(name))
+	if(m.Exists()) {
+		metadata, err := m.Load()
+		if err == nil {
+			tmpsize = int64(metadata.Size)
+		}
+	}
 
-	if os.IsNotExist(err) || (st.Size == 0 && m.Exists()) {
+	if os.IsNotExist(err) || (st.Size == 0 && m.Exists() && tmpsize >= 0) {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := fs.download(fs.GetPath(name)); err != nil {
 			return nil, fuse.EIO
