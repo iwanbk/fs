@@ -14,11 +14,14 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/g8os/fs/config"
 	"github.com/g8os/fs/utils"
+
+	"github.com/op/go-logging"
 )
 
 var (
 	PathSep    = "/"
 	ignoreLine = fmt.Errorf("Ignore Line")
+	log        = logging.MustGetLogger("meta")
 )
 
 const (
@@ -41,6 +44,7 @@ type MetaFile struct {
 	DevMinor     int64    // block/char device minor id
 	UserKey      string
 	StoreKey     string
+	Inode        uint64
 }
 
 type MetaState uint32
@@ -105,6 +109,10 @@ func (m Meta) String() string {
 	return string(m)
 }
 
+func (m Meta) GetEffectiveFilePath() string {
+	return strings.TrimSuffix(string(m), MetaSuffix)
+}
+
 func (m Meta) Load() (*MetaFile, error) {
 	meta := MetaFile{}
 	_, err := toml.DecodeFile(string(m), &meta)
@@ -129,10 +137,15 @@ func (m Meta) Save(meta *MetaFile) error {
 }
 
 func PopulateFromPList(backend *config.Backend, base string, plist string, trim string) error {
+	var parsed = 0
+	var st syscall.Stat_t
+
 	iter, err := utils.IterFlistFile(plist)
 	if err != nil {
 		return err
 	}
+
+	log.Infof("Populating mountpoint...")
 
 	for line := range iter {
 		entity, err := ParseLine(base, line, trim)
@@ -172,6 +185,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			Extended: entity.Extended,
 			DevMajor: entity.DevMajor,
 			DevMinor: entity.DevMinor,
+			Inode: 0,
 		}
 
 		if fExists && !m.Stat().Modified() {
@@ -188,10 +202,35 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			}
 		}
 
+		if !fExists && data.Filetype == syscall.S_IFREG {
+			// create an empty file to allocate an inode
+			p := m.GetEffectiveFilePath()
+
+			dir := path.Dir(p)
+			os.MkdirAll(dir, os.ModePerm)
+
+			file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(0644))
+			if err != nil {
+				return err
+			}
+			file.Close()
+
+			err = syscall.Lstat(p, &st)
+			if err != nil {
+				return err
+			}
+
+			data.Inode = st.Ino
+		}
+
 		if err := m.Save(data); err != nil {
 			return err
 		}
+
+		parsed += 1
 	}
+
+	log.Infof("Mountpoint populated: %v items parsed", parsed)
 
 	return nil
 }

@@ -68,13 +68,14 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	metadata := &meta.MetaFile{}
 	m := meta.GetMeta(fullPath)
 
-	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) {
+	if os.IsNotExist(err) || (m.Exists() && !m.Stat().Modified()) || st.Size == 0 {
 		metadata, err = m.Load()
 
 		if err != nil {
 			log.Errorf("GetAttr: Meta failed to load '%s.meta': %s", fullPath, err)
 			return attr, fuse.ToStatus(err)
 		}
+
 		if err := syscall.Lstat(string(m), &st); err != nil {
 			return nil, fuse.ToStatus(err)
 		}
@@ -94,6 +95,10 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	attr.Uid = metadata.Uid
 	attr.Gid = metadata.Gid
 
+	if metadata.Filetype == syscall.S_IFREG {
+		attr.Ino = metadata.Inode
+	}
+
 	// block and character devices
 	if metadata.Filetype == syscall.S_IFCHR || metadata.Filetype == syscall.S_IFBLK {
 		attr.Rdev = uint32((metadata.DevMajor * 256) + metadata.DevMinor)
@@ -105,17 +110,24 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 // Open opens a file.
 // Download it from stor if file not exist
 func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fuseFile nodefs.File, status fuse.Status) {
+	var st syscall.Stat_t
+
 	log.Debug("Open %v", name)
-	f, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
-	if os.IsNotExist(err) {
+	err := syscall.Lstat(fs.GetPath(name), &st)
+
+	if os.IsNotExist(err) || st.Size == 0 {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := fs.download(fs.GetPath(name)); err != nil {
 			return nil, fuse.EIO
 		}
 		return fs.Open(name, flags, context)
-	} else if err != nil {
+	}
+
+	f, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
+	if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
+
 	return nodefs.NewLoopbackFile(f), fuse.OK
 }
 
@@ -134,7 +146,7 @@ func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, 
 
 	metadata := &meta.MetaFile{}
 
-	if os.IsNotExist(err) {
+	if os.IsNotExist(err) || st.Size == 0 {
 		m := meta.GetMeta(fullPath)
 		metadata, err = m.Load()
 
