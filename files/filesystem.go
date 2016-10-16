@@ -182,6 +182,20 @@ func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context
 	return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
 }
 
+func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
+	fullPath := fs.GetPath(name)
+	log.Debugf("Chmod %v", fullPath)
+
+	return fuse.ToStatus(os.Chmod(fullPath, os.FileMode(mode)))
+}
+
+func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
+	fullPath := fs.GetPath(name)
+	log.Debugf("Chown %v", fullPath)
+
+	return fuse.ToStatus(os.Chown(fullPath, int(uid), int(gid)))
+}
+
 func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, code fuse.Status) {
 	var err error = nil
 	var st syscall.Stat_t
