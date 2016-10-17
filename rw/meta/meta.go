@@ -222,7 +222,7 @@ func PopulateFromPList(backend *config.Backend, base string, plist string, trim 
 			dir := path.Dir(p)
 			os.MkdirAll(dir, os.ModePerm)
 
-			file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(0644))
+			file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(data.Permissions))
 			if err != nil {
 				return err
 			}
