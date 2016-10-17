@@ -53,7 +53,7 @@ func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tr
 	fs.conn = nodefs.NewFileSystemConnector(fs.pathFs.Root(), opts)
 
 	mOpts := &fuse.MountOptions{
-		AllowOther: false,
+		AllowOther: true,
 		Name:       "g8osfs",
 		FsName:     fs.backend.Path,
 	}
