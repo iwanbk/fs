@@ -8,48 +8,17 @@ import (
 	"strings"
 	"syscall"
 
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
 	"github.com/g8os/fs/config"
 	"github.com/g8os/fs/files"
 	"github.com/g8os/fs/meta"
+	"github.com/g8os/fs/stor"
 	"github.com/g8os/fs/watcher"
 	"github.com/robfig/cron"
-	"github.com/g8os/fs/stor"
 )
 
 const (
 	FileReadBuffer = 512 * 1024 //bytes [512K]
 )
-
-func mountFuse(filesys fs.FS, mountpoint string, readOnly bool) error {
-	var c *fuse.Conn
-	var err error
-
-	if readOnly {
-		c, err = fuse.Mount(mountpoint, fuse.MaxReadahead(FileReadBuffer), fuse.ReadOnly())
-	} else {
-		c, err = fuse.Mount(mountpoint, fuse.MaxReadahead(FileReadBuffer))
-	}
-
-	if err != nil {
-		return err
-	}
-
-	defer c.Close()
-
-	if err := fs.Serve(c, filesys); err != nil {
-		return err
-	}
-
-	// check if the mount process has an error to report
-	<-c.Ready
-	if err := c.MountError; err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func watchReloadSignal(cfg *config.Config) {
 	channel := make(chan os.Signal)
