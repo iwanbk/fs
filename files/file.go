@@ -6,17 +6,15 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/g8os/fs/tracker"
 
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 )
 
 // LoopbackFile delegates all operations back to an underlying os.File.
-func NewLoopbackFile(f *os.File, tracker tracker.Tracker) nodefs.File {
+func NewLoopbackFile(f *os.File) nodefs.File {
 	return &loopbackFile{
 		File:    f,
-		tracker: tracker,
 	}
 }
 
@@ -29,8 +27,6 @@ type loopbackFile struct {
 	// with another close, they may lead to confusion as which
 	// file gets written in the end.
 	lock sync.Mutex
-
-	tracker tracker.Tracker
 }
 
 func (f *loopbackFile) InnerFile() nodefs.File {
@@ -54,7 +50,6 @@ func (f *loopbackFile) Read(buf []byte, off int64) (res fuse.ReadResult, code fu
 }
 
 func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
-	defer f.tracker.Touch(f.File.Name())
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	n, err := f.File.WriteAt(data, off)
@@ -63,7 +58,6 @@ func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 
 func (f *loopbackFile) Release() {
 	log.Debugf("Release file %v", f.File.Name())
-	defer f.tracker.Close(f.File.Name())
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	f.File.Close()

@@ -9,6 +9,8 @@ import (
 	"github.com/g8os/fs/crypto"
 	"github.com/naoina/toml"
 	"github.com/op/go-logging"
+	"github.com/g8os/fs/stor"
+	"net/url"
 )
 
 var (
@@ -22,9 +24,9 @@ const (
 )
 
 type Config struct {
-	Mount    []Mount
-	Backend  map[string]Backend
-	Aydostor map[string]Aydostor
+	Mount   []Mount
+	Backend map[string]Backend
+	Stor    map[string]StorConfig
 }
 
 type Mount struct {
@@ -42,10 +44,6 @@ type Backend struct {
 	Path string
 	Stor string
 
-	Lib string `toml:"lib,omitempty"` // lib to be used, 'hanwen' or 'bazil'
-
-	Upload           bool `toml:",omitempty"`
-	Namespace        string
 	AydostorPushCron string `toml:",omitempty"`
 	CleanupCron      string `toml:",omitempty"`
 	CleanupOlderThan int    `toml:",omitempty"`
@@ -60,12 +58,26 @@ type Backend struct {
 	GlobalKey *rsa.PrivateKey `toml:"-"`
 }
 
-type Aydostor struct {
+type StorConfig struct {
 	Name string `toml:"-"`
 
-	Addr   string
-	Login  string
-	Passwd string
+	URL  string
+}
+
+func (c *StorConfig) GetStorClient() (stor.Stor, error) {
+	u, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	switch u.Scheme {
+	case "aydo":
+		return stor.NewAydoStor(u)
+	case "ipfs":
+		return stor.NewIPFSStor(u)
+	default:
+		return nil, fmt.Errorf("Unknown store scheme, only aydo and ipfs are supported")
+	}
 }
 
 func (c *Config) GetBackend(name string) (*Backend, error) {
@@ -77,14 +89,15 @@ func (c *Config) GetBackend(name string) (*Backend, error) {
 	}
 }
 
-func (c *Config) GetStor(name string) (*Aydostor, error) {
-	if stor, ok := c.Aydostor[name]; ok {
+func (c *Config) GetStorCfg(name string) (*StorConfig, error) {
+	if stor, ok := c.Stor[name]; ok {
 		stor.Name = name
 		return &stor, nil
 	} else {
 		return nil, fmt.Errorf("Stor '%s' not found", name)
 	}
 }
+
 
 func (b *Backend) LoadRSAKeys() error {
 	if b.Encrypted {

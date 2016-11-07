@@ -8,7 +8,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/g8os/fs/rw/meta"
+	"github.com/g8os/fs/meta"
 	"github.com/g8os/fs/utils"
 
 	"github.com/hanwen/go-fuse/fuse"

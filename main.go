@@ -112,22 +112,26 @@ func main() {
 		if err != nil {
 			log.Fatalf("Definition of backend %s not found in config, but required for mount %s", mount.Backend, mount.Path)
 		}
-		store, err := cfg.GetStor(backend.Stor)
+		storCfg, err := cfg.GetStorCfg(backend.Stor)
 		if err != nil {
 			log.Fatalf("Definition of ayostor %s not found in config, but required for backend %s", backend.Stor, backend.Name)
+		}
+		stor, err := storCfg.GetStorClient()
+		if err != nil {
+			log.Fatal("Failed to initialize stor client %s: %s", storCfg.URL, err)
 		}
 
 		if acl == config.RW {
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go MountRWFS(&wg, scheduler, mount, backend, store, opts)
+			go MountRWFS(&wg, scheduler, mount, backend, stor, opts)
 		} else if acl == config.RO {
 			if strings.EqualFold(mount.Flist, "") {
 				log.Fatalf("RO mount point requires a PList")
 			}
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go MountROFS(&wg, scheduler, mount, backend, store, opts)
+			go MountROFS(&wg, scheduler, mount, backend, stor, opts)
 		} else if acl == config.OL {
 			if strings.EqualFold(mount.Flist, "") {
 				log.Fatalf("OL mount point requires a PList")
@@ -135,7 +139,7 @@ func main() {
 
 			wg.Add(1)
 			os.MkdirAll(backend.Path, 0775)
-			go MountOLFS(&wg, scheduler, mount, backend, store, opts)
+			go MountOLFS(&wg, scheduler, mount, backend, stor, opts)
 		} else {
 			log.Fatalf("Unknown ACL mode '%s' only (RW, RO, OL) are supported", mount.Mode)
 		}

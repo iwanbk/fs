@@ -2,13 +2,18 @@ package watcher
 
 import (
 	"github.com/g8os/fs/config"
-	"github.com/g8os/fs/rw/meta"
+	"github.com/g8os/fs/meta"
 	"github.com/robfig/cron"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+	"github.com/op/go-logging"
+)
+
+var (
+	log =  logging.MustGetLogger("watcher")
 )
 
 type backenCleaner struct {

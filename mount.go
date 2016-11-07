@@ -12,11 +12,10 @@ import (
 	"bazil.org/fuse/fs"
 	"github.com/g8os/fs/config"
 	"github.com/g8os/fs/files"
-	"github.com/g8os/fs/rw"
-	"github.com/g8os/fs/rw/meta"
-	"github.com/g8os/fs/tracker"
+	"github.com/g8os/fs/meta"
 	"github.com/g8os/fs/watcher"
 	"github.com/robfig/cron"
+	"github.com/g8os/fs/stor"
 )
 
 const (
@@ -87,42 +86,22 @@ func watchReloadSignal(cfg *config.Config) {
 func mountFS(
 	mountCfg config.Mount,
 	backendCfg *config.Backend,
-	storCfg *config.Aydostor,
-	tracker tracker.Tracker,
+	stor stor.Stor,
 	overlay bool,
 	readOnly bool) error {
 
-	if backendCfg.Lib == "bazil" {
-		fs := rw.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay)
-		log.Info("Mounting Fuse File system")
-		return mountFuse(fs, mountCfg.Path, readOnly)
-	} else {
-		fs, err := files.NewFS(mountCfg.Path, backendCfg, storCfg, tracker, overlay, readOnly)
-		if err != nil {
-			return err
-		}
-		log.Info("Serving File system")
-		fs.Serve()
+	fs, err := files.NewFS(mountCfg.Path, backendCfg, stor, overlay, readOnly)
+	if err != nil {
+		return err
 	}
+	log.Info("Serving File system")
+	fs.Serve()
+
 	return nil
 }
 
-func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
+func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor stor.Stor, opts Options) {
 	//start the files watcher
-	tracker := tracker.NewTracker()
-	if backend.Upload {
-		job, err := watcher.NewWatcher(backend, stor, tracker)
-		if err != nil {
-			log.Errorf("Failed to create backend watcher")
-		} else {
-			cron := backend.AydostorPushCron
-			if cron == "" {
-				cron = "@every 60m"
-			}
-			scheduler.AddJob(cron, job)
-		}
-	}
-
 	job := watcher.NewCleaner(backend)
 	cron := backend.CleanupCron
 	if cron == "" {
@@ -131,14 +110,14 @@ func MountRWFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//Mount file system
-	if err := mountFS(mount, backend, stor, tracker, false, false); err != nil {
+	if err := mountFS(mount, backend, stor, false, false); err != nil {
 		log.Fatal(err)
 	}
 
 	wg.Done()
 }
 
-func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
+func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor stor.Stor, opts Options) {
 	//1- generate the metadata
 	base := ""
 	if mount.TrimBase {
@@ -157,14 +136,13 @@ func MountOLFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	scheduler.AddJob(cron, job)
 
 	//TODO: 3- start RWFS with overlay compatibility.
-	tracker := tracker.NewPurgeTracker()
-	if err := mountFS(mount, backend, stor, tracker, true, false); err != nil {
+	if err := mountFS(mount, backend, stor, true, false); err != nil {
 		log.Fatal(err)
 	}
 	wg.Done()
 }
 
-func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor *config.Aydostor, opts Options) {
+func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, backend *config.Backend, stor stor.Stor, opts Options) {
 	//1- generate the metadata
 	base := ""
 	if mount.TrimBase {
@@ -182,9 +160,7 @@ func MountROFS(wg *sync.WaitGroup, scheduler *cron.Cron, mount config.Mount, bac
 	}
 	scheduler.AddJob(cron, job)
 
-	//TODO: 3- start RWFS with overlay compatibility.
-	tracker := tracker.NewPurgeTracker()
-	if err := mountFS(mount, backend, stor, tracker, true, true); err != nil {
+	if err := mountFS(mount, backend, stor, true, true); err != nil {
 		log.Fatal(err)
 	}
 	wg.Done()

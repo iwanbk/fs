@@ -4,17 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"syscall"
 
 	"github.com/dsnet/compress/brotli"
 	"github.com/g8os/fs/crypto"
-	"github.com/g8os/fs/rw/meta"
+	"github.com/g8os/fs/meta"
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
@@ -164,6 +160,7 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 	if os.IsNotExist(err) || (st.Size == 0 && m.Exists() && tmpsize > 0) {
 		//probably ReadOnly mode. if meta exist, get the file from stor.
 		if err := fs.download(fs.GetPath(name)); err != nil {
+			log.Errorf("Error getting file from stor: %s", err)
 			return nil, fuse.EIO
 		}
 		return fs.Open(name, flags, context)
@@ -271,7 +268,6 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 
 	defer func() {
 		//make sure we mark the new path as changed.
-		fs.tracker.Touch(fullNewPath)
 		if fs.overlay {
 			//touch old path as deleted
 			touchDeleted(fullOldPath)
@@ -324,7 +320,7 @@ func (fs *fileSystem) Create(path string, flags uint32, mode uint32, context *fu
 		m.SetStat(m.Stat().SetDeleted(false))
 	}
 
-	return NewLoopbackFile(f, fs.tracker), fuse.ToStatus(err)
+	return NewLoopbackFile(f), fuse.ToStatus(err)
 }
 
 // download file from stor
@@ -332,36 +328,17 @@ func (fs *fileSystem) download(path string) error {
 	log.Infof("Downloading file '%s'", path)
 	meta, err := fs.Meta(path)
 	if err != nil {
-		log.Errorf("Failed to download due to metadata loading failed: %s", err)
 		return err
 	}
 
-	url, err := fs.url(meta.Hash)
+	body, err := fs.stor.Get(meta.Hash)
 	if err != nil {
-		log.Errorf("Failed to build file url: %s", err)
 		return err
 	}
 
-	log.Info("Downloading: %s", url)
+	defer body.Close()
 
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Accept", "application/brotli")
-
-	response, err := client.Do(req)
-	if err != nil {
-		log.Errorf("Failed to download file from stor: %s", err)
-		return err
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(response.Body)
-		log.Errorf("Invalid response from stor(%d): %s", response.StatusCode, body)
-		return syscall.ENOENT
-	}
-
-	broReader := brotli.NewReader(response.Body)
+	broReader := brotli.NewReader(body)
 
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
@@ -371,9 +348,7 @@ func (fs *fileSystem) download(path string) error {
 
 	if fs.backend.Encrypted {
 		if meta.UserKey == "" {
-			err := fmt.Errorf("encryption key is empty, can't decrypt file %v", path)
-			log.Errorf("download failed:%v", err)
-			return err
+			return fmt.Errorf("encryption key is empty, can't decrypt file %v", path)
 		}
 
 		r := bytes.NewBuffer([]byte(meta.UserKey))
@@ -426,16 +401,6 @@ func (fs *fileSystem) download(path string) error {
 func (fs *fileSystem) Meta(path string) (*meta.MetaFile, error) {
 	m := meta.GetMeta(path)
 	return m.Load()
-}
-
-func (fs *fileSystem) url(hash string) (string, error) {
-	u, err := url.Parse(fs.stor.Addr)
-	if err != nil {
-		return "", err
-	}
-	u.Path = path.Join(u.Path, "store", fs.backend.Namespace, hash)
-
-	return u.String(), nil
 }
 
 func touchDeleted(name string) {

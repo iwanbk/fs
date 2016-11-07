@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/g8os/fs/config"
-	"github.com/g8os/fs/tracker"
 
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 	"github.com/op/go-logging"
+	"github.com/g8os/fs/stor"
 )
 
 var (
@@ -20,8 +20,7 @@ var (
 type FS struct {
 	mountpoint string
 	backend    *config.Backend
-	stor       *config.Aydostor
-	tracker    tracker.Tracker
+	stor       stor.Stor
 	overlay    bool
 	conn       *nodefs.FileSystemConnector
 	pathFs     *pathfs.PathNodeFs
@@ -29,12 +28,11 @@ type FS struct {
 }
 
 // NewFS creates new fuse filesystem using hanwen/go-fuse lib
-func NewFS(mountpoint string, backend *config.Backend, stor *config.Aydostor, tracker tracker.Tracker, overlay, readOnly bool) (*FS, error) {
+func NewFS(mountpoint string, backend *config.Backend, stor stor.Stor, overlay, readOnly bool) (*FS, error) {
 	fs := &FS{
 		mountpoint: mountpoint,
 		backend:    backend,
 		stor:       stor,
-		tracker:    tracker,
 		overlay:    overlay,
 	}
 	filesys := newFileSystem(fs)
