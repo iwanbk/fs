@@ -5,11 +5,11 @@ import (
 
 	"github.com/g8os/fs/config"
 
+	"github.com/g8os/fs/stor"
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 	"github.com/op/go-logging"
-	"github.com/g8os/fs/stor"
 )
 
 var (
@@ -67,4 +67,12 @@ func NewFS(mountpoint string, backend *config.Backend, stor stor.Stor, overlay, 
 
 func (fs *FS) Serve() {
 	fs.server.Serve()
+}
+
+func (fs *FS) Unmount() error {
+	return fs.server.Unmount()
+}
+
+func (fs *FS) WaitMount() {
+	fs.server.WaitMount()
 }
