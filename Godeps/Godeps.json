@@ -1,27 +1,12 @@
 {
 	"ImportPath": "github.com/g8os/fs",
-	"GoVersion": "go1.6",
-	"GodepVersion": "v60",
-	"Packages": [
-		"./..."
-	],
+	"GoVersion": "go1.7",
+	"GodepVersion": "v74",
 	"Deps": [
 		{
-			"ImportPath": "bazil.org/fuse",
-			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
-		},
-		{
-			"ImportPath": "bazil.org/fuse/fs",
-			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
-		},
-		{
-			"ImportPath": "bazil.org/fuse/fuseutil",
-			"Rev": "70f2bea820ccbf0b4e72e44dbcb28fe333635085"
-		},
-		{
 			"ImportPath": "github.com/BurntSushi/toml",
-			"Comment": "v0.1.0-23-g5c4df71",
-			"Rev": "5c4df71dfe9ac89ef6287afc05e4c1b16ae65a1e"
+			"Comment": "v0.2.0-9-gf0aeabc",
+			"Rev": "f0aeabca5a127c4078abb8c8d64298b147264b55"
 		},
 		{
 			"ImportPath": "github.com/dsnet/compress/brotli",
@@ -29,27 +14,47 @@
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse",
-			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse/nodefs",
-			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse/pathfs",
-			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/splice",
-			"Rev": "1628b02624582a08f2d32158d1fbc216a29fd8fe"
+			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
 		},
 		{
-			"ImportPath": "github.com/jeffail/tunny",
-			"Rev": "863db275f4f2273d031c2ce4f4834714e8c10606"
+			"ImportPath": "github.com/ipfs/go-ipfs-api",
+			"Comment": "v1.0.0-20-g0ee8672",
+			"Rev": "0ee867280b9b85f2fcd6a3aa324728fc775dae48"
+		},
+		{
+			"ImportPath": "github.com/jbenet/go-base58",
+			"Comment": "1.0.0",
+			"Rev": "6237cf65f3a6f7111cd8a42be3590df99a66bc7d"
+		},
+		{
+			"ImportPath": "github.com/multiformats/go-multiaddr",
+			"Comment": "0.1.2-84-gb23eb95",
+			"Rev": "b23eb95805e1a61ac0da8d019e9346376428f37f"
+		},
+		{
+			"ImportPath": "github.com/multiformats/go-multiaddr-net",
+			"Rev": "4b637b03a2bb30b478bba717cafdfebbe8e1f9ae"
+		},
+		{
+			"ImportPath": "github.com/multiformats/go-multihash",
+			"Comment": "0.1.0-57-g5c64ea9",
+			"Rev": "5c64ea9a881f6b2eb6ba6394693a3dabc3878f43"
 		},
 		{
 			"ImportPath": "github.com/naoina/go-stringutil",
-			"Rev": "360db0db4b01d34e12a2ec042c09e7d37fece761"
+			"Rev": "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b"
 		},
 		{
 			"ImportPath": "github.com/naoina/toml",
@@ -63,36 +68,25 @@
 		},
 		{
 			"ImportPath": "github.com/op/go-logging",
-			"Rev": "dfaf3dff9b631bc4236201d90d41ee0de9202889"
+			"Comment": "v1-7-g970db52",
+			"Rev": "970db520ece77730c7e4724c61121037378659d9"
 		},
 		{
 			"ImportPath": "github.com/robfig/cron",
-			"Comment": "v1-2-g67823cd",
-			"Rev": "67823cd24dece1b04cced3a0a0b3ca2bc84d875e"
+			"Comment": "v1-7-g32d9c27",
+			"Rev": "32d9c273155a0506d27cf73dd1246e86a470997e"
 		},
 		{
-			"ImportPath": "github.com/stretchr/testify/assert",
-			"Comment": "v1.0-12-g7e4a149",
-			"Rev": "7e4a149930b09fe4c2b134c50ce637457ba6e966"
+			"ImportPath": "github.com/whyrusleeping/go-multipart-files",
+			"Rev": "3be93d9f6b618f2b8564bfb1d22f1e744eabbae2"
 		},
 		{
-			"ImportPath": "golang.org/x/net/context",
-			"Rev": "e0403b4e005737430c05a57aac078479844f919c"
+			"ImportPath": "github.com/whyrusleeping/tar-utils",
+			"Rev": "beab27159606f5a7c978268dd1c3b12a0f1de8a7"
 		},
 		{
-			"ImportPath": "gopkg.in/kothar/brotli-go.v0/dec",
-			"Comment": "brotli-33aa402-1-g1565f15",
-			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
-		},
-		{
-			"ImportPath": "gopkg.in/kothar/brotli-go.v0/enc",
-			"Comment": "brotli-33aa402-1-g1565f15",
-			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
-		},
-		{
-			"ImportPath": "gopkg.in/kothar/brotli-go.v0/shared",
-			"Comment": "brotli-33aa402-1-g1565f15",
-			"Rev": "1565f158fdd5ccbdf12de2071d9e3a10f1fb5f51"
+			"ImportPath": "golang.org/x/crypto/sha3",
+			"Rev": "b2fa06b6af4b7c9bfeb8569ab7b17f04550717bf"
 		},
 		{
 			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",
