@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/g8os/fs",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v75",
 	"Deps": [
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
@@ -10,7 +10,7 @@
 		},
 		{
 			"ImportPath": "github.com/dsnet/compress/brotli",
-			"Rev": "ba093074f09ee73cea12653790f132e3ed8abfbe"
+			"Rev": "b9aab3c6a04eef14c56384b4ad065e7b73438862"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse",
