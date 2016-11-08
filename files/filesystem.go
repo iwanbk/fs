@@ -81,9 +81,9 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 			}
 
 			/*
-			if err := syscall.Lstat(string(m), &st); err != nil {
-				return nil, fuse.ToStatus(err)
-			}
+				if err := syscall.Lstat(string(m), &st); err != nil {
+					return nil, fuse.ToStatus(err)
+				}
 			*/
 		}
 
@@ -146,7 +146,7 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (fu
 	err := syscall.Lstat(fs.GetPath(name), &st)
 
 	m := meta.GetMeta(fs.GetPath(name))
-	if(m.Exists()) {
+	if m.Exists() {
 		metadata, err := m.Load()
 		if err == nil {
 			tmpsize = int64(metadata.Size)
@@ -338,7 +338,10 @@ func (fs *fileSystem) download(path string) error {
 
 	defer body.Close()
 
-	broReader := brotli.NewReader(body)
+	broReader, err := brotli.NewReader(body, nil)
+	if err != nil {
+		return err
+	}
 
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
