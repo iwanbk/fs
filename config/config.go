@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/g8os/fs/crypto"
+	"github.com/g8os/fs/storage"
 	"github.com/naoina/toml"
 	"github.com/op/go-logging"
-	"github.com/g8os/fs/stor"
 	"net/url"
 )
 
@@ -19,7 +19,6 @@ var (
 
 const (
 	RO = "RO"
-	RW = "RW"
 	OL = "OL"
 )
 
@@ -61,10 +60,10 @@ type Backend struct {
 type StorConfig struct {
 	Name string `toml:"-"`
 
-	URL  string
+	URL string
 }
 
-func (c *StorConfig) GetStorClient() (stor.Stor, error) {
+func (c *StorConfig) GetStorClient() (storage.Storage, error) {
 	u, err := url.Parse(c.URL)
 	if err != nil {
 		return nil, err
@@ -72,9 +71,9 @@ func (c *StorConfig) GetStorClient() (stor.Stor, error) {
 
 	switch u.Scheme {
 	case "aydo":
-		return stor.NewAydoStor(u)
+		return storage.NewAydoStorage(u)
 	case "ipfs":
-		return stor.NewIPFSStor(u)
+		return storage.NewIPFSStorage(u)
 	default:
 		return nil, fmt.Errorf("Unknown store scheme, only aydo and ipfs are supported")
 	}
@@ -97,7 +96,6 @@ func (c *Config) GetStorCfg(name string) (*StorConfig, error) {
 		return nil, fmt.Errorf("Stor '%s' not found", name)
 	}
 }
-
 
 func (b *Backend) LoadRSAKeys() error {
 	if b.Encrypted {

@@ -1,20 +1,20 @@
-package stor
+package storage
 
 import (
-	"net/url"
-	"io"
 	"github.com/ipfs/go-ipfs-api"
+	"io"
+	"net/url"
 )
 
 type ipfsStor struct {
 	shell *shell.Shell
 }
 
-func NewIPFSStor(u *url.URL) (Stor, error) {
+func NewIPFSStorage(u *url.URL) (Storage, error) {
 	us := url.URL{
 		Scheme: "http",
-		Host: u.Host,
-		Path: u.Path,
+		Host:   u.Host,
+		Path:   u.Path,
 	}
 
 	return &ipfsStor{

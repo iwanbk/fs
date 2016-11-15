@@ -2,49 +2,36 @@ package meta
 
 import (
 	"fmt"
-	"os"
-	"time"
-	"strconv"
-	"syscall"
-	"os/user"
-
-	"path"
-	"strings"
-
-	"github.com/BurntSushi/toml"
-	"github.com/g8os/fs/config"
-	"github.com/g8os/fs/utils"
-
 	"github.com/op/go-logging"
+	"os"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
 )
 
 var (
-	PathSep    = "/"
-	ignoreLine = fmt.Errorf("Ignore Line")
-	log        = logging.MustGetLogger("meta")
+	log         = logging.MustGetLogger("meta")
+	ErrNotFound = fmt.Errorf("not found")
 )
 
-const (
-	MetaSuffix = ".meta"
-)
-
-type MetaFile struct {
-	Hash         string   // file hash
-	Size         uint64   // file size in bytes
-	Uname        string   // username (used for permissions)
-	Uid          uint32
-	Gname        string   // groupname (used for permissions)
-	Gid          uint32
-	Permissions  uint32   // perissions (octal style)
-	Filetype     uint32   // golang depend os.FileMode id
-	Ctime        uint64   // creation time
-	Mtime        uint64   // modification time
-	Extended     string   // extended attribute (see python flist doc)
-	DevMajor     int64    // block/char device major id
-	DevMinor     int64    // block/char device minor id
-	UserKey      string
-	StoreKey     string
-	Inode        uint64
+type MetaData struct {
+	Hash        string // file hash
+	Size        uint64 // file size in bytes
+	Uname       string // username (used for permissions)
+	Uid         uint32
+	Gname       string // groupname (used for permissions)
+	Gid         uint32
+	Permissions uint32 // perissions (octal style)
+	Filetype    uint32 // golang depend os.FileMode id
+	Ctime       uint64 // creation time
+	Mtime       uint64 // modification time
+	Extended    string // extended attribute (see python flist doc)
+	DevMajor    int64  // block/char device major id
+	DevMinor    int64  // block/char device minor id
+	UserKey     string
+	StoreKey    string
+	Inode       uint64
 }
 
 type MetaState uint32
@@ -60,9 +47,10 @@ func (s MetaState) Modified() bool {
 	return s&MetaModified != 0
 }
 
-func (s MetaState) Deleted() bool {
-	return s&MetaDeleted != 0
-}
+//
+//func (s MetaState) Deleted() bool {
+//	return s&MetaDeleted != 0
+//}
 
 func (s MetaState) SetModified(m bool) MetaState {
 	if m {
@@ -72,188 +60,32 @@ func (s MetaState) SetModified(m bool) MetaState {
 	}
 }
 
-func (s MetaState) SetDeleted(m bool) MetaState {
-	if m {
-		return MetaState(s | MetaDeleted)
-	} else {
-		return MetaState(s & (^MetaDeleted))
-	}
+//
+//func (s MetaState) SetDeleted(m bool) MetaState {
+//	if m {
+//		return MetaState(s | MetaDeleted)
+//	} else {
+//		return MetaState(s & (^MetaDeleted))
+//	}
+//}
+
+type Meta interface {
+	fmt.Stringer
+	//base name
+	Name() string
+	Stat() MetaState
+	SetStat(state MetaState)
+	Load() (*MetaData, error)
+	Save(meta *MetaData) error
+	Children() <-chan Meta
 }
 
-type Meta string
-
-//MetaPath get meta path for given file name
-func GetMeta(name string) Meta {
-	return Meta(fmt.Sprintf("%s%s", name, MetaSuffix))
-}
-
-func (m Meta) Exists() bool {
-	return utils.Exists(string(m))
-}
-
-func (m Meta) Stat() MetaState {
-	stat, err := os.Stat(string(m))
-	if err != nil {
-		return MetaInitial
-	}
-
-	//mask out everything except the USER perm bits
-	return MetaState(stat.Mode()) & MetaStateMask
-}
-
-func (m Meta) SetStat(state MetaState) {
-	os.Chmod(string(m), os.FileMode(state))
-}
-
-func (m Meta) String() string {
-	return string(m)
-}
-
-func (m Meta) GetEffectiveFilePath() string {
-	return strings.TrimSuffix(string(m), MetaSuffix)
-}
-
-func (m Meta) Load() (*MetaFile, error) {
-	meta := MetaFile{}
-	_, err := toml.DecodeFile(string(m), &meta)
-	if err != nil {
-		return nil, err
-	}
-
-	return &meta, nil
-}
-
-func (m Meta) Save(meta *MetaFile) error {
-	p := string(m)
-	dir := path.Dir(p)
-	os.MkdirAll(dir, os.ModePerm)
-	file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(MetaInitial))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	encoder := toml.NewEncoder(file)
-	return encoder.Encode(meta)
-}
-
-func PopulateFromPList(backend *config.Backend, base string, plist string, trim string) error {
-	var parsed = 0
-	var st syscall.Stat_t
-
-	iter, err := utils.IterFlistFile(plist)
-	if err != nil {
-		return err
-	}
-
-	log.Infof("Populating mountpoint...")
-
-	for line := range iter {
-		entity, err := ParseLine(base, line, trim)
-		if err != nil {
-			return err
-		}
-
-		file := path.Join(backend.Path, entity.Filepath)
-		m := GetMeta(file)
-
-		fExists := utils.Exists(file)
-
-		// user and group id
-		uid := 0
-		u, err := user.Lookup(entity.Uname)
-		if err == nil {
-			uid, _ = strconv.Atoi(u.Uid)
-		}
-
-		gid := 0
-		g, err := user.LookupGroup(entity.Gname)
-		if err == nil {
-			gid, _ = strconv.Atoi(g.Gid)
-		}
-
-		data := &MetaFile{
-			Hash: entity.Hash,
-			Size: uint64(entity.Filesize),
-			Uname: entity.Uname,
-			Uid: uint32(uid),
-			Gname: entity.Gname,
-			Gid: uint32(gid),
-			Permissions: uint32(entity.Permissions),
-			Filetype: entity.Filetype,
-			Ctime: uint64(entity.Ctime.Unix()),
-			Mtime: uint64(entity.Mtime.Unix()),
-			Extended: entity.Extended,
-			DevMajor: entity.DevMajor,
-			DevMinor: entity.DevMinor,
-			Inode: 0,
-		}
-
-		if fExists && !m.Stat().Modified() {
-			//both meta and file exists. This file wasn't modified we can
-			//just now place the meta and delete the file ONLY if file was changed.
-
-			oldMeta, err := m.Load()
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-
-			if oldMeta.Hash != entity.Hash {
-				os.Remove(file)
-			}
-		}
-
-		if fExists {
-			p := m.GetEffectiveFilePath()
-
-			err := syscall.Lstat(p, &st)
-			if err != nil {
-				log.Errorf("%v: %v", p, err)
-				return err
-			}
-
-			data.Inode = st.Ino
-		}
-
-		// create new empty file
-		if !fExists && data.Filetype == syscall.S_IFREG {
-			// create an empty file to allocate an inode
-			p := m.GetEffectiveFilePath()
-
-			dir := path.Dir(p)
-			os.MkdirAll(dir, os.ModePerm)
-
-			file, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.FileMode(data.Permissions))
-			if err != nil {
-				return err
-			}
-
-			file.Close()
-
-			err = syscall.Lstat(p, &st)
-			if err != nil {
-				return err
-			}
-
-			data.Inode = st.Ino
-		}
-
-		// create empty directory
-		if !fExists && data.Filetype == syscall.S_IFDIR {
-			// create an empty directory
-			p := m.GetEffectiveFilePath()
-			os.MkdirAll(p, os.ModePerm)
-		}
-
-		if err := m.Save(data); err != nil {
-			return err
-		}
-
-		parsed += 1
-	}
-
-	log.Infof("Mountpoint populated: %v items parsed", parsed)
-
-	return nil
+type MetaStore interface {
+	Populate(plist string, trim string) error
+	Get(name string) (Meta, bool)
+	CreateFile(name string) (Meta, error)
+	CreateDir(name string) (Meta, error)
+	Delete(meta Meta) error
 }
 
 /*
@@ -265,21 +97,21 @@ type Entry struct {
 */
 
 type Entry struct {
-	Filepath     string     // complete filepath
-	Hash         string     // file hash
-	Filesize     int64      // file size in bytes
-	Uname        string     // username (used for permissions)
-	Gname        string     // groupname (used for permissions)
-	Permissions  int64      // perissions (octal style)
-	Filetype     uint32     // golang depend os.FileMode id
-	Ctime        time.Time  // creation time
-	Mtime        time.Time  // modification time
-	Extended     string     // extended attribute (see python flist doc)
-	DevMajor     int64      // block/char device major id
-	DevMinor     int64      // block/char device minor id
+	Filepath    string    // complete filepath
+	Hash        string    // file hash
+	Filesize    int64     // file size in bytes
+	Uname       string    // username (used for permissions)
+	Gname       string    // groupname (used for permissions)
+	Permissions int64     // perissions (octal style)
+	Filetype    uint32    // golang depend os.FileMode id
+	Ctime       time.Time // creation time
+	Mtime       time.Time // modification time
+	Extended    string    // extended attribute (see python flist doc)
+	DevMajor    int64     // block/char device major id
+	DevMinor    int64     // block/char device minor id
 }
 
-func ParseLine(base, line string, trim string) (*Entry, error) {
+func ParseLine(line string, trim string) (*Entry, error) {
 	if line == "" {
 		err := fmt.Errorf("Cannot parse empty lines\n")
 		return nil, err
@@ -339,13 +171,27 @@ func ParseLine(base, line string, trim string) (*Entry, error) {
 		}
 	}
 
-	if ftype == 0 { fileType = syscall.S_IFSOCK }
-	if ftype == 1 { fileType = syscall.S_IFLNK }
-	if ftype == 2 { fileType = syscall.S_IFREG }
-	if ftype == 3 { fileType = syscall.S_IFBLK }
-	if ftype == 4 { fileType = syscall.S_IFDIR }
-	if ftype == 5 { fileType = syscall.S_IFCHR }
-	if ftype == 6 { fileType = syscall.S_IFIFO }
+	if ftype == 0 {
+		fileType = syscall.S_IFSOCK
+	}
+	if ftype == 1 {
+		fileType = syscall.S_IFLNK
+	}
+	if ftype == 2 {
+		fileType = syscall.S_IFREG
+	}
+	if ftype == 3 {
+		fileType = syscall.S_IFBLK
+	}
+	if ftype == 4 {
+		fileType = syscall.S_IFDIR
+	}
+	if ftype == 5 {
+		fileType = syscall.S_IFCHR
+	}
+	if ftype == 6 {
+		fileType = syscall.S_IFIFO
+	}
 
 	//
 	// file times
@@ -363,17 +209,17 @@ func ParseLine(base, line string, trim string) (*Entry, error) {
 	}
 
 	return &Entry{
-		Filepath: filepath,
-		Hash: items[1],
-		Filesize: length,
-		Uname: items[3],
-		Gname: items[4],
+		Filepath:    filepath,
+		Hash:        items[1],
+		Filesize:    length,
+		Uname:       items[3],
+		Gname:       items[4],
 		Permissions: perms,
-		Filetype: uint32(fileType),
-		Ctime: time.Unix(ctime, 0),
-		Mtime: time.Unix(mtime, 0),
-		Extended: items[9],
-		DevMajor: devMajor,
-		DevMinor: devMinor,
+		Filetype:    uint32(fileType),
+		Ctime:       time.Unix(ctime, 0),
+		Mtime:       time.Unix(mtime, 0),
+		Extended:    items[9],
+		DevMajor:    devMajor,
+		DevMinor:    devMinor,
 	}, nil
 }

@@ -3,25 +3,26 @@ package watcher
 import (
 	"github.com/g8os/fs/config"
 	"github.com/g8os/fs/meta"
+	"github.com/op/go-logging"
 	"github.com/robfig/cron"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-	"github.com/op/go-logging"
 )
 
 var (
-	log =  logging.MustGetLogger("watcher")
+	log = logging.MustGetLogger("watcher")
 )
 
 type backenCleaner struct {
 	backend *config.Backend
+	meta    meta.MetaStore
 	now     time.Time
 }
 
-func NewCleaner(backend *config.Backend) cron.Job {
+func NewCleaner(meta meta.MetaStore, backend *config.Backend) cron.Job {
 	return &backenCleaner{
 		backend: backend,
 	}
@@ -42,7 +43,7 @@ func (c *backenCleaner) walkFN(name string, info os.FileInfo, err error) error {
 	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
 		atime := time.Unix(sys.Atim.Unix())
 		if c.now.Sub(atime) > time.Duration(c.backend.CleanupOlderThan)*time.Hour {
-			if !meta.GetMeta(name).Exists() {
+			if _, exists := c.meta.Get(name); !exists {
 				return nil
 			}
 

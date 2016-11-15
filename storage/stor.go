@@ -1,14 +1,14 @@
-package stor
+package storage
 
 import (
-	"io"
 	"github.com/op/go-logging"
+	"io"
 )
 
 var (
-	log = logging.MustGetLogger("stor")
+	log = logging.MustGetLogger("storage")
 )
 
-type Stor interface {
+type Storage interface {
 	Get(key string) (io.ReadCloser, error)
 }

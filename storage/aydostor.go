@@ -1,32 +1,32 @@
-package stor
+package storage
 
 import (
-	"net/url"
-	"io"
 	"fmt"
-	"path"
-	"net/http"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path"
 )
 
 type aydoStor struct {
 	baseURL string
-	client *http.Client
+	client  *http.Client
 }
 
-func NewAydoStor(u *url.URL) (Stor, error) {
+func NewAydoStorage(u *url.URL) (Storage, error) {
 	if u.Scheme != "aydo" {
 		return nil, fmt.Errorf("invalid scheme, expecting URL of format aydo://uname:password@host/store/<namespace>")
 	}
 
 	us := url.URL{
 		Scheme: "http",
-		User: u.User,
-		Path: u.Path,
+		User:   u.User,
+		Path:   u.Path,
 	}
 
 	return &aydoStor{
-		client: &http.Client{},
+		client:  &http.Client{},
 		baseURL: us.String(),
 	}, nil
 }

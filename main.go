@@ -121,11 +121,7 @@ func main() {
 			log.Fatal("Failed to initialize stor client %s: %s", storCfg.URL, err)
 		}
 
-		if acl == config.RW {
-			wg.Add(1)
-			os.MkdirAll(backend.Path, 0775)
-			go MountRWFS(&wg, scheduler, mount, backend, stor, opts)
-		} else if acl == config.RO {
+		if acl == config.RO {
 			if strings.EqualFold(mount.Flist, "") {
 				log.Fatalf("RO mount point requires a PList")
 			}
@@ -145,7 +141,7 @@ func main() {
 		}
 	}
 
-	watchReloadSignal(cfg)
+	//watchReloadSignal(cfg)
 
 	wg.Wait()
 }
