@@ -12,6 +12,10 @@
 			"Rev": "f0aeabca5a127c4078abb8c8d64298b147264b55"
 		},
 		{
+			"ImportPath": "github.com/cheekybits/is",
+			"Rev": "68e9c0620927fb5427fda3708222d0edee89eae9"
+		},
+		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Comment": "v1.0.0-9-g346938d",
 			"Rev": "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -47,6 +51,11 @@
 			"Rev": "6237cf65f3a6f7111cd8a42be3590df99a66bc7d"
 		},
 		{
+			"ImportPath": "github.com/mattn/go-sqlite3",
+			"Comment": "v1.1.0-11-gb808f01",
+			"Rev": "b808f01f660667b1510acf216aa2b9fe7f555ddb"
+		},
+		{
 			"ImportPath": "github.com/multiformats/go-multiaddr",
 			"Comment": "0.1.2-84-gb23eb95",
 			"Rev": "b23eb95805e1a61ac0da8d019e9346376428f37f"
@@ -73,6 +82,11 @@
 			"ImportPath": "github.com/naoina/toml/ast",
 			"Comment": "v0.1.0",
 			"Rev": "751171607256bb66e64c9f0220c00662420c38e9"
+		},
+		{
+			"ImportPath": "github.com/natefinch/lumberjack",
+			"Comment": "v1.0-23-gdd45e6a",
+			"Rev": "dd45e6a67c53f673bb49ca8a001fd3a63ceb640e"
 		},
 		{
 			"ImportPath": "github.com/op/go-logging",
@@ -109,6 +123,10 @@
 			"ImportPath": "gopkg.in/natefinch/lumberjack.v2",
 			"Comment": "v1.0-18-g600ceb4",
 			"Rev": "600ceb4523e5b7ff745f91083c8a023c2bf73af5"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "a5b47d31c556af34a302ce5d659e6fea44d90de0"
 		}
 	]
 }
