@@ -50,12 +50,12 @@ func (s *ipfsStor) Get(hash string) (io.ReadCloser, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	request = request.WithContext(ctx)
 	var response *http.Response
-	wait := make(chan int)
+	wait := make(chan struct{})
 	defer close(wait)
 
 	go func() {
 		response, err = s.client.Do(request)
-		wait <- 1
+		wait <- struct{}{}
 	}()
 
 loop:
