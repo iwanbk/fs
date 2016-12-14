@@ -15,19 +15,9 @@ type aydoStor struct {
 }
 
 func NewAydoStorage(u *url.URL) (Storage, error) {
-	if u.Scheme != "aydo" {
-		return nil, fmt.Errorf("invalid scheme, expecting URL of format aydo://uname:password@host/store/<namespace>")
-	}
-
-	us := url.URL{
-		Scheme: "http",
-		User:   u.User,
-		Path:   u.Path,
-	}
-
 	return &aydoStor{
 		client:  &http.Client{},
-		baseURL: us.String(),
+		baseURL: u.String(),
 	}, nil
 }
 
