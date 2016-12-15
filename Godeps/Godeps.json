@@ -22,19 +22,19 @@
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse",
-			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
+			"Rev": "6c2b7d8f22c99776f8bfe17cd26d5f744a5b4cdc"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse/nodefs",
-			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
+			"Rev": "6c2b7d8f22c99776f8bfe17cd26d5f744a5b4cdc"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/fuse/pathfs",
-			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
+			"Rev": "6c2b7d8f22c99776f8bfe17cd26d5f744a5b4cdc"
 		},
 		{
 			"ImportPath": "github.com/hanwen/go-fuse/splice",
-			"Rev": "ed841342e5daf4711f24106b93c1035864a8914b"
+			"Rev": "6c2b7d8f22c99776f8bfe17cd26d5f744a5b4cdc"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-sqlite3",
