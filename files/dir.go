@@ -2,8 +2,6 @@ package files
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/hanwen/go-fuse/fuse"
 )
@@ -24,7 +22,7 @@ func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) fus
 	}
 
 	// only populate directories above it.
-	fs.populateDirFile(filepath.Dir(strings.TrimSuffix(path, "/")))
+	fs.populateParentDir(path)
 
 	if st := backendFn(); st != fuse.OK {
 		return st
