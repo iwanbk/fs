@@ -61,7 +61,6 @@ func NewFS(mountpoint string, backend *config.Backend, storage storage.Storage, 
 	if err != nil {
 		return fs, err
 	}
-	logging.SetLevel(4, "")
 	fs.server = state
 	//fs.server.SetDebug(true)
 
