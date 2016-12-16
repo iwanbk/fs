@@ -265,7 +265,7 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 	}
 
 	f := func() fuse.Status {
-		if err := syscall.Link(pointedTo, linkName); err != nil {
+		if err := syscall.Symlink(fs.GetPath(pointedTo), fs.GetPath(linkName)); err != nil {
 			return fuse.ToStatus(err)
 		}
 
