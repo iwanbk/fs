@@ -285,46 +285,77 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 	if st := f(); st != fuse.ENOENT {
 		return st
 	}
-	fs.populateParentDir(pointedTo)
+	fs.populateDirFile(pointedTo)
+	fs.populateParentDir(linkName)
 	return f()
 }
 
 // Rename handles dir & file rename operation
-func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Context) (codee fuse.Status) {
+func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Context) fuse.Status {
 	fullOldPath := fs.GetPath(oldPath)
 	fullNewPath := fs.GetPath(newPath)
 
-	log.Debugf("Rename (%v) -> (%v)", oldPath, newPath)
+	log.Errorf("Rename (%v) -> (%v)", oldPath, newPath)
 
 	m, exists := fs.meta.Get(oldPath)
 	if !exists {
 		return fuse.ENOENT
 	}
 
-	// rename file
-	if err := os.Rename(fullOldPath, fullNewPath); err != nil {
-		log.Warning("data file doesn't exist")
+	f := func() fuse.Status {
+		// rename file
+		if err := os.Rename(fullOldPath, fullNewPath); err != nil {
+			log.Warning("data file doesn't exist")
+		}
+
+		// adjust metadata
+		info, err := m.Load()
+		if err != nil {
+			return fuse.ToStatus(err)
+		}
+
+		fs.meta.Delete(m)
+
+		nm, err := fs.meta.CreateFile(newPath)
+		if err != nil {
+			return fuse.ToStatus(err)
+		}
+
+		return fuse.ToStatus(nm.Save(info))
 	}
-
-	// adjust metadata
-	info, err := m.Load()
-	if err != nil {
-		return fuse.ToStatus(err)
+	if st := f(); st != fuse.ENOENT {
+		return st
 	}
-
-	fs.meta.Delete(m)
-
-	nm, err := fs.meta.CreateFile(newPath)
-	if err != nil {
-		return fuse.ToStatus(err)
-	}
-
-	return fuse.ToStatus(nm.Save(info))
+	fs.populateDirFile(oldPath)
+	fs.populateParentDir(newPath)
+	return f()
 }
 
-func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) (code fuse.Status) {
+func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) fuse.Status {
 	log.Errorf("Link `%v` -> `%v`", orig, newName)
-	return fuse.ToStatus(syscall.Link(fs.GetPath(orig), fs.GetPath(newName)))
+
+	_, origMd, st := fs.Meta(orig)
+	if st != fuse.OK {
+		return st
+	}
+
+	f := func() fuse.Status {
+		if err := syscall.Link(fs.GetPath(orig), fs.GetPath(newName)); err != nil {
+			return fuse.ToStatus(err)
+		}
+		m, err := fs.meta.CreateFile(newName)
+		if err != nil {
+			return fuse.ToStatus(err)
+		}
+		return fuse.ToStatus(m.Save(origMd))
+	}
+	if st := f(); st != fuse.ENOENT {
+		return st
+	}
+	fs.populateDirFile(orig)
+	fs.populateParentDir(newName)
+	return f()
+
 }
 
 func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
@@ -509,7 +540,7 @@ func (fs *fileSystem) GetXAttr(name string, attr string, context *fuse.Context) 
 
 func (fs *fileSystem) RemoveXAttr(name string, attr string, context *fuse.Context) fuse.Status {
 	log.Error("RemoveXAttr")
-	return fuse.ENOSYS
+	return fuse.ToStatus(syscall.Removexattr(fs.GetPath(name), attr))
 }
 
 func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, fuse.Status) {
