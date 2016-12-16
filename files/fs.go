@@ -49,7 +49,7 @@ func NewFS(mountpoint string, backend *config.Backend, storage storage.Storage, 
 		AttrTimeout:     time.Second,
 		EntryTimeout:    time.Second,
 	}
-	fs.pathFs = pathfs.NewPathNodeFs(filesys, nil)
+	fs.pathFs = pathfs.NewPathNodeFs(filesys, &pathfs.PathNodeFsOptions{ClientInodes: true})
 	fs.conn = nodefs.NewFileSystemConnector(fs.pathFs.Root(), opts)
 
 	mOpts := &fuse.MountOptions{
@@ -61,8 +61,9 @@ func NewFS(mountpoint string, backend *config.Backend, storage storage.Storage, 
 	if err != nil {
 		return fs, err
 	}
+	logging.SetLevel(4, "")
 	fs.server = state
-	// fs.server.SetDebug(true)
+	//fs.server.SetDebug(true)
 
 	return fs, nil
 }
