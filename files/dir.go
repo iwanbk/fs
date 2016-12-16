@@ -10,32 +10,28 @@ import (
 func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(path)
 
-	backendFn := func() fuse.Status {
-		return fuse.ToStatus(os.Mkdir(fullPath, os.FileMode(mode)))
+	f := func() fuse.Status {
+		if err := os.Mkdir(fullPath, os.FileMode(mode)); err != nil {
+			return fuse.ToStatus(err)
+		}
+		_, err := fs.meta.CreateDir(path)
+		return fuse.ToStatus(err)
 	}
 
-	metaFn := func() { fs.meta.CreateDir(path) }
-
-	if st := backendFn(); st != fuse.ENOENT {
-		metaFn()
+	if st := f(); st != fuse.ENOENT {
 		return st
 	}
 
 	// only populate directories above it.
 	fs.populateParentDir(path)
 
-	if st := backendFn(); st != fuse.OK {
-		return st
-	}
-
-	metaFn()
+	return f()
 	// This line break mkdir on OL
 	// fs.tracker.Touch(fullPath)
-	return fuse.OK
 }
 
 // Rmdir deletes a directory
-func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Status) {
+func (fs *fileSystem) Rmdir(name string, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(name)
 	log.Debugf("Rmdir %v", fullPath)
 	m, exists := fs.meta.Get(name)
@@ -43,21 +39,31 @@ func (fs *fileSystem) Rmdir(name string, context *fuse.Context) (code fuse.Statu
 		return fuse.ENOENT
 	}
 
-	if err := os.Remove(fullPath); err != nil {
-		return fuse.ToStatus(err)
+	f := func() fuse.Status {
+		if err := os.Remove(fullPath); err != nil {
+			return fuse.ToStatus(err)
+		}
+		return fuse.ToStatus(fs.meta.Delete(m))
 	}
 
-	return fuse.ToStatus(fs.meta.Delete(m))
+	if st := f(); st != fuse.ENOENT {
+		return st
+	}
+	fs.populateDirFile(name)
+	return f()
 }
 
 // OpenDir opens a directory and return all files/dir in the directory.
 // If it finds .meta file, it shows the file represented by that meta
-func (fs *fileSystem) OpenDir(name string, context *fuse.Context) (stream []fuse.DirEntry, status fuse.Status) {
+func (fs *fileSystem) OpenDir(name string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
 	log.Debugf("OpenDir %v", fs.GetPath(name))
 	m, exists := fs.meta.Get(name)
 	if !exists {
 		return nil, fuse.ENOENT
 	}
+
+	fs.populateDirFile(name)
+
 	var output []fuse.DirEntry
 	log.Debugf("Listing children in directory %s", name)
 
