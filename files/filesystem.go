@@ -107,25 +107,31 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 
 	log.Debugf("Open %v", name)
 
+	// check file meta
 	m, exists := fs.meta.Get(name)
 	if flags&uint32(os.O_RDONLY) > 0 && !exists {
 		return nil, fuse.ENOENT
 	}
 
-	err := syscall.Lstat(fs.GetPath(name), &st)
-
+	// check dir meta
 	_, exists = fs.meta.Get(path.Dir(name))
 	if !exists {
 		return nil, fuse.ENOENT
 	}
 
 	dir := path.Dir(name)
-	if _, ok := fs.meta.Get(dir); ok {
-		os.MkdirAll(fs.GetPath(dir), 0755)
-	} else {
+	if _, ok := fs.meta.Get(dir); !ok {
 		return nil, fuse.ENOENT
 	}
 
+	// populate parent dir if needed
+	if !fs.checkExist(fs.GetPath(dir)) {
+		fs.populateDirFile(dir)
+	}
+
+	// download file if exist in meta
+	// but not exist in backend
+	err := syscall.Lstat(fs.GetPath(name), &st)
 	if exists && os.IsNotExist(err) {
 		if err := fs.download(m, fs.GetPath(name)); err != nil {
 			log.Errorf("Error getting file from stor: %s", err)
