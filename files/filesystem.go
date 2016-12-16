@@ -327,17 +327,18 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 	//return fuse.ToStatus(syscall.Access(fs.GetPath(name), mode))
 }
 
-func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (fuseFile nodefs.File, code fuse.Status) {
+func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
 	log.Debugf("Create:%v", name)
 	dir := path.Dir(name)
-	if _, ok := fs.meta.Get(dir); ok {
-		os.MkdirAll(fs.GetPath(dir), 0755)
-	} else {
+
+	if _, ok := fs.meta.Get(dir); !ok {
 		return nil, fuse.ENOENT
 	}
+	fs.populateDirFile(dir)
 
 	f, err := os.OpenFile(fs.GetPath(name), int(flags)|os.O_CREATE|os.O_TRUNC, os.FileMode(mode))
 	if err != nil {
+		log.Errorf("Create `%v` failed : %v", name, err)
 		return nil, fuse.EIO
 	}
 
