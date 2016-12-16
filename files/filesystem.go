@@ -260,12 +260,12 @@ func (fs *fileSystem) Unlink(name string, context *fuse.Context) fuse.Status {
 func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.Context) fuse.Status {
 	log.Errorf("Symlink %v -> %v", pointedTo, linkName)
 	// check if linkName exist
-	if _, exist := fs.meta.Get(pointedTo); exist {
+	if _, exist := fs.meta.Get(linkName); exist {
 		return fuse.EIO
 	}
 
 	f := func() fuse.Status {
-		if err := syscall.Symlink(fs.GetPath(pointedTo), fs.GetPath(linkName)); err != nil {
+		if err := syscall.Symlink(pointedTo, fs.GetPath(linkName)); err != nil {
 			return fuse.ToStatus(err)
 		}
 
