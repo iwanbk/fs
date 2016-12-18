@@ -185,11 +185,20 @@ func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context
 	return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
 }
 
-func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
+func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(name)
 
+	m, md, st := fs.Meta(name)
+	if st != fuse.OK {
+		return st
+	}
+
 	f := func() fuse.Status {
-		return fuse.ToStatus(os.Chmod(fullPath, os.FileMode(mode)))
+		if err := os.Chmod(fullPath, os.FileMode(mode)); err != nil {
+			return fuse.ToStatus(err)
+		}
+		md.Permissions = mode & uint32(os.ModePerm)
+		return fuse.ToStatus(m.Save(md))
 	}
 
 	if status := f(); status != fuse.ENOENT {
@@ -205,8 +214,18 @@ func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) (co
 func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
 	fullPath := fs.GetPath(name)
 
+	m, md, st := fs.Meta(name)
+	if st != fuse.OK {
+		return st
+	}
+
 	f := func() fuse.Status {
-		return fuse.ToStatus(os.Chown(fullPath, int(uid), int(gid)))
+		if err := os.Chown(fullPath, int(uid), int(gid)); err != nil {
+			return fuse.ToStatus(err)
+		}
+		md.Uid = uid
+		md.Gid = gid
+		return fuse.ToStatus(m.Save(md))
 	}
 
 	if status := f(); status != fuse.ENOENT {
@@ -304,7 +323,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 
 	f := func() fuse.Status {
 		// rename file
-		if err := os.Rename(fullOldPath, fullNewPath); err != nil {
+		if err := syscall.Rename(fullOldPath, fullNewPath); err != nil {
 			log.Warning("data file doesn't exist")
 		}
 
@@ -560,7 +579,7 @@ func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, f
 }
 
 func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.Context) fuse.Status {
-	log.Errorf("Mknod:%v", name)
+	log.Debugf("Mknod:%v", name)
 
 	// if already exist in meta, but not exist in backend
 	if _, exist := fs.meta.Get(name); exist && !fs.checkExist(fs.GetPath(name)) {
@@ -569,7 +588,6 @@ func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.
 
 	f := func() fuse.Status {
 		if err := syscall.Mknod(fs.GetPath(name), mode, int(dev)); err != nil {
-			log.Errorf("Mknod `%v` failed:%v", name, err)
 			return fuse.ToStatus(err)
 		}
 
@@ -582,7 +600,6 @@ func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.
 		}
 		md, err := m.Load()
 		if err != nil {
-			log.Errorf("Mknod : failed to load meta:%v", err)
 			return fuse.ToStatus(err)
 		}
 		md.Permissions = mode & uint32(os.ModePerm)
@@ -593,7 +610,6 @@ func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.
 	if st := f(); st != fuse.ENOENT {
 		return st
 	}
-	log.Errorf("Mknod : retry mknod `%v` by populating parent dir", name)
 	fs.populateParentDir(name)
 	return f()
 }
@@ -639,11 +655,12 @@ func (fs *fileSystem) populateDirFile(name string) fuse.Status {
 			if err := os.Mkdir(fullPath, os.FileMode(md.Permissions)); err != nil {
 				return fuse.ToStatus(err)
 			}
-
-		default:
+		case syscall.S_IFREG:
 			if err := fs.download(m, fs.GetPath(path)); err != nil {
 				return fuse.EIO
 			}
+		default:
+			log.Errorf("populateDirFile unsupported filetype:%v", md.Filetype)
 		}
 	}
 	return fuse.OK
