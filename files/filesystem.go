@@ -160,7 +160,6 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 			log.Errorf("Error getting file from stor: %s", err)
 			return nil, fuse.EIO
 		}
-		return fs.Open(name, flags, context)
 	}
 
 	file, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
@@ -203,6 +202,7 @@ func (fs *fileSystem) metaFromRealFile(fullPath string, md *meta.MetaData) (*met
 }
 
 func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) (code fuse.Status) {
+	log.Errorf("Truncate:%v", path)
 	m, err := fs.meta.CreateFile(path)
 	if err != nil {
 		return fuse.ToStatus(err)
@@ -266,28 +266,21 @@ func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.C
 	return f()
 }
 
-func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, code fuse.Status) {
-	var err error
-
-	m, exists := fs.meta.Get(name)
-	if !exists {
-		return "", fuse.ENOENT
-	}
-	metadata, err := m.Load()
-	if err != nil {
-		return "", fuse.ToStatus(err)
+func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse.Status) {
+	_, md, st := fs.Meta(name)
+	if st != fuse.OK {
+		return "", st
 	}
 
-	if metadata.Filetype != syscall.S_IFLNK {
+	if md.Filetype != syscall.S_IFLNK {
 		return "", fuse.EIO
 	}
 
-	return metadata.Extended, fuse.OK
+	return md.Extended, fuse.OK
 }
 
 // Don't use os.Remove, it removes twice (unlink followed by rmdir).
 func (fs *fileSystem) Unlink(name string, context *fuse.Context) fuse.Status {
-	log.Debugf("Unlink:%v", name)
 	fullPath := fs.GetPath(name)
 
 	m, exists := fs.meta.Get(name)
@@ -320,7 +313,7 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 
 func (fs *fileSystem) symlink(pointedTo string, linkName string, context *fuse.Context, createMeta bool) fuse.Status {
 	if err := syscall.Symlink(pointedTo, fs.GetPath(linkName)); err != nil {
-		log.Errorf("syscall symlink failed:%v", err)
+		log.Errorf("syscall symlink `%v` -> `%v` failed:%v", pointedTo, linkName, err)
 		return fuse.ToStatus(err)
 	}
 
@@ -346,7 +339,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 	fullOldPath := fs.GetPath(oldPath)
 	fullNewPath := fs.GetPath(newPath)
 
-	log.Errorf("Rename (%v) -> (%v)", oldPath, newPath)
+	log.Debugf("Rename (%v) -> (%v)", oldPath, newPath)
 
 	m, exists := fs.meta.Get(oldPath)
 	if !exists {
@@ -373,7 +366,11 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 			return fuse.ToStatus(err)
 		}
 
-		return fuse.ToStatus(nm.Save(info))
+		md, err := fs.metaFromRealFile(fullNewPath, info)
+		if err != nil {
+			log.Errorf("Rename: failed to create metadata:%v", err)
+		}
+		return fuse.ToStatus(nm.Save(md))
 	}
 	if st := f(); st != fuse.ENOENT {
 		return st
@@ -410,10 +407,8 @@ func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) f
 
 }
 
-func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (code fuse.Status) {
-	log.Debugf("Access %v", fs.GetPath(name))
-	return fuse.OK
-	//return fuse.ToStatus(syscall.Access(fs.GetPath(name), mode))
+func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) fuse.Status {
+	return fuse.ToStatus(syscall.Access(fs.GetPath(name), mode))
 }
 
 func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
