@@ -23,7 +23,7 @@ func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) fus
 	}
 
 	// only populate directories above it.
-	fs.populateParentDir(path)
+	fs.populateParentDir(path, context)
 
 	return f()
 	// This line break mkdir on OL
@@ -49,7 +49,7 @@ func (fs *fileSystem) Rmdir(name string, context *fuse.Context) fuse.Status {
 	if st := f(); st != fuse.ENOENT {
 		return st
 	}
-	fs.populateDirFile(name)
+	fs.populateDirFile(name, context)
 	return f()
 }
 
@@ -62,7 +62,7 @@ func (fs *fileSystem) OpenDir(name string, context *fuse.Context) ([]fuse.DirEnt
 		return nil, fuse.ENOENT
 	}
 
-	fs.populateDirFile(name)
+	fs.populateDirFile(name, context)
 
 	var output []fuse.DirEntry
 	log.Debugf("Listing children in directory %s", name)
