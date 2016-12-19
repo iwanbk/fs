@@ -109,18 +109,13 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 
 	// check file meta
 	m, exists := fs.meta.Get(name)
-	if flags&uint32(os.O_RDONLY) > 0 && !exists {
-		return nil, fuse.ENOENT
-	}
-
-	// check dir meta
-	_, exists = fs.meta.Get(path.Dir(name))
 	if !exists {
 		return nil, fuse.ENOENT
 	}
 
+	// check dir meta
 	dir := path.Dir(name)
-	if _, ok := fs.meta.Get(dir); !ok {
+	if _, exists := fs.meta.Get(dir); !exists {
 		return nil, fuse.ENOENT
 	}
 
@@ -132,7 +127,7 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 	// download file if exist in meta
 	// but not exist in backend
 	err := syscall.Lstat(fs.GetPath(name), &st)
-	if exists && os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 		if err := fs.download(m, fs.GetPath(name)); err != nil {
 			log.Errorf("Error getting file from stor: %s", err)
 			return nil, fuse.EIO
@@ -141,39 +136,43 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 		return fs.Open(name, flags, context)
 	}
 
-	//we can reach here only if we are in create mode.
-	//we need to create a meta file to associate with this file.
-	m, err = fs.meta.CreateFile(name)
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-
-	data, err := m.Load()
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-
 	file, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
 	if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
 
-	if err := syscall.Stat(fs.GetPath(name), &st); err != nil {
-		return nil, fuse.ToStatus(err)
+	return NewLoopbackFile(m, file), fuse.OK
+}
+
+// generate metadata from real file
+func (fs *fileSystem) metaFromRealFile(fullPath string, md *meta.MetaData) (*meta.MetaData, error) {
+	var st syscall.Stat_t
+	if err := syscall.Lstat(fullPath, &st); err != nil {
+		return nil, err
 	}
 
-	m.Save(&meta.MetaData{
-		Inode:       data.Inode,
+	newMd := &meta.MetaData{
+		Inode:       st.Ino,
 		Size:        uint64(st.Size),
-		Filetype:    syscall.S_IFREG,
+		Filetype:    st.Mode & uint32(os.ModeType),
 		Uid:         st.Uid,
 		Gid:         st.Gid,
-		Permissions: st.Mode | uint32(os.ModePerm),
+		Permissions: st.Mode & uint32(os.ModePerm),
 		Ctime:       uint64(st.Ctim.Sec),
 		Mtime:       uint64(st.Mtim.Sec),
-	})
-
-	return NewLoopbackFile(m, file), fuse.OK
+	}
+	if md == nil {
+		return newMd, nil
+	}
+	newMd.Hash = md.Hash
+	newMd.Uname = md.Uname
+	newMd.Gname = md.Gname
+	newMd.Extended = md.Extended
+	newMd.DevMajor = md.DevMajor
+	newMd.DevMinor = md.DevMinor
+	newMd.UserKey = md.UserKey
+	newMd.StoreKey = md.StoreKey
+	return newMd, nil
 }
 
 func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) (code fuse.Status) {
@@ -293,7 +292,6 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 			syscall.Unlink(linkName) // clean it up
 			return fuse.ToStatus(err)
 		}
-
 		return fuse.ToStatus(m.Save(&meta.MetaData{
 			Filetype:    syscall.S_IFLNK,
 			Extended:    pointedTo,
@@ -324,7 +322,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 	f := func() fuse.Status {
 		// rename file
 		if err := syscall.Rename(fullOldPath, fullNewPath); err != nil {
-			log.Warning("data file doesn't exist")
+			log.Warning("Rename : data file doesn't exist")
 		}
 
 		// adjust metadata
@@ -384,7 +382,7 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 }
 
 func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
-	log.Debugf("Create:%v", name)
+	log.Errorf("Create:%v", name)
 	dir := path.Dir(name)
 
 	if _, ok := fs.meta.Get(dir); !ok {
@@ -402,6 +400,11 @@ func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fu
 	if err != nil {
 		return nil, fuse.ToStatus(err)
 	}
+	md, err := fs.metaFromRealFile(fs.GetPath(name), nil)
+	if err != nil {
+		return nil, fuse.ToStatus(err)
+	}
+	m.Save(md)
 
 	return NewLoopbackFile(m, f), fuse.OK
 }
