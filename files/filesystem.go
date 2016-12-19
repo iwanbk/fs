@@ -546,9 +546,11 @@ func (fs *fileSystem) Utimens(name string, aTime *time.Time, mTime *time.Time, c
 			syscall.Timespec{Sec: int64(mTime.Second()), Nsec: int64(mTime.Nanosecond())},
 		}
 
-		if err := syscall.UtimesNano(fs.GetPath(name), ts); err != nil {
-			log.Errorf("UtimesNano `%v` failed:%v", name, err)
-			return fuse.ToStatus(err)
+		if md.Filetype != syscall.S_IFLNK { // TODO : handle symlink.
+			if err := syscall.UtimesNano(fs.GetPath(name), ts); err != nil {
+				log.Errorf("UtimesNano `%v` failed:%v", name, err)
+				return fuse.ToStatus(err)
+			}
 		}
 
 		// modify metadata
