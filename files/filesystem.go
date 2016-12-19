@@ -73,6 +73,8 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	fs.populateDirFile(name, context)
 	return f()
 }
+
+/*
 func (fs *fileSystem) GetAttr1(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	var err error
 	attr := &fuse.Attr{}
@@ -124,6 +126,7 @@ func (fs *fileSystem) GetAttr1(name string, context *fuse.Context) (*fuse.Attr, 
 
 	return attr, fuse.OK
 }
+*/
 
 // Open opens a file.
 // Download it from stor if file not exist
@@ -157,7 +160,6 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 			log.Errorf("Error getting file from stor: %s", err)
 			return nil, fuse.EIO
 		}
-
 		return fs.Open(name, flags, context)
 	}
 
@@ -355,6 +357,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 		// rename file
 		if err := syscall.Rename(fullOldPath, fullNewPath); err != nil {
 			log.Warning("Rename : data file doesn't exist")
+			return fuse.ToStatus(err)
 		}
 
 		// adjust metadata
