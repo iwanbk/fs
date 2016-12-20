@@ -147,31 +147,29 @@ func (fs *fileSystem) metaFromRealFile(fullPath string, md *meta.MetaData) (*met
 	return newMd, nil
 }
 
-func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) (code fuse.Status) {
-	log.Errorf("Truncate:%v", path)
-	m, err := fs.meta.CreateFile(path)
-	if err != nil {
-		return fuse.ToStatus(err)
+func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) fuse.Status {
+	if _, exists := fs.meta.Get(path); !exists {
+		return fuse.ENOENT
 	}
-	m.SetStat(m.Stat().SetModified(true))
-	return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
+	f := func() fuse.Status {
+		return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
+	}
+	if st := f(); st != fuse.ENOENT {
+		return st
+	}
+	fs.populateDirFile(path, context)
+	return f()
 }
 
 func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(name)
 
-	m, md, st := fs.Meta(name)
-	if st != fuse.OK {
-		return st
+	if _, exists := fs.meta.Get(name); !exists {
+		return fuse.ENOENT
 	}
 
 	f := func() fuse.Status {
-		if err := os.Chmod(fullPath, os.FileMode(mode)); err != nil {
-			log.Errorf("Chmod failed for `%v` : %v", name, err)
-			return fuse.ToStatus(err)
-		}
-		md.Permissions = mode & uint32(os.ModePerm)
-		return fuse.ToStatus(m.Save(md))
+		return fuse.ToStatus(os.Chmod(fullPath, os.FileMode(mode)))
 	}
 
 	if status := f(); status != fuse.ENOENT {
@@ -185,21 +183,14 @@ func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) fus
 }
 
 func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
-	m, md, st := fs.Meta(name)
-	if st != fuse.OK {
-		return st
+	if _, exists := fs.meta.Get(name); !exists {
+		return fuse.ENOENT
 	}
 
 	fullPath := fs.GetPath(name)
 
 	f := func() fuse.Status {
-		if err := syscall.Lchown(fullPath, int(uid), int(gid)); err != nil {
-			log.Errorf("Chown failed for `%v` : %v", name, err)
-			return fuse.ToStatus(err)
-		}
-		md.Uid = uid
-		md.Gid = gid
-		return fuse.ToStatus(m.Save(md))
+		return fuse.ToStatus(os.Lchown(fullPath, int(uid), int(gid)))
 	}
 
 	if status := f(); status != fuse.ENOENT {
@@ -318,12 +309,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 		if err != nil {
 			return fuse.ToStatus(err)
 		}
-
-		md, err := fs.metaFromRealFile(fullNewPath, info)
-		if err != nil {
-			log.Errorf("Rename: failed to create metadata:%v", err)
-		}
-		return fuse.ToStatus(nm.Save(md))
+		return fuse.ToStatus(nm.Save(info))
 	}
 	if st := f(); st != fuse.ENOENT {
 		return st
@@ -334,7 +320,7 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 }
 
 func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) fuse.Status {
-	log.Errorf("Link `%v` -> `%v`", orig, newName)
+	log.Debugf("Link `%v` -> `%v`", orig, newName)
 
 	_, origMd, st := fs.Meta(orig)
 	if st != fuse.OK {
@@ -373,7 +359,7 @@ func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fu
 	}
 	fs.populateDirFile(dir, context)
 
-	f, err := os.OpenFile(fs.GetPath(name), int(flags)|os.O_CREATE|os.O_TRUNC, os.FileMode(mode))
+	f, err := os.OpenFile(fs.GetPath(name), int(flags), os.FileMode(mode))
 	if err != nil {
 		log.Errorf("Create `%v` failed : %v", name, err)
 		return nil, fuse.EIO
@@ -695,6 +681,6 @@ func (fs *fileSystem) populateParentDir(name string, ctx *fuse.Context) fuse.Sta
 }
 
 func (fs *fileSystem) checkExist(path string) bool {
-	_, err := os.Stat(path)
+	_, err := os.Lstat(path)
 	return !os.IsNotExist(err)
 }
