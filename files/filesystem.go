@@ -74,60 +74,6 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	return f()
 }
 
-/*
-func (fs *fileSystem) GetAttr1(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	var err error
-	attr := &fuse.Attr{}
-
-	m, exists := fs.meta.Get(name)
-
-	if !exists {
-		return nil, fuse.ENOENT
-	}
-
-	metadata, err := m.Load()
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-
-	var st syscall.Stat_t
-	err = syscall.Stat(fs.GetPath(name), &st)
-	if err == nil {
-		log.Debugf("GetAttr %v: metadata, forwarding from backend", fs.GetPath(name))
-		attr.FromStat(&st)
-		attr.Ino = metadata.Inode
-		return attr, fuse.OK
-	}
-
-	attr.Size = metadata.Size
-	attr.Mode = metadata.Filetype | metadata.Permissions
-
-	if metadata.Filetype == syscall.S_IFLNK {
-		attr.Mode = metadata.Filetype | 0777
-		if err := syscall.Lstat(metadata.Extended, &st); err == nil {
-			attr.Uid = st.Uid
-			attr.Gid = st.Gid
-			attr.Ctime = uint64(st.Ctim.Sec)
-			attr.Mtime = uint64(st.Mtim.Sec)
-		}
-	} else {
-		attr.Ctime = metadata.Ctime
-		attr.Mtime = metadata.Mtime
-		attr.Uid = metadata.Uid
-		attr.Gid = metadata.Gid
-	}
-
-	attr.Ino = metadata.Inode
-
-	// block and character devices
-	if metadata.Filetype == syscall.S_IFCHR || metadata.Filetype == syscall.S_IFBLK {
-		attr.Rdev = uint32((metadata.DevMajor * 256) + metadata.DevMinor)
-	}
-
-	return attr, fuse.OK
-}
-*/
-
 // Open opens a file.
 // Download it from stor if file not exist
 func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
@@ -267,16 +213,23 @@ func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.C
 }
 
 func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse.Status) {
-	_, md, st := fs.Meta(name)
+	_, _, st := fs.Meta(name)
 	if st != fuse.OK {
 		return "", st
 	}
 
-	if md.Filetype != syscall.S_IFLNK {
-		return "", fuse.EIO
+	f := func() (string, fuse.Status) {
+		out, err := os.Readlink(fs.GetPath(name))
+		if err != nil {
+			log.Errorf("Readlink failed for `%v` : %v", name, err)
+		}
+		return out, fuse.ToStatus(err)
 	}
-
-	return md.Extended, fuse.OK
+	if out, st := f(); st != fuse.ENOENT {
+		return out, st
+	}
+	fs.populateDirFile(name, context)
+	return f()
 }
 
 // Don't use os.Remove, it removes twice (unlink followed by rmdir).
@@ -603,23 +556,37 @@ func (fs *fileSystem) GetXAttr(name string, attr string, context *fuse.Context) 
 
 func (fs *fileSystem) RemoveXAttr(name string, attr string, context *fuse.Context) fuse.Status {
 	log.Error("RemoveXAttr")
-	return fuse.ToStatus(syscall.Removexattr(fs.GetPath(name), attr))
+	f := func() fuse.Status {
+		return fuse.ToStatus(syscall.Removexattr(fs.GetPath(name), attr))
+	}
+	if st := f(); st != fuse.ENOENT {
+		return st
+	}
+	fs.populateDirFile(name, context)
+	return f()
 }
 
 func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, fuse.Status) {
 	log.Errorf("ListXAttr:%v", name)
 	dest := []byte{}
 
-	if _, err := syscall.Listxattr(fs.GetPath(name), dest); err != nil {
-		return []string{}, fuse.ToStatus(err)
-	}
-	blines := bytes.Split(dest, []byte{0})
+	f := func() ([]string, fuse.Status) {
+		if _, err := syscall.Listxattr(fs.GetPath(name), dest); err != nil {
+			return []string{}, fuse.ToStatus(err)
+		}
+		blines := bytes.Split(dest, []byte{0})
 
-	lines := make([]string, 0, len(blines))
-	for _, bl := range blines {
-		lines = append(lines, string(bl))
+		lines := make([]string, 0, len(blines))
+		for _, bl := range blines {
+			lines = append(lines, string(bl))
+		}
+		return lines, fuse.OK
 	}
-	return lines, fuse.ToStatus(nil)
+	if out, st := f(); st != fuse.ENOENT {
+		return out, st
+	}
+	fs.populateDirFile(name, context)
+	return f()
 }
 
 func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.Context) fuse.Status {
