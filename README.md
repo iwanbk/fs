@@ -3,6 +3,9 @@
 # aysfs
 Caching filesystem which will be used by ays, mainly used to deploy applications in a grid
 
+## Releases:
+- [0.9.0](https://github.com/g8os/fs/tree/0.9.0) - last release
+
 # How to
 config file example
 ```
@@ -19,7 +22,7 @@ config file example
     stor="stor1"
     #namespace="testing"
     namespace="dedupe"
-    
+
     upload=true
     encrypted=false
     # encrypted=true
@@ -36,7 +39,7 @@ config file example
     login="zaibon"
     passwd="supersecret"
 ```
-## Stores 
+## Stores
 Stores defines the places where files can be retrieved. A store is defined with an `aydostor` section as following
 ```toml
 [aydostor.storX]
