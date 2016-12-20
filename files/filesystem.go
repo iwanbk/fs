@@ -49,22 +49,15 @@ func (fs *fileSystem) GetPath(relPath string) string {
 }
 
 func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	var err error
+	_, metadata, status := fs.Meta(name)
+	if status != fuse.OK {
+		return nil, status
+	}
+
 	attr := &fuse.Attr{}
-
-	m, exists := fs.meta.Get(name)
-
-	if !exists {
-		return nil, fuse.ENOENT
-	}
-
-	metadata, err := m.Load()
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-
 	var st syscall.Stat_t
-	err = syscall.Stat(fs.GetPath(name), &st)
+
+	err := syscall.Stat(fs.GetPath(name), &st)
 	if err == nil {
 		log.Debugf("GetAttr %v: metadata, forwarding from backend", fs.GetPath(name))
 		attr.FromStat(&st)
@@ -132,8 +125,6 @@ func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (no
 			log.Errorf("Error getting file from stor: %s", err)
 			return nil, fuse.EIO
 		}
-
-		return fs.Open(name, flags, context)
 	}
 
 	file, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
@@ -219,7 +210,7 @@ func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.C
 	}
 
 	f := func() fuse.Status {
-		if err := os.Chown(fullPath, int(uid), int(gid)); err != nil {
+		if err := syscall.Lchown(fullPath, int(uid), int(gid)); err != nil {
 			return fuse.ToStatus(err)
 		}
 		md.Uid = uid
@@ -237,23 +228,17 @@ func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.C
 	return f()
 }
 
-func (fs *fileSystem) Readlink(name string, context *fuse.Context) (out string, code fuse.Status) {
-	var err error
-
-	m, exists := fs.meta.Get(name)
-	if !exists {
-		return "", fuse.ENOENT
-	}
-	metadata, err := m.Load()
-	if err != nil {
-		return "", fuse.ToStatus(err)
+func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse.Status) {
+	_, md, st := fs.Meta(name)
+	if st != fuse.OK {
+		return "", st
 	}
 
-	if metadata.Filetype != syscall.S_IFLNK {
+	if md.Filetype != syscall.S_IFLNK {
 		return "", fuse.EIO
 	}
 
-	return metadata.Extended, fuse.OK
+	return md.Extended, fuse.OK
 }
 
 // Don't use os.Remove, it removes twice (unlink followed by rmdir).
@@ -302,7 +287,6 @@ func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.C
 	if st := f(); st != fuse.ENOENT {
 		return st
 	}
-	fs.populateDirFile(pointedTo)
 	fs.populateParentDir(linkName)
 	return f()
 }
@@ -322,7 +306,8 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 	f := func() fuse.Status {
 		// rename file
 		if err := syscall.Rename(fullOldPath, fullNewPath); err != nil {
-			log.Warning("Rename : data file doesn't exist")
+			log.Errorf("Rename `%v` -> `%v` failed:%v", oldPath, newPath, err)
+			return fuse.ToStatus(err)
 		}
 
 		// adjust metadata
@@ -337,8 +322,11 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 		if err != nil {
 			return fuse.ToStatus(err)
 		}
-
-		return fuse.ToStatus(nm.Save(info))
+		md, err := fs.metaFromRealFile(fullNewPath, info)
+		if err != nil {
+			log.Errorf("Rename: failed to create metadata:%v", err)
+		}
+		return fuse.ToStatus(nm.Save(md))
 	}
 	if st := f(); st != fuse.ENOENT {
 		return st
@@ -382,7 +370,7 @@ func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) (c
 }
 
 func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
-	log.Errorf("Create:%v", name)
+	log.Debugf("Create:%v", name)
 	dir := path.Dir(name)
 
 	if _, ok := fs.meta.Get(dir); !ok {
@@ -502,26 +490,36 @@ func (fs *fileSystem) Meta(path string) (meta.Meta, *meta.MetaData, fuse.Status)
 }
 
 // Utimens changes the access and modification times of the inode specified by filename to the actime and modtime fields of times respectively.
-func (fs *fileSystem) Utimens(name string, aTime *time.Time, mTime *time.Time, context *fuse.Context) (code fuse.Status) {
+func (fs *fileSystem) Utimens(name string, aTime *time.Time, mTime *time.Time, context *fuse.Context) fuse.Status {
 	// check if exist
 	m, md, st := fs.Meta(name)
 	if st != fuse.OK {
 		return st
 	}
 
-	// modify backend
-	ts := []syscall.Timespec{
-		syscall.Timespec{Sec: int64(aTime.Second()), Nsec: int64(aTime.Nanosecond())},
-		syscall.Timespec{Sec: int64(mTime.Second()), Nsec: int64(mTime.Nanosecond())},
-	}
+	f := func() fuse.Status {
+		// modify backend
+		ts := []syscall.Timespec{
+			syscall.Timespec{Sec: int64(aTime.Second()), Nsec: int64(aTime.Nanosecond())},
+			syscall.Timespec{Sec: int64(mTime.Second()), Nsec: int64(mTime.Nanosecond())},
+		}
 
-	if err := syscall.UtimesNano(fs.GetPath(name), ts); err != nil {
-		return fuse.ToStatus(err)
-	}
+		if md.Filetype != syscall.S_IFLNK { // TODO : handle symlink.
+			if err := syscall.UtimesNano(fs.GetPath(name), ts); err != nil {
+				return fuse.ToStatus(err)
+			}
+		}
 
-	// modify metadata
-	md.Mtime = uint64(mTime.Second())
-	return fuse.ToStatus(m.Save(md))
+		// modify metadata
+		md.Mtime = uint64(mTime.Second())
+		return fuse.ToStatus(m.Save(md))
+	}
+	if st := f(); st != fuse.ENOENT {
+		return st
+	}
+	fs.populateDirFile(name)
+	return f()
+
 }
 
 // StatFs get filesystem statistics
