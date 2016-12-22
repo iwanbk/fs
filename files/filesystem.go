@@ -56,7 +56,9 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 	attr := &fuse.Attr{}
 
 	if err := syscall.Lstat(fs.GetPath(name), &st); err != nil {
-		log.Errorf("GetAttr failed for `%v` : %v", name, err)
+		if err != syscall.ENOENT {
+			log.Errorf("GetAttr failed for `%v` : %v", name, err)
+		}
 		return nil, fuse.ToStatus(err)
 	}
 
@@ -133,17 +135,19 @@ func (fs *fileSystem) Unlink(name string, context *fuse.Context) fuse.Status {
 
 func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.Context) fuse.Status {
 	log.Debugf("Symlink %v -> %v", pointedTo, linkName)
+
 	fs.populate(linkName, context)
 	fs.populateParentDir(linkName, context)
-	return fs.symlink(pointedTo, linkName, context)
+
+	return fuse.ToStatus(fs.symlink(pointedTo, linkName, context))
 }
 
-func (fs *fileSystem) symlink(pointedTo string, linkName string, context *fuse.Context) fuse.Status {
+func (fs *fileSystem) symlink(pointedTo string, linkName string, context *fuse.Context) error {
 	err := os.Symlink(pointedTo, fs.GetPath(linkName))
 	if err != nil {
 		log.Errorf("syscall symlink `%v` -> `%v` failed:%v", pointedTo, linkName, err)
 	}
-	return fuse.ToStatus(err)
+	return err
 }
 
 // Rename handles dir & file rename operation
@@ -344,11 +348,11 @@ func (fs *fileSystem) GetXAttr(name string, attr string, context *fuse.Context) 
 	dest := []byte{}
 
 	_, err := syscall.Getxattr(fs.GetPath(name), attr, dest)
-	if err != nil {
+	if err != nil && err != syscall.ENODATA {
 		log.Errorf("getxattr failed for `%v` : %v", name, err)
 	}
-
 	return dest, fuse.ToStatus(err)
+
 }
 
 func (fs *fileSystem) RemoveXAttr(name string, attr string, context *fuse.Context) fuse.Status {
@@ -386,89 +390,28 @@ func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, f
 
 func (fs *fileSystem) Mknod(name string, mode uint32, dev uint32, context *fuse.Context) fuse.Status {
 	log.Debugf("Mknod:%v", name)
+
 	fs.populate(name, context)
 	fs.populateParentDir(name, context)
 
-	return fs.mknod(name, mode, dev, context)
+	return fuse.ToStatus(fs.mknod(name, mode, dev, context))
 }
 
-func (fs *fileSystem) mknod(name string, mode uint32, dev uint32, context *fuse.Context) fuse.Status {
+func (fs *fileSystem) mknod(name string, mode uint32, dev uint32, context *fuse.Context) error {
 	err := syscall.Mknod(fs.GetPath(name), mode, int(dev))
 	if err != nil {
 		log.Errorf("Mknod `%v` failed : %v", name, err)
 	}
-	return fuse.ToStatus(err)
+	return err
 }
 
 // populate dir/file when needed
 // to handle cases where we need access to directory/file
 // while the directory, file, or directories above it
 // hasn't been populated yet.
-func (fs *fileSystem) populateDirFile(name string, ctx *fuse.Context) fuse.Status {
-	log.Debugf("fuse : populate %v", name)
-	// check meta
-	_, _, st := fs.Meta(name)
-	if st != fuse.OK {
-		return fuse.OK
-	}
-
-	// check in backend
-	if fs.checkExist(fs.GetPath(name)) {
-		return fuse.OK
-	}
-
-	// populate it, starting from the top
-	var path string
-	paths := strings.Split(name, "/")
-	for _, p := range paths {
-		path = path + "/" + p
-		fullPath := fs.GetPath(path)
-
-		// check if already exist in backend
-		if fs.checkExist(fullPath) {
-			continue
-		}
-
-		// get meta
-		m, md, st := fs.Meta(path)
-		if st != fuse.OK {
-			return st
-		}
-		if m.Stat() == meta.MetaPopulated {
-			fs.cleanupMeta(m, md, 0)
-			continue
-		}
-		// populate dir/file
-		switch md.Filetype {
-		case syscall.S_IFDIR: // it is a directory
-			if err := os.Mkdir(fullPath, os.FileMode(md.Permissions)); err != nil {
-				log.Errorf("populate dir `%v` failed:%v", path, err)
-				return fuse.ToStatus(err)
-			}
-		case syscall.S_IFREG:
-			if err := fs.download(m, fullPath); err != nil {
-				log.Errorf("populate file `%v` failed:%v", path, err)
-				return fuse.EIO
-			}
-		case syscall.S_IFLNK:
-			if st := fs.symlink(md.Extended, path, ctx); st != fuse.OK {
-				log.Errorf("failed to populate link `%v` -> `%v` : %v", path, md.Extended, st)
-				return st
-			}
-		default:
-			if st := fs.mknod(path, md.Permissions|md.Filetype, uint32((md.DevMajor*256)+md.DevMinor), ctx); st != fuse.OK {
-				log.Errorf("failed to populate special file : `%v` : %v", path, st)
-				return st
-			}
-		}
-		m.SetStat(meta.MetaPopulated)
-		fs.cleanupMeta(m, md, 0)
-	}
-	return fuse.OK
-}
-
 func (fs *fileSystem) populate(path string, ctx *fuse.Context) bool {
-	if m, exists := fs.meta.Get(path); !exists || m.Stat() == meta.MetaPopulated {
+	m, exists := fs.meta.Get(path)
+	if !exists || m.Stat() == meta.MetaPopulated {
 		return false
 	}
 
@@ -480,12 +423,52 @@ func (fs *fileSystem) populateParentDir(name string, ctx *fuse.Context) bool {
 	return fs.populate(filepath.Dir(strings.TrimSuffix(name, "/")), ctx)
 }
 
-func (fs *fileSystem) checkExist(path string) bool {
-	_, err := os.Lstat(path)
-	return !os.IsNotExist(err)
+func (fs *fileSystem) populateDirFile(name string, ctx *fuse.Context) fuse.Status {
+	log.Debugf("fuse : populate %v", name)
+
+	// populate it, starting from the top
+	var path string
+	paths := strings.Split(name, "/")
+
+	for _, p := range paths {
+		path = filepath.Join(path, p)
+		fullPath := fs.GetPath(path)
+
+		// get meta
+		m, md, st := fs.Meta(path)
+		if st != fuse.OK {
+			return st
+		}
+		if m.Stat() == meta.MetaPopulated {
+			fs.cleanupMeta(m, md, 0)
+			continue
+		}
+
+		// populate dir/file
+		err := func() error {
+			switch md.Filetype {
+			case syscall.S_IFDIR: // it is a directory
+				return os.Mkdir(fullPath, os.FileMode(md.Permissions))
+			case syscall.S_IFREG:
+				return fs.download(m, fullPath)
+			case syscall.S_IFLNK:
+				return fs.symlink(md.Extended, path, ctx)
+			default:
+				return fs.mknod(path, md.Permissions|md.Filetype, uint32((md.DevMajor*256)+md.DevMinor), ctx)
+			}
+		}()
+		if err != nil {
+			log.Errorf("populateDirFile `%v` failed : %v", path, err)
+			return fuse.ToStatus(err)
+		}
+		m.SetStat(meta.MetaPopulated)
+		fs.cleanupMeta(m, md, 0)
+	}
+	return fuse.OK
 }
 
 // delete meta and it's children after being populated
+// TODO : optimize this code
 func (fs *fileSystem) cleanupMeta(m meta.Meta, md *meta.MetaData, level int) error {
 	if level == 2 {
 		return nil

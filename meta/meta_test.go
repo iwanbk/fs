@@ -12,13 +12,13 @@ func TestMetaStatInitial(t *testing.T) {
 }
 
 func TestMetaStatMod(t *testing.T) {
-	s := MetaState(0200)
+	s := MetaState(MetaModified)
 
 	assert.True(t, s.Modified())
 }
 
 func TestMetaStatDel(t *testing.T) {
-	s := MetaState(0100)
+	s := MetaState(MetaDeleted)
 
 	assert.False(t, s.Modified())
 }
