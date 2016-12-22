@@ -12,53 +12,32 @@ import (
 
 // Mkdir creates a directory
 func (fs *fileSystem) Mkdir(path string, mode uint32, context *fuse.Context) fuse.Status {
-	fullPath := fs.GetPath(path)
+	fs.populate(path, context)
 
-	f := func() fuse.Status {
-		if err := os.Mkdir(fullPath, os.FileMode(mode)); err != nil {
-			return fuse.ToStatus(err)
-		}
-		_, err := fs.meta.CreateDir(path)
-		return fuse.ToStatus(err)
+	err := os.Mkdir(fs.GetPath(path), os.FileMode(mode))
+	if err != nil {
+		log.Errorf("Mkdir failed for `%v` : %v", err)
 	}
+	return fuse.ToStatus(err)
 
-	if st := f(); st != fuse.ENOENT {
-		return st
-	}
-
-	// only populate directories above it.
-	fs.populateParentDir(path, context)
-
-	return f()
-	// This line break mkdir on OL
-	// fs.tracker.Touch(fullPath)
 }
 
 // Rmdir deletes a directory
 func (fs *fileSystem) Rmdir(name string, context *fuse.Context) fuse.Status {
-	fullPath := fs.GetPath(name)
-	log.Debugf("Rmdir %v", fullPath)
+	fs.populate(name, context)
 
-	f := func() fuse.Status {
-		err := os.Remove(fullPath)
-		if err != nil {
-			log.Errorf("Rmdir failed for `%v` : %v", name, err)
-		}
-		return fuse.ToStatus(err)
+	err := os.Remove(fs.GetPath(name))
+	if err != nil {
+		log.Errorf("Rmdir failed for `%v` : %v", name, err)
 	}
-
-	if st := f(); st != fuse.ENOENT {
-		return st
-	}
-	fs.populateDirFile(name, context)
-	return f()
+	return fuse.ToStatus(err)
 }
 
 // OpenDir opens a directory and return all files/dir in the directory.
 // If it finds .meta file, it shows the file represented by that meta
 func (fs *fileSystem) OpenDir(name string, context *fuse.Context) ([]fuse.DirEntry, fuse.Status) {
 	log.Debugf("OpenDir %v", name)
-	fs.populateDirFile(name, context)
+	fs.populate(name, context)
 	if m, exists := fs.meta.Get(name); exists {
 		fs.populateDirents(name, m, context)
 	}
