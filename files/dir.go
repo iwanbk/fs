@@ -66,7 +66,7 @@ func (fs *fileSystem) OpenDir(name string, context *fuse.Context) ([]fuse.DirEnt
 
 func (fs *fileSystem) populateDirents(dir string, m meta.Meta, ctx *fuse.Context) {
 	for child := range m.Children() {
-		fs.populateDirFile(filepath.Join(dir, child.Name()), ctx)
+		fs.populate(filepath.Join(dir, child.Name()), ctx)
 	}
 
 }
