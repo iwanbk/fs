@@ -37,10 +37,11 @@ type MetaData struct {
 type MetaState uint32
 
 const (
-	MetaStateMask MetaState = 0500
-	MetaInitial   MetaState = 0400
-	MetaModified  MetaState = 0200
-	MetaDeleted   MetaState = 0100
+	MetaInitial   MetaState = 1 << 0
+	MetaPopulated MetaState = 1 << 1
+	MetaModified  MetaState = 1 << 2
+	MetaDeleted   MetaState = 1 << 3
+	MetaStateMask MetaState = MetaInitial | MetaPopulated | MetaModified | MetaDeleted
 )
 
 func (s MetaState) Modified() bool {

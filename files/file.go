@@ -6,22 +6,20 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/g8os/fs/meta"
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
 )
 
 // LoopbackFile delegates all operations back to an underlying os.File.
-func NewLoopbackFile(m meta.Meta, f *os.File) nodefs.File {
+func NewLoopbackFile(f *os.File) nodefs.File {
 	return &loopbackFile{
 		File: f,
-		m:    m,
 	}
 }
 
 type loopbackFile struct {
 	File *os.File
-	m    meta.Meta
+	//m    meta.Meta
 	// os.File is not threadsafe. Although fd themselves are
 	// constant during the lifetime of an open file, the OS may
 	// reuse the fd number after it is closed. When open races
@@ -53,7 +51,6 @@ func (f *loopbackFile) Read(buf []byte, off int64) (res fuse.ReadResult, code fu
 func (f *loopbackFile) Write(data []byte, off int64) (uint32, fuse.Status) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
-	f.m.SetStat(f.m.Stat().SetModified(true))
 	n, err := f.File.WriteAt(data, off)
 	return uint32(n), fuse.ToStatus(err)
 }

@@ -51,11 +51,6 @@ func (fs *fileSystem) GetPath(relPath string) string {
 func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	log.Debugf("GetAttr:%v", name)
 
-	_, exists := fs.meta.Get(name)
-	if !exists {
-		return nil, fuse.ENOENT
-	}
-
 	fullPath := fs.GetPath(name)
 
 	f := func() (*fuse.Attr, fuse.Status) {
@@ -69,11 +64,13 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 		attr.FromStat(&st)
 		return attr, fuse.OK
 	}
-	if a, st := f(); st != fuse.ENOENT {
+	a, st := f()
+	if st != fuse.ENOENT {
 		return a, st
 	}
-
-	fs.populateDirFile(name, context)
+	if !fs.populate(name, context) {
+		return a, st
+	}
 
 	attr, st := f()
 	if st != fuse.OK {
@@ -87,87 +84,56 @@ func (fs *fileSystem) GetAttr(name string, context *fuse.Context) (*fuse.Attr, f
 func (fs *fileSystem) Open(name string, flags uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
 	log.Debugf("Open %v", name)
 
-	// check file meta
-	m, exists := fs.meta.Get(name)
-	if !exists {
-		return nil, fuse.ENOENT
-	}
-
-	// check dir meta
-	dir := path.Dir(name)
-	if _, exists := fs.meta.Get(dir); !exists {
-		return nil, fuse.ENOENT
-	}
-
-	// download file if exist in meta
-	// but not exist in backend
-	if !fs.checkExist(name) {
-		if st := fs.populateDirFile(name, context); st != fuse.OK {
-			log.Errorf("Failed to populate dir/file: %s", st)
-			return nil, st
+	f := func() (nodefs.File, fuse.Status) {
+		file, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
+		if err != nil {
+			log.Errorf("failed to openfile `%v`:%v", name, err)
+			return nil, fuse.ToStatus(err)
 		}
+
+		return NewLoopbackFile(file), fuse.OK
 	}
 
-	file, err := os.OpenFile(fs.GetPath(name), int(flags), 0)
-	if err != nil {
-		log.Errorf("failed to openfile `%v`:%v", name, err)
-		return nil, fuse.ToStatus(err)
+	file, st := f()
+	if st != fuse.ENOENT {
+		return file, st
 	}
 
-	return NewLoopbackFile(m, file), fuse.OK
-}
-
-// generate metadata from real file
-func (fs *fileSystem) metaFromRealFile(fullPath string, md *meta.MetaData) (*meta.MetaData, error) {
-	var st syscall.Stat_t
-	if err := syscall.Lstat(fullPath, &st); err != nil {
-		return nil, err
+	if !fs.populate(name, context) {
+		return file, st
 	}
-
-	newMd := &meta.MetaData{
-		Inode:       st.Ino,
-		Size:        uint64(st.Size),
-		Filetype:    st.Mode & uint32(os.ModeType),
-		Uid:         st.Uid,
-		Gid:         st.Gid,
-		Permissions: st.Mode & uint32(os.ModePerm),
-		Ctime:       uint64(st.Ctim.Sec),
-		Mtime:       uint64(st.Mtim.Sec),
-	}
-	if md == nil {
-		return newMd, nil
-	}
-	newMd.Hash = md.Hash
-	newMd.Uname = md.Uname
-	newMd.Gname = md.Gname
-	newMd.Extended = md.Extended
-	newMd.DevMajor = md.DevMajor
-	newMd.DevMinor = md.DevMinor
-	newMd.UserKey = md.UserKey
-	newMd.StoreKey = md.StoreKey
-	return newMd, nil
+	return f()
 }
 
 func (fs *fileSystem) Truncate(path string, offset uint64, context *fuse.Context) fuse.Status {
-	if _, exists := fs.meta.Get(path); !exists {
-		return fuse.ENOENT
-	}
 	f := func() fuse.Status {
 		return fuse.ToStatus(os.Truncate(fs.GetPath(path), int64(offset)))
 	}
-	if st := f(); st != fuse.ENOENT {
+	st := f()
+	if st != fuse.ENOENT {
 		return st
 	}
-	fs.populateDirFile(path, context)
+
+	if !fs.populate(path, context) {
+		return st
+	}
 	return f()
+}
+
+func (fs *fileSystem) populate(path string, ctx *fuse.Context) bool {
+	if _, exists := fs.meta.Get(path); !exists {
+		if path == "lib64/ld-linux-x86-64.so.2" {
+			log.Errorf("meta for lib64/ld-linux-x86-64.so.2 doesnt exist")
+		}
+		return false
+	}
+
+	fs.populateDirFile(path, ctx)
+	return true
 }
 
 func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(name)
-
-	if _, exists := fs.meta.Get(name); !exists {
-		return fuse.ENOENT
-	}
 
 	f := func() fuse.Status {
 		err := os.Chmod(fullPath, os.FileMode(mode))
@@ -177,21 +143,18 @@ func (fs *fileSystem) Chmod(name string, mode uint32, context *fuse.Context) fus
 		return fuse.ToStatus(err)
 	}
 
-	if status := f(); status != fuse.ENOENT {
-		return status
+	st := f()
+	if st != fuse.ENOENT {
+		return st
 	}
 
-	if status := fs.populateDirFile(name, context); status != fuse.OK {
-		return status
+	if !fs.populate(name, context) {
+		return st
 	}
 	return f()
 }
 
 func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.Context) (code fuse.Status) {
-	if _, exists := fs.meta.Get(name); !exists {
-		return fuse.ENOENT
-	}
-
 	fullPath := fs.GetPath(name)
 
 	f := func() fuse.Status {
@@ -202,23 +165,18 @@ func (fs *fileSystem) Chown(name string, uid uint32, gid uint32, context *fuse.C
 		}
 		return fuse.ToStatus(err)
 	}
-
-	if status := f(); status != fuse.ENOENT {
-		return status
+	st := f()
+	if st != fuse.ENOENT {
+		return st
+	}
+	if !fs.populate(name, context) {
+		return st
 	}
 
-	if status := fs.populateDirFile(name, context); status != fuse.OK {
-		return status
-	}
 	return f()
 }
 
 func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse.Status) {
-	_, _, st := fs.Meta(name)
-	if st != fuse.OK {
-		return "", st
-	}
-
 	f := func() (string, fuse.Status) {
 		out, err := os.Readlink(fs.GetPath(name))
 		if err != nil {
@@ -226,10 +184,15 @@ func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse
 		}
 		return out, fuse.ToStatus(err)
 	}
-	if out, st := f(); st != fuse.ENOENT {
+
+	out, st := f()
+	if st != fuse.ENOENT {
 		return out, st
 	}
-	fs.populateDirFile(name, context)
+
+	if !fs.populate(name, context) {
+		return out, st
+	}
 	return f()
 }
 
@@ -237,28 +200,23 @@ func (fs *fileSystem) Readlink(name string, context *fuse.Context) (string, fuse
 func (fs *fileSystem) Unlink(name string, context *fuse.Context) fuse.Status {
 	fullPath := fs.GetPath(name)
 
-	m, exists := fs.meta.Get(name)
-	if !exists {
-		log.Errorf("Unlink failed:`%v` not exist in meta", name)
-		return fuse.ENOENT
+	f := func() fuse.Status {
+		return fuse.ToStatus(syscall.Unlink(fullPath))
 	}
 
-	if err := syscall.Unlink(fullPath); err != nil {
-		log.Errorf("Unlink : data file '%s' doesn't exist", fullPath)
+	st := f()
+	if st != fuse.ENOENT {
+		return st
 	}
-
-	fs.meta.Delete(m)
-	return fuse.OK
+	if !fs.populate(name, context) {
+		return st
+	}
+	return f()
 }
 
 func (fs *fileSystem) Symlink(pointedTo string, linkName string, context *fuse.Context) fuse.Status {
 	log.Debugf("Symlink %v -> %v", pointedTo, linkName)
 	// check if linkName exist
-	if _, exist := fs.meta.Get(linkName); exist {
-		log.Errorf("Failed to create symlink `%v` -> `%v` linkName exist", pointedTo, linkName)
-		return fuse.EIO
-	}
-
 	if st := fs.symlink(pointedTo, linkName, context, true); st != fuse.ENOENT {
 		return st
 	}
@@ -271,22 +229,7 @@ func (fs *fileSystem) symlink(pointedTo string, linkName string, context *fuse.C
 		log.Errorf("syscall symlink `%v` -> `%v` failed:%v", pointedTo, linkName, err)
 		return fuse.ToStatus(err)
 	}
-
-	if !createMeta {
-		return fuse.OK
-	}
-
-	m, err := fs.meta.CreateFile(linkName)
-	if err != nil {
-		syscall.Unlink(linkName) // clean it up
-		return fuse.ToStatus(err)
-	}
-	return fuse.ToStatus(m.Save(&meta.MetaData{
-		Filetype:    syscall.S_IFLNK,
-		Extended:    pointedTo,
-		Permissions: 0777,
-	}))
-
+	return fuse.OK
 }
 
 // Rename handles dir & file rename operation
@@ -296,35 +239,18 @@ func (fs *fileSystem) Rename(oldPath string, newPath string, context *fuse.Conte
 
 	log.Debugf("Rename (%v) -> (%v)", oldPath, newPath)
 
-	m, exists := fs.meta.Get(oldPath)
-	if !exists {
-		return fuse.ENOENT
-	}
-
 	f := func() fuse.Status {
 		// rename file
-		if err := os.Rename(fullOldPath, fullNewPath); err != nil {
-			log.Warning("Rename : data file doesn't exist")
-			return fuse.ToStatus(err)
-		}
-
-		// adjust metadata
-		info, err := m.Load()
+		err := os.Rename(fullOldPath, fullNewPath)
 		if err != nil {
-			return fuse.ToStatus(err)
+			log.Errorf("Rename failed:%v", err)
 		}
-
-		fs.meta.Delete(m)
-
-		nm, err := fs.meta.CreateFile(newPath)
-		if err != nil {
-			return fuse.ToStatus(err)
-		}
-		return fuse.ToStatus(nm.Save(info))
+		return fuse.ToStatus(err)
 	}
 	if st := f(); st != fuse.ENOENT {
 		return st
 	}
+
 	fs.populateDirFile(oldPath, context)
 	fs.populateParentDir(newPath, context)
 	return f()
@@ -359,51 +285,32 @@ func (fs *fileSystem) Link(orig string, newName string, context *fuse.Context) f
 }
 
 func (fs *fileSystem) Access(name string, mode uint32, context *fuse.Context) fuse.Status {
-	f := func() error {
-		return syscall.Access(fs.GetPath(name), mode)
+	f := func() fuse.Status {
+		return fuse.ToStatus(syscall.Access(fs.GetPath(name), mode))
 	}
-
-	if err := f(); err != syscall.ENOENT {
-		return fuse.ToStatus(err)
-	}
-	if st := fs.populateDirFile(name, context); st != fuse.OK {
+	st := f()
+	if st != fuse.ENOENT {
 		return st
 	}
-
-	err := f()
-	if err != nil {
-		log.Errorf("Access failed for `%v` : %v", name, err)
+	if !fs.populate(name, context) {
+		return st
 	}
-	return fuse.ToStatus(err)
+	return f()
 }
 
 func (fs *fileSystem) Create(name string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
-	log.Debugf("Create:%v", name)
 	dir := path.Dir(name)
+	fs.populate(dir, context)
 
-	if _, ok := fs.meta.Get(dir); !ok {
-		return nil, fuse.ENOENT
+	f := func() (nodefs.File, fuse.Status) {
+		f, err := os.OpenFile(fs.GetPath(name), int(flags), os.FileMode(mode))
+		if err != nil {
+			log.Errorf("Create `%v` failed : %v", name, err)
+			return nil, fuse.EIO
+		}
+		return NewLoopbackFile(f), fuse.OK
 	}
-	fs.populateDirFile(dir, context)
-
-	f, err := os.OpenFile(fs.GetPath(name), int(flags), os.FileMode(mode))
-	if err != nil {
-		log.Errorf("Create `%v` failed : %v", name, err)
-		return nil, fuse.EIO
-	}
-
-	m, err := fs.meta.CreateFile(name)
-	if err != nil {
-		return nil, fuse.ToStatus(err)
-	}
-	md, err := fs.metaFromRealFile(fs.GetPath(name), nil)
-	if err != nil {
-		log.Errorf("metaFromRealFile failed for %v:%v", name, err)
-		return nil, fuse.ToStatus(err)
-	}
-	m.Save(md)
-
-	return NewLoopbackFile(m, f), fuse.OK
+	return f()
 }
 
 // download file from stor
@@ -500,35 +407,32 @@ func (fs *fileSystem) Meta(path string) (meta.Meta, *meta.MetaData, fuse.Status)
 
 // Utimens changes the access and modification times of the inode specified by filename to the actime and modtime fields of times respectively.
 func (fs *fileSystem) Utimens(name string, aTime *time.Time, mTime *time.Time, context *fuse.Context) fuse.Status {
-	// check if exist
-	m, md, st := fs.Meta(name)
-	if st != fuse.OK {
-		return st
-	}
-
+	fullPath := fs.GetPath(name)
 	f := func() fuse.Status {
 		// modify backend
-		ts := []syscall.Timespec{
-			syscall.Timespec{Sec: int64(aTime.Second()), Nsec: int64(aTime.Nanosecond())},
-			syscall.Timespec{Sec: int64(mTime.Second()), Nsec: int64(mTime.Nanosecond())},
-		}
+		/*ts := []syscall.Timeval{
+			syscall.Timeval{Sec: int64(aTime.Second()), Usec: int64(aTime.Nanosecond() / 1000)},
+			syscall.Timeval{Sec: int64(mTime.Second()), Usec: int64(mTime.Nanosecond() / 1000)},
+		}*/
 
-		if md.Filetype != syscall.S_IFLNK { // TODO : handle symlink.
-			if err := syscall.UtimesNano(fs.GetPath(name), ts); err != nil {
-				log.Errorf("UtimesNano `%v` failed:%v", name, err)
-				return fuse.ToStatus(err)
-			}
+		//err := syscall.Utimes(fs.GetPath(name), ts)
+		if fs.isSymlink(fullPath) {
+			return fuse.OK
 		}
-
-		// modify metadata
-		md.Mtime = uint64(mTime.Second())
-		return fuse.ToStatus(m.Save(md))
+		err := os.Chtimes(fullPath, *aTime, *mTime)
+		if err != nil {
+			log.Errorf("UtimesNano `%v` failed:%v", name, err)
+		}
+		return fuse.ToStatus(err)
 	}
 
-	if st := f(); st != fuse.ENOENT {
+	st := f()
+	if st != fuse.ENOENT {
 		return st
 	}
-	fs.populateDirFile(name, context)
+	if !fs.populate(name, context) {
+		return st
+	}
 	return f()
 }
 
@@ -558,11 +462,13 @@ func (fs *fileSystem) SetXAttr(name string, attr string, data []byte, flags int,
 		}
 		return fuse.ToStatus(err)
 	}
-	if st := f(); st != fuse.ENOENT {
+	st := f()
+	if st != fuse.ENOENT {
 		return st
 	}
-	fs.populateDirFile(name, context)
-
+	if !fs.populate(name, context) {
+		return st
+	}
 	return f()
 }
 
@@ -577,17 +483,18 @@ func (fs *fileSystem) GetXAttr(name string, attr string, context *fuse.Context) 
 		return dest, fuse.ToStatus(err)
 	}
 
-	if dest, st := f(); st != fuse.ENOENT {
+	dest, st := f()
+	if st != fuse.ENOENT {
 		return dest, st
 	}
-
-	fs.populateDirFile(name, context)
-
-	out, st := f()
-	if st != fuse.OK {
-		log.Errorf("Getxattr failed for `%v`: %v", name, st)
+	if !fs.populate(name, context) {
+		return dest, st
 	}
-	return out, st
+	dest, st = f()
+	if st != fuse.OK {
+		log.Errorf("getxattr failed for `%v` : %v", name, st)
+	}
+	return dest, st
 }
 
 func (fs *fileSystem) RemoveXAttr(name string, attr string, context *fuse.Context) fuse.Status {
@@ -600,20 +507,21 @@ func (fs *fileSystem) RemoveXAttr(name string, attr string, context *fuse.Contex
 		}
 		return fuse.ToStatus(err)
 	}
-
-	if st := f(); st != fuse.ENOENT {
+	st := f()
+	if st != fuse.ENOENT {
 		return st
 	}
-
-	fs.populateDirFile(name, context)
+	if !fs.populate(name, context) {
+		return st
+	}
 	return f()
 }
 
 func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, fuse.Status) {
 	log.Debugf("ListXAttr:%v", name)
-	dest := []byte{}
 
 	f := func() ([]string, fuse.Status) {
+		dest := []byte{}
 		if _, err := syscall.Listxattr(fs.GetPath(name), dest); err != nil {
 			log.Errorf("Listxattr failed for `%v` : %v", name, err)
 			return []string{}, fuse.ToStatus(err)
@@ -629,10 +537,14 @@ func (fs *fileSystem) ListXAttr(name string, context *fuse.Context) ([]string, f
 		return lines, fuse.OK
 	}
 
-	if out, st := f(); st != fuse.ENOENT {
+	out, st := f()
+	if st != fuse.ENOENT {
 		return out, st
 	}
-	fs.populateDirFile(name, context)
+
+	if !fs.populate(name, context) {
+		return out, st
+	}
 	return f()
 }
 
@@ -656,26 +568,7 @@ func (fs *fileSystem) mknod(name string, mode uint32, dev uint32, context *fuse.
 		log.Errorf("Mknod `%v` failed : %v", name, err)
 		return fuse.ToStatus(err)
 	}
-
-	if !createMeta {
-		return fuse.OK
-	}
-
-	// create meta
-	m, err := fs.meta.CreateFile(name)
-	if err != nil {
-		// FIXME : clean it up
-		log.Errorf("Mknod failed : can't create meta:%v", err)
-		return fuse.EIO
-	}
-	md, err := m.Load()
-	if err != nil {
-		return fuse.ToStatus(err)
-	}
-	md.Permissions = mode & uint32(os.ModePerm)
-	md.Filetype = mode & uint32(os.ModeType)
-	return fuse.ToStatus(m.Save(md))
-
+	return fuse.OK
 }
 
 // populate dir/file when needed
@@ -712,15 +605,20 @@ func (fs *fileSystem) populateDirFile(name string, ctx *fuse.Context) fuse.Statu
 		if st != fuse.OK {
 			return st
 		}
-
+		if m.Stat() == meta.MetaPopulated {
+			fs.cleanupMeta(m, md, 0)
+			continue
+		}
 		// populate dir/file
 		switch md.Filetype {
 		case syscall.S_IFDIR: // it is a directory
 			if err := os.Mkdir(fullPath, os.FileMode(md.Permissions)); err != nil {
+				log.Errorf("populate dir `%v` failed:%v", path, err)
 				return fuse.ToStatus(err)
 			}
 		case syscall.S_IFREG:
 			if err := fs.download(m, fullPath); err != nil {
+				log.Errorf("populate file `%v` failed:%v", path, err)
 				return fuse.EIO
 			}
 		case syscall.S_IFLNK:
@@ -734,6 +632,8 @@ func (fs *fileSystem) populateDirFile(name string, ctx *fuse.Context) fuse.Statu
 				return st
 			}
 		}
+		m.SetStat(meta.MetaPopulated)
+		fs.cleanupMeta(m, md, 0)
 	}
 	return fuse.OK
 }
@@ -745,4 +645,41 @@ func (fs *fileSystem) populateParentDir(name string, ctx *fuse.Context) fuse.Sta
 func (fs *fileSystem) checkExist(path string) bool {
 	_, err := os.Lstat(path)
 	return !os.IsNotExist(err)
+}
+
+// delete meta and it's children after being populated
+func (fs *fileSystem) cleanupMeta(m meta.Meta, md *meta.MetaData, level int) error {
+	if level == 2 {
+		return nil
+	}
+	if md.Filetype != syscall.S_IFDIR {
+		return fs.meta.Delete(m)
+	}
+
+	children := []meta.Meta{}
+	for child := range m.Children() {
+		children = append(children, child)
+	}
+
+	if len(children) == 0 && m.Stat() == meta.MetaPopulated {
+		return fs.meta.Delete(m)
+	}
+	for _, child := range children {
+		childMd, err := child.Load()
+		if err != nil {
+			continue
+		}
+		if childMd.Filetype == syscall.S_IFDIR {
+			fs.cleanupMeta(child, childMd, level+1)
+		}
+	}
+	return nil
+}
+
+func (fs *fileSystem) isSymlink(fullPath string) bool {
+	fi, err := os.Lstat(fullPath)
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeSymlink == os.ModeSymlink
 }
